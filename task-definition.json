@@ -1,0 +1,21 @@
+{
+    "family": "go-backend-task",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::593054043164:role/AIS-Prod-ais-stack-ServiceTaskDefExecutionRole919F-99QBGDABOKDA",
+    "containerDefinitions": [
+      {
+        "name": "go-backend",
+        "image": "593054043164.dkr.ecr.eu-north-1.amazonaws.com/armadacms:latest",
+        "portMappings": [
+          {
+            "containerPort": 8080,
+            "protocol": "tcp"
+          }
+        ],
+        "essential": true
+      }
+    ]
+  }
