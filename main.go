@@ -55,28 +55,28 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+	api := mux.PathPrefix(("api/v1/")).Subrouter()
+	api.HandleFunc("/login", controllers.Login)
 
-	mux.HandleFunc("/login", controllers.Login)
+	api.HandleFunc("/customusers", controllers.GetUsers).Methods("GET")
+	api.HandleFunc("/customusers/{id}", controllers.GetUserByID).Methods("GET")
+	api.HandleFunc("/customusers", controllers.CreateUser).Methods("POST")
+	api.HandleFunc("/customusers/{id}", controllers.UpdateUser).Methods("PUT")
+	api.HandleFunc("/customusers/{id}", controllers.DeleteUser).Methods("DELETE")
 
-	mux.HandleFunc("/customusers", controllers.GetUsers).Methods("GET")
-	mux.HandleFunc("/customusers/{id}", controllers.GetUserByID).Methods("GET")
-	mux.HandleFunc("/customusers", controllers.CreateUser).Methods("POST")
-	mux.HandleFunc("/customusers/{id}", controllers.UpdateUser).Methods("PUT")
-	mux.HandleFunc("/customusers/{id}", controllers.DeleteUser).Methods("DELETE")
+	api.HandleFunc("/profiles", controllers.GetProfiles).Methods("GET")
+	api.HandleFunc("/profiles/{id}", controllers.GetProfileByID).Methods("GET")
+	api.HandleFunc("/profiles", controllers.CreateProfile).Methods("POST")
+	api.HandleFunc("/profiles/{id}", controllers.UpdateProfile).Methods("PUT")
+	api.HandleFunc("/profiles/{id}", controllers.DeleteProfile).Methods("DELETE")
 
-	mux.HandleFunc("/profiles", controllers.GetProfiles).Methods("GET")
-	mux.HandleFunc("/profiles/{id}", controllers.GetProfileByID).Methods("GET")
-	mux.HandleFunc("/profiles", controllers.CreateProfile).Methods("POST")
-	mux.HandleFunc("/profiles/{id}", controllers.UpdateProfile).Methods("PUT")
-	mux.HandleFunc("/profiles/{id}", controllers.DeleteProfile).Methods("DELETE")
+	api.HandleFunc("/teams", controllers.GetTeams).Methods("GET")
+	api.HandleFunc("/teams/{id}", controllers.GetTeamByID).Methods("GET")
+	api.HandleFunc("/teams", controllers.CreateTeam).Methods("POST")
+	api.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
+	api.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
 
-	mux.HandleFunc("/teams", controllers.GetTeams).Methods("GET")
-	mux.HandleFunc("/teams/{id}", controllers.GetTeamByID).Methods("GET")
-	mux.HandleFunc("/teams", controllers.CreateTeam).Methods("POST")
-	mux.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
-	mux.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
-
-	mux.HandleFunc("/test", controllers.Test).Methods("GET")
+	api.HandleFunc("/test", controllers.Test).Methods("GET")
 
 	return mux
 }
