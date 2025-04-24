@@ -41,6 +41,14 @@ func main() {
 }
 func CreateMuxClient() http.Handler {
 	mux := mux.NewRouter()
+
+	mux.Use(func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+            next.ServeHTTP(w, r)
+        })
+    })
+
 	mux = CreateControllers(mux)
 	wrappedMux := HandleCORS(mux)
 	return wrappedMux
@@ -55,7 +63,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
-	api := mux.PathPrefix(("api/v1/")).Subrouter()
+	api := mux.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/login", controllers.Login)
 
 	api.HandleFunc("/customusers", controllers.GetUsers).Methods("GET")
@@ -76,7 +84,12 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	api.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
 	api.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
 
-	api.HandleFunc("/test", controllers.Test).Methods("GET")
+	api.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
+	api.HandleFunc("/events", controllers.Test).Methods("GET")
+	api.HandleFunc("/exhibitors", controllers.Test).Methods("GET")
+    api.HandleFunc("/organization", controllers.GetOrganization).Methods("GET")
+
+    api.HandleFunc("/test", controllers.Test).Methods("GET")
 
 	return mux
 }
