@@ -43,11 +43,11 @@ func CreateMuxClient() http.Handler {
 	mux := mux.NewRouter()
 
 	mux.Use(func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
-            next.ServeHTTP(w, r)
-        })
-    })
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	mux = CreateControllers(mux)
 	wrappedMux := HandleCORS(mux)
@@ -87,9 +87,9 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	api.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 	api.HandleFunc("/events", controllers.Test).Methods("GET")
 	api.HandleFunc("/exhibitors", controllers.Test).Methods("GET")
-    api.HandleFunc("/organization", controllers.GetOrganization).Methods("GET")
+	api.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 
-    api.HandleFunc("/test", controllers.Test).Methods("GET")
+	api.HandleFunc("/test", controllers.Test).Methods("GET")
 
 	return mux
 }

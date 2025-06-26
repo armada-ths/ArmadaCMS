@@ -5,7 +5,7 @@ import {
   EditButton,
   ListProps,
   DeleteWithConfirmButton,
-  FileField,
+  // FileField,
 } from "react-admin";
 
 export const ProfileList = (props: ListProps) => {
@@ -17,7 +17,7 @@ export const ProfileList = (props: ListProps) => {
         <TextField source="team.team_name" label="Team name" />
         <TextField source="linkedin" />
         <TextField source="email" />
-        <FileField source="photo" />
+        {/* <FileField source="photo" /> */}
         <EditButton />
         <DeleteWithConfirmButton
           confirmTitle="Are you sure?"
