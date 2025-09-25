@@ -3,10 +3,6 @@ import { loginApi } from "./authMethods";
 
 export const authProvider: AuthProvider = {
   async login({ username, password }) {
-    // if (username !== "john" || password !== "123") {
-    //   throw new Error("Login failed");
-    // }
-    // localStorage.setItem("username", username);
     try {
       const tokens = await loginApi({ username, password });
 
@@ -18,31 +14,38 @@ export const authProvider: AuthProvider = {
       return Promise.reject(error);
     }
   },
+
   async checkError(error) {
     const status = error.status;
     if (status === 401 || status === 403) {
-      localStorage.removeItem("username");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       throw new Error("Session expired");
     }
-    // other error codes (404, 500, etc): no need to log out
+    return Promise.resolve();
   },
+
   async checkAuth() {
-    if (
-      !localStorage.getItem("accessToken") ||
-      !localStorage.getItem("refreshToken")
-    ) {
+    const access = localStorage.getItem("accessToken");
+    const refresh = localStorage.getItem("refreshToken");
+    if (!access || !refresh) {
       throw new Error("Not authenticated");
     }
+    return Promise.resolve();
   },
+
   async logout() {
-    localStorage.removeItem("username");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    return Promise.resolve();
   },
+
   async getIdentity() {
-    const username = localStorage.getItem("username");
-    if (!username) {
+    // optional: decode JWT to extract identity info
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
       throw new Error("No identity found");
     }
-
-    return { id: username, fullName: username };
+    return { id: "me", fullName: "Authenticated User" };
   },
 };

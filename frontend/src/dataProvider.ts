@@ -8,7 +8,23 @@ import {
 import globalApi from "./context/globalApi";
 
 const endpoint = globalApi();
-const baseDataProvider = simpleRestDataProvider(endpoint);
+export const httpClient: (
+  url: string,
+  options?: fetchUtils.Options,
+) => Promise<FetchJsonResponse> = (url, options = {}) => {
+  const token = localStorage.getItem("accessToken");
+
+  const headers = new Headers(
+    options.headers || { Accept: "application/json" },
+  );
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  options.headers = headers;
+
+  return fetchUtils.fetchJson(url, options);
+};
+const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
 
 type PostParams = {
   id: string;
@@ -42,6 +58,12 @@ const createPostFormData = (
 
   return formData;
 };
+export type FetchJsonResponse = {
+  status: number;
+  headers: Headers;
+  body: string;
+  json: unknown;
+};
 
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
@@ -52,6 +74,7 @@ export const dataProvider: DataProvider = {
         .fetchJson(`${endpoint}/${resource}`, {
           method: "POST",
           body: formData,
+          credentials: "include",
         })
         .then(({ json }) => ({ data: json }));
     }
@@ -64,6 +87,7 @@ export const dataProvider: DataProvider = {
         .fetchJson(`${endpoint}/${resource}/${params.id}`, {
           method: "PUT",
           body: formData,
+          credentials: "include",
         })
         .then(({ json }) => ({ data: json }));
     }

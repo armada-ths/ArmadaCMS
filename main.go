@@ -2,6 +2,7 @@ package main
 
 import (
 	controllers "ArmadaCMS/main/Controllers"
+	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"fmt"
@@ -70,71 +71,73 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+	//refactor in future this is quity messy. // WD
+	publicAPI := mux.PathPrefix("/api/v1").Subrouter()
+	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
+	protectedAPI.Use(auth.Middleware)
+	publicAPI.HandleFunc("/login", controllers.Login)
 
-	api := mux.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/login", controllers.Login)
+	protectedAPI.HandleFunc("/customusers", controllers.GetUsers).Methods("GET")
+	protectedAPI.HandleFunc("/customusers/{id}", controllers.GetUserByID).Methods("GET")
+	protectedAPI.HandleFunc("/customusers", controllers.CreateUser).Methods("POST")
+	protectedAPI.HandleFunc("/customusers/{id}", controllers.UpdateUser).Methods("PUT")
+	protectedAPI.HandleFunc("/customusers/{id}", controllers.DeleteUser).Methods("DELETE")
 
-	api.HandleFunc("/customusers", controllers.GetUsers).Methods("GET")
-	api.HandleFunc("/customusers/{id}", controllers.GetUserByID).Methods("GET")
-	api.HandleFunc("/customusers", controllers.CreateUser).Methods("POST")
-	api.HandleFunc("/customusers/{id}", controllers.UpdateUser).Methods("PUT")
-	api.HandleFunc("/customusers/{id}", controllers.DeleteUser).Methods("DELETE")
+	publicAPI.HandleFunc("/profiles", controllers.GetProfiles).Methods("GET")
+	publicAPI.HandleFunc("/profiles/{id}", controllers.GetProfileByID).Methods("GET")
+	protectedAPI.HandleFunc("/profiles", controllers.CreateProfile).Methods("POST")
+	protectedAPI.HandleFunc("/profiles/{id}", controllers.UpdateProfile).Methods("PUT")
+	protectedAPI.HandleFunc("/profiles/{id}", controllers.DeleteProfile).Methods("DELETE")
 
-	api.HandleFunc("/profiles", controllers.GetProfiles).Methods("GET")
-	api.HandleFunc("/profiles/{id}", controllers.GetProfileByID).Methods("GET")
-	api.HandleFunc("/profiles", controllers.CreateProfile).Methods("POST")
-	api.HandleFunc("/profiles/{id}", controllers.UpdateProfile).Methods("PUT")
-	api.HandleFunc("/profiles/{id}", controllers.DeleteProfile).Methods("DELETE")
+	publicAPI.HandleFunc("/teams", controllers.GetTeams).Methods("GET")
+	publicAPI.HandleFunc("/teams/{id}", controllers.GetTeamByID).Methods("GET")
+	protectedAPI.HandleFunc("/teams", controllers.CreateTeam).Methods("POST")
+	protectedAPI.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
+	protectedAPI.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
 
-	api.HandleFunc("/teams", controllers.GetTeams).Methods("GET")
-	api.HandleFunc("/teams/{id}", controllers.GetTeamByID).Methods("GET")
-	api.HandleFunc("/teams", controllers.CreateTeam).Methods("POST")
-	api.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
-	api.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
+	publicAPI.HandleFunc("/timeline", controllers.GetTimelineDates).Methods("GET")
+	publicAPI.HandleFunc("/timeline/{id}", controllers.GetTimelineDateByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline", controllers.CreateTimelineDate).Methods("POST")
+	protectedAPI.HandleFunc("/timeline/{id}", controllers.UpdateTimelineDate).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline/{id}", controllers.DeleteTimelineDate).Methods("DELETE")
 
-	api.HandleFunc("/timeline", controllers.GetTimelineDates).Methods("GET")
-	api.HandleFunc("/timeline/{id}", controllers.GetTimelineDateByID).Methods("GET")
-	api.HandleFunc("/timeline", controllers.CreateTimelineDate).Methods("POST")
-	api.HandleFunc("/timeline/{id}", controllers.UpdateTimelineDate).Methods("PUT")
-	api.HandleFunc("/timeline/{id}", controllers.DeleteTimelineDate).Methods("DELETE")
-
-	api.HandleFunc("/programs", controllers.GetPrograms).Methods("GET")
-	api.HandleFunc("/programs/{id}", controllers.GetProgramByID).Methods("GET")
-	api.HandleFunc("/programs", controllers.CreateProgram).Methods("POST")
-	api.HandleFunc("/programs/{id}", controllers.UpdateProgram).Methods("PUT")
-	api.HandleFunc("/programs/{id}", controllers.DeleteProgram).Methods("DELETE")
+	publicAPI.HandleFunc("/programs", controllers.GetPrograms).Methods("GET")
+	publicAPI.HandleFunc("/programs/{id}", controllers.GetProgramByID).Methods("GET")
+	protectedAPI.HandleFunc("/programs", controllers.CreateProgram).Methods("POST")
+	protectedAPI.HandleFunc("/programs/{id}", controllers.UpdateProgram).Methods("PUT")
+	protectedAPI.HandleFunc("/programs/{id}", controllers.DeleteProgram).Methods("DELETE")
 
 	// industries
-	api.HandleFunc("/industries", controllers.GetIndustries).Methods("GET")
-	api.HandleFunc("/industries/{id}", controllers.GetIndustryByID).Methods("GET")
-	api.HandleFunc("/industries", controllers.CreateIndustry).Methods("POST")
-	api.HandleFunc("/industries/{id}", controllers.UpdateIndustry).Methods("PUT")
-	api.HandleFunc("/industries/{id}", controllers.DeleteIndustry).Methods("DELETE")
+	publicAPI.HandleFunc("/industries", controllers.GetIndustries).Methods("GET")
+	publicAPI.HandleFunc("/industries/{id}", controllers.GetIndustryByID).Methods("GET")
+	protectedAPI.HandleFunc("/industries", controllers.CreateIndustry).Methods("POST")
+	protectedAPI.HandleFunc("/industries/{id}", controllers.UpdateIndustry).Methods("PUT")
+	protectedAPI.HandleFunc("/industries/{id}", controllers.DeleteIndustry).Methods("DELETE")
 
 	// events
-	api.HandleFunc("/events", controllers.GetEvents).Methods("GET")
-	api.HandleFunc("/events/{id}", controllers.GetEventByID).Methods("GET")
-	api.HandleFunc("/events", controllers.CreateEvent).Methods("POST")
-	api.HandleFunc("/events/{id}", controllers.UpdateEvent).Methods("PUT")
-	api.HandleFunc("/events/{id}", controllers.DeleteEvent).Methods("DELETE")
+	publicAPI.HandleFunc("/events", controllers.GetEvents).Methods("GET")
+	publicAPI.HandleFunc("/events/{id}", controllers.GetEventByID).Methods("GET")
+	protectedAPI.HandleFunc("/events", controllers.CreateEvent).Methods("POST")
+	protectedAPI.HandleFunc("/events/{id}", controllers.UpdateEvent).Methods("PUT")
+	protectedAPI.HandleFunc("/events/{id}", controllers.DeleteEvent).Methods("DELETE")
 
 	// exhibitors
-	api.HandleFunc("/exhibitors", controllers.GetExhibitors).Methods("GET")
-	api.HandleFunc("/exhibitors/{id}", controllers.GetExhibitorByID).Methods("GET")
-	api.HandleFunc("/exhibitors", controllers.CreateExhibitor).Methods("POST")
-	api.HandleFunc("/exhibitors/{id}", controllers.UpdateExhibitor).Methods("PUT")
-	api.HandleFunc("/exhibitors/{id}", controllers.DeleteExhibitor).Methods("DELETE")
+	publicAPI.HandleFunc("/exhibitors", controllers.GetExhibitors).Methods("GET")
+	publicAPI.HandleFunc("/exhibitors/{id}", controllers.GetExhibitorByID).Methods("GET")
+	protectedAPI.HandleFunc("/exhibitors", controllers.CreateExhibitor).Methods("POST")
+	protectedAPI.HandleFunc("/exhibitors/{id}", controllers.UpdateExhibitor).Methods("PUT")
+	protectedAPI.HandleFunc("/exhibitors/{id}", controllers.DeleteExhibitor).Methods("DELETE")
 
 	// employments
-	api.HandleFunc("/employments", controllers.GetEmployments).Methods("GET")
-	api.HandleFunc("/employments/{id}", controllers.GetEmploymentByID).Methods("GET")
-	api.HandleFunc("/employments", controllers.CreateEmployment).Methods("POST")
-	api.HandleFunc("/employments/{id}", controllers.UpdateEmployment).Methods("PUT")
-	api.HandleFunc("/employments/{id}", controllers.DeleteEmployment).Methods("DELETE")
+	publicAPI.HandleFunc("/employments", controllers.GetEmployments).Methods("GET")
+	publicAPI.HandleFunc("/employments/{id}", controllers.GetEmploymentByID).Methods("GET")
+	protectedAPI.HandleFunc("/employments", controllers.CreateEmployment).Methods("POST")
+	protectedAPI.HandleFunc("/employments/{id}", controllers.UpdateEmployment).Methods("PUT")
+	protectedAPI.HandleFunc("/employments/{id}", controllers.DeleteEmployment).Methods("DELETE")
 
-	api.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
+	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 
-	api.HandleFunc("/test", controllers.Test).Methods("GET")
+	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 
 	mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(buildDir, r.URL.Path)

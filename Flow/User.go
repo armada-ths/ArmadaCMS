@@ -20,7 +20,6 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		}
 		return nil, err
 	}
-	log.Println(user.Password)
 	if err := utils.CheckPasswordHash(password, user.Password); err != nil {
 		log.Println(err)
 		return nil, errors.New("wrong username or password")
