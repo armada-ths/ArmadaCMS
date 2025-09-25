@@ -5,8 +5,9 @@ import {
   DataProvider,
   fetchUtils,
 } from "react-admin";
+import globalApi from "./context/globalApi";
 
-const endpoint = import.meta.env.VITE_JSON_SERVER_URL;
+const endpoint = globalApi();
 const baseDataProvider = simpleRestDataProvider(endpoint);
 
 type PostParams = {

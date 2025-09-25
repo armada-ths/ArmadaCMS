@@ -2,9 +2,10 @@ import axios from "axios";
 // import { refreshToken } from "./auth"; // Function to get a new token
 
 import { Tokens } from "../models/user";
+import globalApi from "./globalApi";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_JSON_SERVER_URL, // Your API base URL
+  baseURL: globalApi(), // Your API base URL
   headers: { "Content-Type": "application/json" },
 });
 

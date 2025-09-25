@@ -9,6 +9,21 @@
 # RUN yarn install
 # ADD frontend /admin
 # RUN WPATH='/admin' yarn run build
+# ----------------------
+# Stage 1: Build React frontend
+# ----------------------
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /frontend
+
+# Copy package files and install dependencies
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install --legacy-peer-deps
+
+# Copy the rest of the frontend source and build
+COPY frontend/ .
+RUN npm run build
+
 
 # Start from golang:1.12-alpine base image
 FROM golang:1.24-alpine
@@ -18,7 +33,7 @@ FROM golang:1.24-alpine
 RUN apk update && apk upgrade && \
     apk add --no-cache bash git openssh
 
-RUN go install github.com/air-verse/air@latest
+RUN go install github.com/air-verse/air@v1.61.1
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -33,6 +48,10 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 #COPY --from=frontend-builder /admin/dist ./frontend/dist
+
+
+COPY --from=frontend-builder /frontend/dist ./frontend/dist
+
 
 # Expose port 8080 to the outside world
 EXPOSE 8080

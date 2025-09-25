@@ -7,8 +7,8 @@
     "executionRoleArn": "arn:aws:iam::593054043164:role/AIS-Prod-ais-stack-ServiceTaskDefExecutionRole919F-99QBGDABOKDA",
     "containerDefinitions": [
       {
-        "name": "go-backend",
-        "image": "593054043164.dkr.ecr.eu-north-1.amazonaws.com/armadacms:latest",
+        "name": "armadacms",
+    "image": "593054043164.dkr.ecr.eu-north-1.amazonaws.com/armadacms:v2",
         "portMappings": [
           {
             "containerPort": 8080,

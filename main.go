@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -55,14 +57,15 @@ func CreateMuxClient() http.Handler {
 }
 func CreateControllers(mux *mux.Router) *mux.Router {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	fs := http.FileServer(http.Dir("./frontend/dist"))
+	buildDir := "./frontend/dist"
+	fs := http.FileServer(http.Dir(buildDir))
 	mux.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", fs))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+
 	api := mux.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/login", controllers.Login)
 
@@ -84,12 +87,28 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	api.HandleFunc("/teams/{id}", controllers.UpdateTeam).Methods("PUT")
 	api.HandleFunc("/teams/{id}", controllers.DeleteTeam).Methods("DELETE")
 
+	api.HandleFunc("/timeline", controllers.GetTimelineDates).Methods("GET")
+	api.HandleFunc("/timeline/{id}", controllers.GetTimelineDateByID).Methods("GET")
+	api.HandleFunc("/timeline", controllers.CreateTimelineDate).Methods("POST")
+	api.HandleFunc("/timeline/{id}", controllers.UpdateTimelineDate).Methods("PUT")
+	api.HandleFunc("/timeline/{id}", controllers.DeleteTimelineDate).Methods("DELETE")
+
 	api.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 	api.HandleFunc("/events", controllers.Test).Methods("GET")
 	api.HandleFunc("/exhibitors", controllers.Test).Methods("GET")
 	api.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 
 	api.HandleFunc("/test", controllers.Test).Methods("GET")
+
+	mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(buildDir, r.URL.Path)
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 
 	return mux
 }

@@ -161,7 +161,7 @@ func GetOrganizationGroups() []OrganizationGroup {
 					Email:       nil,
 					Picture:     ptr("https://armada-ais-files.s3.eu-north-1.amazonaws.com/profiles/picture_original/145d8f904459424fa5eb84ac2a6261aa.png"),
 					LinkedInURL: ptr("https://www.linkedin.com/in/hariprasads1011/"),
-					Role:        "Project Group-Head of Interal Events",
+					Role:        "Project Group-Head of Internal Events",
 				},
 			},
 		},

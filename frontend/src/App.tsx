@@ -11,6 +11,9 @@ import { TeamList } from "./components/Team/TeamList";
 import { TeamCreate } from "./components/Team/TeamCreate";
 import { TeamEdit } from "./components/Team/TeamEdit";
 import { authProvider } from "./context/authProvider";
+import { TimelineList } from "./components/Timeline/TimelineList";
+import { TimelineCreate } from "./components/Timeline/TimelineCreate";
+import { TimelineEdit } from "./components/Timeline/TimelineEdit";
 
 export const App = () => (
   <Admin
@@ -35,6 +38,12 @@ export const App = () => (
       list={TeamList}
       create={TeamCreate}
       edit={TeamEdit}
+    />
+    <Resource
+      name="timeline"
+      list={TimelineList}
+      create={TimelineCreate}
+      edit={TimelineEdit}
     />
   </Admin>
 );
