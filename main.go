@@ -31,6 +31,11 @@ func main() {
 		models.Team{},
 		models.TimelineDate{},
 		models.RefreshToken{},
+		models.Industry{},
+		models.Program{},
+		models.Employment{},
+		models.Exhibitor{},
+		models.Event{},
 		// Enter your models here
 	)
 
@@ -93,9 +98,40 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	api.HandleFunc("/timeline/{id}", controllers.UpdateTimelineDate).Methods("PUT")
 	api.HandleFunc("/timeline/{id}", controllers.DeleteTimelineDate).Methods("DELETE")
 
-	api.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
-	api.HandleFunc("/events", controllers.Test).Methods("GET")
-	api.HandleFunc("/exhibitors", controllers.Test).Methods("GET")
+	api.HandleFunc("/programs", controllers.GetPrograms).Methods("GET")
+	api.HandleFunc("/programs/{id}", controllers.GetProgramByID).Methods("GET")
+	api.HandleFunc("/programs", controllers.CreateProgram).Methods("POST")
+	api.HandleFunc("/programs/{id}", controllers.UpdateProgram).Methods("PUT")
+	api.HandleFunc("/programs/{id}", controllers.DeleteProgram).Methods("DELETE")
+
+	// industries
+	api.HandleFunc("/industries", controllers.GetIndustries).Methods("GET")
+	api.HandleFunc("/industries/{id}", controllers.GetIndustryByID).Methods("GET")
+	api.HandleFunc("/industries", controllers.CreateIndustry).Methods("POST")
+	api.HandleFunc("/industries/{id}", controllers.UpdateIndustry).Methods("PUT")
+	api.HandleFunc("/industries/{id}", controllers.DeleteIndustry).Methods("DELETE")
+
+	// events
+	api.HandleFunc("/events", controllers.GetEvents).Methods("GET")
+	api.HandleFunc("/events/{id}", controllers.GetEventByID).Methods("GET")
+	api.HandleFunc("/events", controllers.CreateEvent).Methods("POST")
+	api.HandleFunc("/events/{id}", controllers.UpdateEvent).Methods("PUT")
+	api.HandleFunc("/events/{id}", controllers.DeleteEvent).Methods("DELETE")
+
+	// exhibitors
+	api.HandleFunc("/exhibitors", controllers.GetExhibitors).Methods("GET")
+	api.HandleFunc("/exhibitors/{id}", controllers.GetExhibitorByID).Methods("GET")
+	api.HandleFunc("/exhibitors", controllers.CreateExhibitor).Methods("POST")
+	api.HandleFunc("/exhibitors/{id}", controllers.UpdateExhibitor).Methods("PUT")
+	api.HandleFunc("/exhibitors/{id}", controllers.DeleteExhibitor).Methods("DELETE")
+
+	// employments
+	api.HandleFunc("/employments", controllers.GetEmployments).Methods("GET")
+	api.HandleFunc("/employments/{id}", controllers.GetEmploymentByID).Methods("GET")
+	api.HandleFunc("/employments", controllers.CreateEmployment).Methods("POST")
+	api.HandleFunc("/employments/{id}", controllers.UpdateEmployment).Methods("PUT")
+	api.HandleFunc("/employments/{id}", controllers.DeleteEmployment).Methods("DELETE")
+
 	api.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 
 	api.HandleFunc("/test", controllers.Test).Methods("GET")

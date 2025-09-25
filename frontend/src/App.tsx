@@ -14,6 +14,21 @@ import { authProvider } from "./context/authProvider";
 import { TimelineList } from "./components/Timeline/TimelineList";
 import { TimelineCreate } from "./components/Timeline/TimelineCreate";
 import { TimelineEdit } from "./components/Timeline/TimelineEdit";
+import { EmploymentCreate } from "./components/Employment/EmploymentCreate";
+import { EmploymentEdit } from "./components/Employment/EmploymentEdit";
+import { EmploymentList } from "./components/Employment/EmploymentList";
+import { EventCreate } from "./components/Event/EventCreate";
+import { EventEdit } from "./components/Event/EventEdit";
+import { EventList } from "./components/Event/EventList";
+import { ExhibitorCreate } from "./components/Exhibitor/ExhibitorCreate";
+import { ExhibitorEdit } from "./components/Exhibitor/ExhibitorEdit";
+import { ExhibitorList } from "./components/Exhibitor/ExhibitorList";
+import { IndustryCreate } from "./components/Industry/IndustryCreate";
+import { IndustryEdit } from "./components/Industry/IndustryEdit";
+import { IndustryList } from "./components/Industry/IndustryList";
+import { ProgramCreate } from "./components/Program/ProgramCreate";
+import { ProgramEdit } from "./components/Program/ProgramEdit";
+import { ProgramList } from "./components/Program/ProgramList";
 
 export const App = () => (
   <Admin
@@ -44,6 +59,36 @@ export const App = () => (
       list={TimelineList}
       create={TimelineCreate}
       edit={TimelineEdit}
+    />
+    <Resource
+      name="programs"
+      list={ProgramList}
+      create={ProgramCreate}
+      edit={ProgramEdit}
+    />
+    <Resource
+      name="industries"
+      list={IndustryList}
+      create={IndustryCreate}
+      edit={IndustryEdit}
+    />
+    <Resource
+      name="events"
+      list={EventList}
+      create={EventCreate}
+      edit={EventEdit}
+    />
+    <Resource
+      name="exhibitors"
+      list={ExhibitorList}
+      create={ExhibitorCreate}
+      edit={ExhibitorEdit}
+    />
+    <Resource
+      name="employments"
+      list={EmploymentList}
+      create={EmploymentCreate}
+      edit={EmploymentEdit}
     />
   </Admin>
 );
