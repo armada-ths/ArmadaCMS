@@ -24,6 +24,7 @@ type Exhibitor struct {
 	Flyer               string  `gorm:"column:flyer;not null" json:"flyer"`
 }
 
+// {"id":2,"name":"test","type":"test","tier":"test","companyWebsite":"test","about":"test","purpose":"test","fairLocation":"","climateCompensation":false,"flyer":"","programs":[3,2]}
 //   id: number
 //   name: string
 //   type: string

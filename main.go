@@ -137,6 +137,8 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 
+	publicAPI.HandleFunc("/eventroexhibitors", controllers.FetchExhibitorsEventro).Methods("GET")
+
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 
 	mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

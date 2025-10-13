@@ -1,5 +1,4 @@
-import { Admin, Resource } from "react-admin";
-import { Layout } from "./Layout";
+import { Admin, Menu, Resource, Layout, CustomRoutes } from "react-admin";
 import { dataProvider } from "./dataProvider";
 import { UserList } from "./components/User/UserList";
 import { UserCreate } from "./components/User/UserCreate";
@@ -30,11 +29,26 @@ import { ProgramCreate } from "./components/Program/ProgramCreate";
 import { ProgramEdit } from "./components/Program/ProgramEdit";
 import { ProgramList } from "./components/Program/ProgramList";
 
+import { Icon } from "@mui/material";
+export const MyMenu = () => (
+  <Menu>
+    <Menu.DashboardItem />
+    <Menu.ResourceItems />
+    <Menu.Item to="/panel" primaryText="Panel" leftIcon={<Icon />} />
+  </Menu>
+);
+import { ReactNode } from "react";
+import { Route } from "react-router";
+import { Panel } from "./components/Panel/Panel";
+
+export const MyLayout = ({ children }: { children?: ReactNode }) => (
+  <Layout menu={MyMenu}>{children}</Layout>
+);
 export const App = () => (
   <Admin
     dataProvider={dataProvider}
     authProvider={authProvider}
-    layout={Layout}
+    layout={MyLayout}
   >
     <Resource
       name="customusers"
@@ -90,5 +104,9 @@ export const App = () => (
       create={EmploymentCreate}
       edit={EmploymentEdit}
     />
+
+    <CustomRoutes>
+      <Route path="/panel" element={<Panel />} />
+    </CustomRoutes>
   </Admin>
 );

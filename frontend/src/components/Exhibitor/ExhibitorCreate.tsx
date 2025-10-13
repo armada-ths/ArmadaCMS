@@ -7,9 +7,26 @@ import {
   SelectArrayInput,
   BooleanInput,
 } from "react-admin";
+import { Industry, Program } from "./ExhibitorEdit";
 
 export const ExhibitorCreate = (props: CreateProps) => (
-  <Create {...props}>
+  // <Create {...props}>
+  <Create
+    {...props}
+    transform={(data) => ({
+      ...data,
+      programs: (data.programs || [])
+        .map((p: Program) =>
+          typeof p === "number" ? { id: p } : p?.id ? { id: p.id } : null,
+        )
+        .filter(Boolean),
+      industries: (data.industries || [])
+        .map((i: Industry) =>
+          typeof i === "number" ? { id: i } : i?.id ? { id: i.id } : null,
+        )
+        .filter(Boolean),
+    })}
+  >
     <SimpleForm>
       <TextInput source="name" />
       <TextInput source="type" />
