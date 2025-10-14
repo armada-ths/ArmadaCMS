@@ -6,6 +6,7 @@ import (
 
 type Event struct {
 	ID                   uint             `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	EventroID            string           `gorm:"column:eventro_id;uniqueIndex" json:"eventroId"`
 	Name                 string           `gorm:"column:name;not null" json:"name"`
 	Description          *string          `gorm:"column:description" json:"description,omitempty"`
 	Location             string           `gorm:"column:location;not null" json:"location"`

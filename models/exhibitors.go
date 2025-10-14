@@ -1,10 +1,20 @@
 package models
 
+type Tier string
+
+const (
+	TierStandard Tier = "Standard"
+	TierBronze   Tier = "Bronze"
+	TierSilver   Tier = "Silver"
+	TierGold     Tier = "Gold"
+)
+
 type Exhibitor struct {
 	ID              uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	EventroID       string  `gorm:"column:eventro_id;uniqueIndex" json:"eventroId"`
 	Name            string  `gorm:"column:name;not null" json:"name"`
 	Type            string  `gorm:"column:type;not null" json:"type"`
-	Tier            *string `gorm:"column:tier" json:"tier,omitempty"`
+	Tier            *Tier   `gorm:"column:tier" json:"tier,omitempty"`
 	CompanyWebsite  *string `gorm:"column:company_website" json:"companyWebsite,omitempty"`
 	About           *string `gorm:"column:about" json:"about,omitempty"`
 	Purpose         *string `gorm:"column:purpose" json:"purpose,omitempty"`

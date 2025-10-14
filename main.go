@@ -139,6 +139,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 
 	publicAPI.HandleFunc("/eventroexhibitors", controllers.FetchExhibitorsEventro).Methods("GET")
+	publicAPI.HandleFunc("/eventroevents", controllers.FetchEventsEventro).Methods("GET")
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 
