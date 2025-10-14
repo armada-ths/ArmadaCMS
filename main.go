@@ -136,6 +136,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/employments/{id}", controllers.DeleteEmployment).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
+	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 
