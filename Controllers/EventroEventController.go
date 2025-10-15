@@ -29,6 +29,8 @@ type eventroEventResponse struct {
 	Participants            int     `json:"participants"`
 	AllowWaitlist           bool    `json:"allowWaitlist"`
 	MaxParticipants         int     `json:"maxParticipants"`
+	EventStartsAt           string  `json:"eventStartsAt"`
+	EventEndsAt             string  `json:"eventEndsAt"`
 	OpensForRegistrationAt  string  `json:"opensForRegistrationAt"`
 	ClosesForRegistrationAt string  `json:"closesForRegistrationAt"`
 	OpensForPublicationAt   string  `json:"opensForPublicationAt"`
@@ -41,9 +43,6 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	fairID := os.Getenv("EVENTRO_FAIR_ID")
 	url := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/events/", fairID)
-
-	allEvents := []eventroEventResponse{}
-	page := 1
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -67,19 +66,17 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 
 	var result eventroEventsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Printf("❌ Failed to decode Eventro response (page %d): %v", page, err)
+		log.Printf("❌ Failed to decode Eventro response: %v", err)
 		http.Error(w, "failed to decode Eventro response", http.StatusInternalServerError)
 		return
 	}
 
-	allEvents = append(allEvents, result.Events...)
-
 	inserted := 0
 	updated := 0
 
-	for _, e := range allEvents {
+	for _, e := range result.Events {
 		ev := mapEventroToEvent(e)
-		// 🔹 Use EventroID for upsert
+
 		result := db.DB.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "eventro_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -108,9 +105,17 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 // ---------- Mapper ----------
 
 func mapEventroToEvent(e eventroEventResponse) models.Event {
-	eventStart := e.OpensForPublicationAt
-	eventEnd := e.ClosesForPublicationAt
-	regEnd := e.ClosesForRegistrationAt
+	parseTime := func(s string) *time.Time {
+		if s == "" {
+			return nil
+		}
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			log.Printf("⚠️ Failed to parse time %q: %v", s, err)
+			return nil
+		}
+		return &t
+	}
 
 	var fee *decimal.Decimal = nil
 	location := "TBA"
@@ -121,13 +126,21 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		Description:          e.Description,
 		Location:             location,
 		Food:                 nil,
-		EventStart:           eventStart,
-		EventEnd:             eventEnd,
-		RegistrationEnd:      &regEnd,
+		EventStart:           derefOrNow(parseTime(e.EventStartsAt)),
+		EventEnd:             derefOrNow(parseTime(e.EventEndsAt)),
+		RegistrationEnd:      parseTime(e.ClosesForRegistrationAt),
 		ImageURL:             nil,
 		Fee:                  fee,
 		RegistrationRequired: e.AllowWaitlist,
 		SignupLink:           nil,
 		EventMaxCapacity:     &e.MaxParticipants,
 	}
+}
+
+// helper — ensures we always have a valid time.Time
+func derefOrNow(t *time.Time) time.Time {
+	if t == nil {
+		return time.Now().UTC()
+	}
+	return *t
 }

@@ -57,7 +57,7 @@ export const ProfileEdit = (props: EditProps) => {
 
         {/* Show input based on selected option */}
         {selectedOption === "upload" && (
-          <ImageInput label="Photo" source="photoFile">
+          <ImageInput label="Photo" source="file">
             <ImageField source="src" title="title" />
           </ImageInput>
         )}

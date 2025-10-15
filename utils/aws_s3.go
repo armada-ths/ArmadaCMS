@@ -18,7 +18,11 @@ func UploadToS3(file io.Reader, header *multipart.FileHeader) (string, error) {
 	// Load AWS configuration
 	filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), header.Filename)
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-north-1"))
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion("eu-north-1"),
+	)
+
 	if err != nil {
 		return "", fmt.Errorf("unable to load SDK config, %v", err)
 	}

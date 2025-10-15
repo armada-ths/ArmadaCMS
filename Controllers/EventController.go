@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/shopspring/decimal"
@@ -52,10 +53,67 @@ func GetEventByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateEvent(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
 	var event models.Event
-	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-		return
+
+	if contentType == "" || len(contentType) < 19 || contentType[:19] != "multipart/form-data" {
+		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if err := r.ParseMultipartForm(20 << 20); err != nil {
+			http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
+			return
+		}
+
+		parseTime := func(key string) time.Time {
+			val := r.FormValue(key)
+			t, err := time.Parse(time.RFC3339, val)
+			if err != nil {
+				return time.Now().UTC()
+			}
+			return t
+		}
+
+		event.Name = r.FormValue("name")
+		event.EventroID = r.FormValue("eventroId")
+		event.Location = r.FormValue("location")
+		event.EventStart = parseTime("eventStart")
+		event.EventEnd = parseTime("eventEnd")
+
+		if val := r.FormValue("registrationEnd"); val != "" {
+			if t, err := time.Parse(time.RFC3339, val); err == nil {
+				event.RegistrationEnd = &t
+			}
+		}
+
+		event.Description = utils.StringPtr(r.FormValue("description"))
+		event.Food = utils.StringPtr(r.FormValue("food"))
+		event.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
+		event.RegistrationRequired = r.FormValue("registrationRequired") == "true"
+
+		if feeStr := r.FormValue("fee"); feeStr != "" {
+			if fee, err := decimal.NewFromString(feeStr); err == nil {
+				event.Fee = &fee
+			}
+		}
+
+		imageUrl := r.FormValue("imageUrl")
+		if imageUrl != "" {
+			event.ImageURL = &imageUrl
+		} else {
+			file, header, err := r.FormFile("file")
+			if err == nil {
+				defer file.Close()
+				fileURL, err := utils.UploadToS3(file, header)
+				if err != nil {
+					http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+					return
+				}
+				event.ImageURL = &fileURL
+			}
+		}
 	}
 
 	if event.Fee == nil {
@@ -80,13 +138,60 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updates models.Event
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
-	db.DB.Model(&event).Updates(updates)
+	parseTime := func(key string) time.Time {
+		val := r.FormValue(key)
+		t, err := time.Parse(time.RFC3339, val)
+		if err != nil {
+			return time.Now().UTC()
+		}
+		return t
+	}
+
+	var updates models.Event
+	updates.Name = r.FormValue("name")
+	updates.Description = utils.StringPtr(r.FormValue("description"))
+	updates.Location = r.FormValue("location")
+	updates.EventStart = parseTime("eventStart")
+	updates.EventEnd = parseTime("eventEnd")
+	updates.Food = utils.StringPtr(r.FormValue("food"))
+	updates.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
+	updates.RegistrationRequired = r.FormValue("registrationRequired") == "true"
+
+	if val := r.FormValue("registrationEnd"); val != "" {
+		if t, err := time.Parse(time.RFC3339, val); err == nil {
+			updates.RegistrationEnd = &t
+		}
+	}
+
+	if feeStr := r.FormValue("fee"); feeStr != "" {
+		if fee, err := decimal.NewFromString(feeStr); err == nil {
+			updates.Fee = &fee
+		}
+	}
+
+	imageUrl := r.FormValue("imageUrl")
+	if imageUrl != "" {
+		updates.ImageURL = &imageUrl
+	} else {
+		file, header, err := r.FormFile("file")
+		if err == nil {
+			defer file.Close()
+			fileURL, err := utils.UploadToS3(file, header)
+			if err == nil {
+				updates.ImageURL = &fileURL
+			}
+		}
+	}
+
+	db.DB.Model(&event).Select("name", "description", "location", "event_start",
+		"event_end", "food", "registration_end", "signup_link",
+		"registration_required", "image_url").Updates(updates)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updates)
 }

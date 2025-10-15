@@ -8,6 +8,8 @@ import {
 import globalApi from "./context/globalApi";
 
 const endpoint = globalApi();
+
+/** Fetch wrapper with Authorization header */
 export const httpClient: (
   url: string,
   options?: fetchUtils.Options,
@@ -24,40 +26,9 @@ export const httpClient: (
 
   return fetchUtils.fetchJson(url, options);
 };
+
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
 
-type PostParams = {
-  id: string;
-  title: string;
-  content: string;
-  name: string;
-  team_id: number;
-  photoFile: {
-    rawFile: File;
-    src?: string;
-    title?: string;
-  };
-};
-const createPostFormData = (
-  params: CreateParams<PostParams> | UpdateParams<PostParams>,
-) => {
-  const formData = new FormData();
-
-  // Extract and append file
-  const file = params.data.photoFile?.rawFile;
-  if (file instanceof File) {
-    formData.append("file", file);
-  }
-
-  // Append all other fields except photoFile
-  Object.entries(params.data).forEach(([key, value]) => {
-    if (key !== "photoFile" && value !== undefined && value !== null) {
-      formData.append(key, String(value));
-    }
-  });
-
-  return formData;
-};
 export type FetchJsonResponse = {
   status: number;
   headers: Headers;
@@ -65,31 +36,73 @@ export type FetchJsonResponse = {
   json: unknown;
 };
 
+/** Build FormData for multipart upload (profiles, events, etc.) */
+const createMultipartFormData = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  params: CreateParams<any> | UpdateParams<any>,
+) => {
+  const formData = new FormData();
+
+  // Loop through fields in data
+  Object.entries(params.data).forEach(([key, value]) => {
+    if (value == null) return;
+
+    // Handle React Admin file input: { rawFile, src }
+    if (value.rawFile instanceof File) {
+      formData.append("file", value.rawFile);
+    }
+    // Handle string URLs (existing images)
+    else if (typeof value === "string" && /(photo|image|logo|img)/i.test(key)) {
+      formData.append(`${key}Url`, value);
+    }
+    // Handle scalar fields
+    else if (typeof value !== "object") {
+      formData.append(key, String(value));
+    }
+  });
+
+  return formData;
+};
+
+/** Upload helper */
+const uploadFormData = (
+  url: string,
+  method: "POST" | "PUT",
+  formData: FormData,
+) => {
+  const token = localStorage.getItem("accessToken") || "";
+  return fetchUtils
+    .fetchJson(url, {
+      method,
+      body: formData,
+      credentials: "include",
+      headers: new Headers({
+        Authorization: `Bearer ${token}`, // ✅ only auth header — no content-type override
+      }),
+    })
+    .then(({ json }) => ({ data: json }));
+};
+
+/** Main data provider */
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
+
   create: (resource, params) => {
-    if (resource === "profiles") {
-      const formData = createPostFormData(params);
-      return fetchUtils
-        .fetchJson(`${endpoint}/${resource}`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        })
-        .then(({ json }) => ({ data: json }));
+    if (["profiles", "events"].includes(resource)) {
+      const formData = createMultipartFormData(params);
+      return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
     }
     return baseDataProvider.create(resource, params);
   },
+
   update: (resource, params) => {
-    if (resource === "profiles") {
-      const formData = createPostFormData(params);
-      return fetchUtils
-        .fetchJson(`${endpoint}/${resource}/${params.id}`, {
-          method: "PUT",
-          body: formData,
-          credentials: "include",
-        })
-        .then(({ json }) => ({ data: json }));
+    if (["profiles", "events"].includes(resource)) {
+      const formData = createMultipartFormData(params);
+      return uploadFormData(
+        `${endpoint}/${resource}/${params.id}`,
+        "PUT",
+        formData,
+      );
     }
     return baseDataProvider.update(resource, params);
   },

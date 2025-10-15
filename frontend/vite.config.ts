@@ -1,74 +1,57 @@
 import { defineConfig } from "vite";
-import path from "path";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
+
   server: {
     host: true,
   },
+
   build: {
     sourcemap: mode === "development",
   },
-  // This allows to have sourcemaps in production. They are not loaded unless you open the devtools
-  // Remove this line if you don't need to debug react-admin in production
-  resolve: { alias: getAliasesToDebugInProduction() },
+
+  // ✅ Adds @ alias and keeps your React Admin debug aliases
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      ...getAliasesToDebugInProduction(),
+    },
+  },
+
   base: "./",
 }));
 
 function getAliasesToDebugInProduction() {
-  return [
-    {
-      find: "react-admin",
-      replacement: path.resolve(__dirname, "./node_modules/react-admin/src"),
-    },
-    {
-      find: "ra-core",
-      replacement: path.resolve(__dirname, "./node_modules/ra-core/src"),
-    },
-    {
-      find: "ra-ui-materialui",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-ui-materialui/src",
-      ),
-    },
-    {
-      find: "ra-i18n-polyglot",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-i18n-polyglot/src",
-      ),
-    },
-    {
-      find: "ra-language-english",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-language-english/src",
-      ),
-    },
-    {
-      find: "ra-data-json-server",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-data-json-server/src",
-      ),
-    },
-    {
-      find: "ra-data-simple-rest",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-data-simple-rest/src",
-      ),
-    },
-    {
-      find: "ra-data-fakerest",
-      replacement: path.resolve(
-        __dirname,
-        "./node_modules/ra-data-fakerest/src",
-      ),
-    },
-    // add any other react-admin packages you have
-  ];
+  return {
+    "react-admin": path.resolve(__dirname, "./node_modules/react-admin/src"),
+    "ra-core": path.resolve(__dirname, "./node_modules/ra-core/src"),
+    "ra-ui-materialui": path.resolve(
+      __dirname,
+      "./node_modules/ra-ui-materialui/src",
+    ),
+    "ra-i18n-polyglot": path.resolve(
+      __dirname,
+      "./node_modules/ra-i18n-polyglot/src",
+    ),
+    "ra-language-english": path.resolve(
+      __dirname,
+      "./node_modules/ra-language-english/src",
+    ),
+    "ra-data-json-server": path.resolve(
+      __dirname,
+      "./node_modules/ra-data-json-server/src",
+    ),
+    "ra-data-simple-rest": path.resolve(
+      __dirname,
+      "./node_modules/ra-data-simple-rest/src",
+    ),
+    "ra-data-fakerest": path.resolve(
+      __dirname,
+      "./node_modules/ra-data-fakerest/src",
+    ),
+  };
 }
