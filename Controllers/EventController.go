@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/shopspring/decimal"
 )
 
 func GetEvents(w http.ResponseWriter, r *http.Request) {
@@ -19,14 +18,38 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	var events []models.Event
 	query := db.DB.Model(&models.Event{})
 
+	// Apply dynamic filters from React Admin
 	for k, v := range params.Filter {
 		query = query.Where(k+" = ?", v)
 	}
 
-	if len(params.Sort) == 2 {
-		query = query.Order(params.Sort[0] + " " + params.Sort[1])
+	// Apply `show=true` only if query param `public=true` is passed
+	publicOnly := r.URL.Query().Get("public")
+	if publicOnly == "true" {
+		query = query.Where("show = ?", true)
 	}
 
+	// Sorting
+	if len(params.Sort) == 2 {
+		column := params.Sort[0]
+
+		// Fix camelCase fields from React-Admin
+		switch column {
+		case "eventStart":
+			column = "event_start"
+		case "eventEnd":
+			column = "event_end"
+		case "registrationEnd":
+			column = "registration_end"
+		case "registrationRequired":
+			column = "registration_required"
+			// add any others as needed
+		}
+
+		query = query.Order(fmt.Sprintf("%s %s", column, params.Sort[1]))
+	}
+
+	// Pagination
 	start, end := params.Range[0], params.Range[1]
 	limit := end - start + 1
 
@@ -92,12 +115,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		event.Food = utils.StringPtr(r.FormValue("food"))
 		event.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
 		event.RegistrationRequired = r.FormValue("registrationRequired") == "true"
-
-		if feeStr := r.FormValue("fee"); feeStr != "" {
-			if fee, err := decimal.NewFromString(feeStr); err == nil {
-				event.Fee = &fee
-			}
-		}
+		event.Fee = utils.StringPtr(r.FormValue("fee"))
 
 		imageUrl := r.FormValue("imageUrl")
 		if imageUrl != "" {
@@ -114,11 +132,6 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 				event.ImageURL = &fileURL
 			}
 		}
-	}
-
-	if event.Fee == nil {
-		zero := decimal.NewFromInt(0)
-		event.Fee = &zero
 	}
 
 	if err := db.DB.Create(&event).Error; err != nil {
@@ -161,6 +174,8 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	updates.Food = utils.StringPtr(r.FormValue("food"))
 	updates.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
 	updates.RegistrationRequired = r.FormValue("registrationRequired") == "true"
+	updates.Show = r.FormValue("show") == "true"
+	updates.Fee = utils.StringPtr(r.FormValue("fee"))
 
 	if val := r.FormValue("registrationEnd"); val != "" {
 		if t, err := time.Parse(time.RFC3339, val); err == nil {
@@ -168,15 +183,16 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if feeStr := r.FormValue("fee"); feeStr != "" {
-		if fee, err := decimal.NewFromString(feeStr); err == nil {
-			updates.Fee = &fee
-		}
+	fieldsToUpdate := []string{
+		"name", "description", "location", "event_start",
+		"event_end", "food", "registration_end", "signup_link",
+		"registration_required", "show", "fee",
 	}
 
 	imageUrl := r.FormValue("imageUrl")
 	if imageUrl != "" {
 		updates.ImageURL = &imageUrl
+		fieldsToUpdate = append(fieldsToUpdate, "image_url")
 	} else {
 		file, header, err := r.FormFile("file")
 		if err == nil {
@@ -184,13 +200,12 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 			fileURL, err := utils.UploadToS3(file, header)
 			if err == nil {
 				updates.ImageURL = &fileURL
+				fieldsToUpdate = append(fieldsToUpdate, "image_url")
 			}
 		}
 	}
 
-	db.DB.Model(&event).Select("name", "description", "location", "event_start",
-		"event_end", "food", "registration_end", "signup_link",
-		"registration_required", "image_url").Updates(updates)
+	db.DB.Model(&event).Select(fieldsToUpdate).Updates(updates)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updates)

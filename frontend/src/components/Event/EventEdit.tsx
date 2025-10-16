@@ -31,10 +31,11 @@ export const EventEdit = (props: EditProps) => {
         <DateTimeInput source="eventStart" />
         <DateTimeInput source="eventEnd" />
         <DateTimeInput source="registrationEnd" />
-        <NumberInput source="fee" />
+        <TextInput source="fee" />
         <BooleanInput source="registrationRequired" />
         <TextInput source="signupLink" />
         <NumberInput source="eventMaxCapacity" />
+        <BooleanInput source="show" />
         {/* Radio selection */}
         <div>
           <label>

@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"gorm.io/gorm/clause"
 
 	"ArmadaCMS/main/db"
@@ -117,23 +116,17 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		return &t
 	}
 
-	var fee *decimal.Decimal = nil
-	location := "TBA"
-
 	return models.Event{
-		EventroID:            e.ID,
-		Name:                 e.Name,
-		Description:          e.Description,
-		Location:             location,
-		Food:                 nil,
-		EventStart:           derefOrNow(parseTime(e.EventStartsAt)),
-		EventEnd:             derefOrNow(parseTime(e.EventEndsAt)),
-		RegistrationEnd:      parseTime(e.ClosesForRegistrationAt),
-		ImageURL:             nil,
-		Fee:                  fee,
-		RegistrationRequired: e.AllowWaitlist,
-		SignupLink:           nil,
-		EventMaxCapacity:     &e.MaxParticipants,
+		EventroID:        e.ID,
+		Name:             e.Name,
+		Description:      e.Description,
+		Food:             nil,
+		EventStart:       derefOrNow(parseTime(e.EventStartsAt)),
+		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),
+		RegistrationEnd:  parseTime(e.ClosesForRegistrationAt),
+		ImageURL:         nil,
+		SignupLink:       nil,
+		EventMaxCapacity: &e.MaxParticipants,
 	}
 }
 

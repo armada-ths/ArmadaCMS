@@ -17,6 +17,7 @@ export const EventList = (props: ListProps) => (
       <DateField source="eventStart" />
       <DateField source="eventEnd" />
       <TextField source="registrationRequired" />
+      <TextField source="show" />
       <EditButton />
       <DeleteWithConfirmButton
         confirmTitle="Are you sure?"
