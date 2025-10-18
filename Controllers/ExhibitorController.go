@@ -14,7 +14,7 @@ import (
 
 func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
-
+	log.Print(params)
 	var exhibitors []models.Exhibitor
 	query := db.DB.Model(&models.Exhibitor{})
 
@@ -26,17 +26,29 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 		query = query.Order(params.Sort[0] + " " + params.Sort[1])
 	}
 
-	start, end := params.Range[0], params.Range[1]
-	limit := end - start + 1
+	all := r.URL.Query().Get("limit") == "all" || r.URL.Query().Get("all") == "true"
 
 	var total int64
 	db.DB.Model(&models.Exhibitor{}).Count(&total)
 
-	query = query.Offset(start).Limit(limit)
-	query.Preload("Industries").Preload("Programs").Preload("Employments").Find(&exhibitors)
+	if all {
+		// No limit — return all exhibitors
+		query.Preload("Industries").Preload("Programs").Preload("Employments").Find(&exhibitors)
 
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
-	w.Header().Set("Content-Range", fmt.Sprintf("exhibitors %d-%d/%d", start, end, total))
+		// Set Content-Range header to full range
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
+		w.Header().Set("Content-Range", fmt.Sprintf("exhibitors 0-%d/%d", total-1, total))
+	} else {
+		// Default paginated behavior
+		start, end := params.Range[0], params.Range[1]
+		limit := end - start + 1
+		query = query.Offset(start).Limit(limit)
+		query.Preload("Industries").Preload("Programs").Preload("Employments").Find(&exhibitors)
+
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
+		w.Header().Set("Content-Range", fmt.Sprintf("exhibitors %d-%d/%d", start, end, total))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(exhibitors)
 }

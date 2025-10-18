@@ -142,67 +142,18 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 		location = e.Catalogue.Locations[0]
 	}
 
-	var logoURL *string
-	if e.Organization.Logo != "" {
-		finalURL, err := FetchEventroImageURL(e.Organization.Logo)
-		if err != nil {
-			log.Printf("⚠️ Failed to resolve logo for %s: %v", e.Organization.Name, err)
-		} else {
-			logoURL = &finalURL
-		}
-	}
-
 	return models.Exhibitor{
 		EventroID:           e.ID,
 		Name:                e.Organization.Name,
 		CompanyWebsite:      &e.Organization.Website,
 		About:               &e.Catalogue.About,
 		Tier:                &tier,
-		LogoFreesizeUrl:     logoURL,
+		LogoFreesizeUrl:     &e.Organization.Logo,
 		FairLocation:        location,
 		Type:                "company",
 		ClimateCompensation: false,
 		Flyer:               "",
 	}
-}
-
-// ---------- Image URL Resolver ----------
-
-func FetchEventroImageURL(url string) (string, error) {
-	client := &http.Client{
-		Timeout:       15 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return nil },
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("EVENTRO_API"))
-	req.Header.Set("organization", os.Getenv("EVENTRO_ORG"))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("fetch Eventro asset: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Eventro usually responds with 302/301 -> extract redirect URL
-	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusMovedPermanently {
-		finalURL := resp.Header.Get("Location")
-		if finalURL == "" {
-			return "", fmt.Errorf("redirect without Location header")
-		}
-		return finalURL, nil
-	}
-
-	// Some clients auto-follow redirects; handle final URL fallback
-	if resp.StatusCode == http.StatusOK {
-		return resp.Request.URL.String(), nil
-	}
-
-	return "", fmt.Errorf("unexpected Eventro response: %s", resp.Status)
 }
 
 // ---------- Tier Derivation ----------
