@@ -11,7 +11,6 @@ export const ProgramList = (props: ListProps) => (
   <List {...props}>
     <Datagrid>
       <TextField source="id" />
-      <TextField source="code" />
       <TextField source="name" />
       <EditButton />
       <DeleteWithConfirmButton

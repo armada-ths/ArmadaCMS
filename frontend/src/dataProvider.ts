@@ -43,19 +43,23 @@ const createMultipartFormData = (
 ) => {
   const formData = new FormData();
 
-  // Loop through fields in data
   Object.entries(params.data).forEach(([key, value]) => {
     if (value == null) return;
 
-    // Handle React Admin file input: { rawFile, src }
+    // Handle React Admin ImageInput
     if (value.rawFile instanceof File) {
       formData.append("file", value.rawFile);
     }
-    // Handle string URLs (existing images)
+
+    // Handle logo/image/link fields
     else if (typeof value === "string" && /(photo|image|logo|img)/i.test(key)) {
-      formData.append(`${key}Url`, value);
+      // ✅ For exhibitors: logoFreesize, logoSquared, mapImg
+      formData.append(key, value);
+    } else if (Array.isArray(value)) {
+      // 👇 include all arrays (programs, industries, employments) as JSON
+      formData.append(key, JSON.stringify(value));
     }
-    // Handle scalar fields
+    // Handle scalar values
     else if (typeof value !== "object") {
       formData.append(key, String(value));
     }
@@ -88,7 +92,7 @@ export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
   create: (resource, params) => {
-    if (["profiles", "events"].includes(resource)) {
+    if (["profiles", "events", "exhibitors"].includes(resource)) {
       const formData = createMultipartFormData(params);
       return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
     }
@@ -96,7 +100,7 @@ export const dataProvider: DataProvider = {
   },
 
   update: (resource, params) => {
-    if (["profiles", "events"].includes(resource)) {
+    if (["profiles", "events", "exhibitors"].includes(resource)) {
       const formData = createMultipartFormData(params);
       return uploadFormData(
         `${endpoint}/${resource}/${params.id}`,

@@ -1,20 +1,9 @@
-import {
-  Edit,
-  EditProps,
-  SimpleForm,
-  TextInput,
-  ReferenceInput,
-  SelectInput,
-} from "react-admin";
+import { Edit, EditProps, SimpleForm, TextInput } from "react-admin";
 
 export const EmploymentEdit = (props: EditProps) => (
   <Edit {...props}>
     <SimpleForm>
-      <TextInput source="title" />
-      <TextInput source="description" />
-      <ReferenceInput source="exhibitor_id" reference="exhibitors">
-        <SelectInput optionText="name" />
-      </ReferenceInput>
+      <TextInput source="name" />
     </SimpleForm>
   </Edit>
 );

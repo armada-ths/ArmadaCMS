@@ -11,7 +11,7 @@ const (
 
 type Exhibitor struct {
 	ID              uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
-	EventroID       string  `gorm:"column:eventro_id;uniqueIndex" json:"eventroId"`
+	EventroID       *string `gorm:"column:eventro_id;uniqueIndex" json:"eventroId,omitempty"`
 	Name            string  `gorm:"column:name;not null" json:"name"`
 	Type            string  `gorm:"column:type;not null" json:"type"`
 	Tier            *Tier   `gorm:"column:tier" json:"tier,omitempty"`
@@ -22,9 +22,9 @@ type Exhibitor struct {
 	LogoFreesizeUrl *string `gorm:"column:logo_freesize_url" json:"logoFreesize,omitempty"`
 	MapImg          *string `gorm:"column:map_img" json:"mapImg,omitempty"`
 
-	Industries  []Industry   `gorm:"many2many:exhibitor_industries;" json:"industries,omitempty"`
-	Programs    []Program    `gorm:"many2many:exhibitor_programs;" json:"programs,omitempty"`
-	Employments []Employment `gorm:"many2many:exhibitor_employments;" json:"emplyoments,omitempty"`
+	Industries  []Industry   `gorm:"many2many:exhibitor_industries;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"industries,omitempty"`
+	Programs    []Program    `gorm:"many2many:exhibitor_programs;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"programs,omitempty"`
+	Employments []Employment `gorm:"many2many:exhibitor_employments;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"employments,omitempty"`
 
 	Cities              *string `gorm:"column:cities" json:"cities,omitempty"`
 	FairLocation        string  `gorm:"column:fair_location;not null" json:"fairLocation"`

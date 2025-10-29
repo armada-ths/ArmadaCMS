@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"ArmadaCMS/main/db"
@@ -57,7 +58,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	baseURL := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/exhibitors/", fairID)
 
 	allExhibitors := []eventroExhibitorResponse{}
-	page := 1
+	page := 0
 
 	for {
 		url := fmt.Sprintf("%s?pageIndex=%d", baseURL, page)
@@ -89,7 +90,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(result.Exhibitors) == 0 {
-			break // no more pages
+			break
 		}
 
 		allExhibitors = append(allExhibitors, result.Exhibitors...)
@@ -106,13 +107,26 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	for _, e := range allExhibitors {
 		ex := mapEventroToExhibitor(e)
 
-		result := db.DB.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "eventro_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "tier", "company_website", "about",
-				"logo_freesize_url", "fair_location",
-			}),
-		}).Create(&ex)
+		// Upsert base exhibitor fields
+		result := db.DB.
+			Session(&gorm.Session{
+				FullSaveAssociations: false, // don't auto-save relationships
+				SkipHooks:            true,  // prevent hooks that might trigger save
+			}).
+			Omit("Industries", "Industries.*",
+				"Employments", "Employments.*",
+				"Programs", "Programs.*").
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "eventro_id"}},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"name",
+					"tier",
+					"company_website",
+					"about",
+					"logo_freesize_url",
+					"cities",
+				}),
+			}).Create(&ex)
 
 		if result.Error != nil {
 			log.Printf("❌ Failed upserting exhibitor %s (%s): %v", e.ID, e.Organization.Name, result.Error)
@@ -124,6 +138,21 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 		} else {
 			updated++
 		}
+
+		for i := range ex.Industries {
+			db.DB.Where("name = ?", ex.Industries[i].Name).FirstOrCreate(&ex.Industries[i])
+		}
+		for i := range ex.Employments {
+			db.DB.Where("name = ?", ex.Employments[i].Name).FirstOrCreate(&ex.Employments[i])
+		}
+		for i := range ex.Programs {
+			db.DB.Where("name = ?", ex.Programs[i].Name).FirstOrCreate(&ex.Programs[i])
+		}
+
+		// Now link
+		db.DB.Model(&ex).Association("Industries").Replace(ex.Industries)
+		db.DB.Model(&ex).Association("Employments").Replace(ex.Employments)
+		db.DB.Model(&ex).Association("Programs").Replace(ex.Programs)
 	}
 
 	log.Printf("✅ Sync completed — inserted: %d, updated: %d", inserted, updated)
@@ -137,23 +166,69 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	tierStr := deriveTier(e.OrderedProducts)
 	tier := models.Tier(tierStr)
 
-	location := ""
+	// Safely handle optional strings
+	website := strings.TrimSpace(e.Organization.Website)
+	logo := strings.TrimSpace(e.Organization.Logo)
+	about := strings.TrimSpace(e.Catalogue.About)
+	eventroId := strings.TrimSpace(e.ID)
+
+	// Join all locations into a single cities string
+	var cities *string
 	if len(e.Catalogue.Locations) > 0 {
-		location = e.Catalogue.Locations[0]
+		joined := strings.Join(e.Catalogue.Locations, ", ")
+		cities = &joined
+	}
+
+	// Map related entities
+	industries := make([]models.Industry, 0, len(e.Catalogue.Industries))
+	for _, i := range e.Catalogue.Industries {
+		name := strings.TrimSpace(i)
+		if name == "" {
+			continue
+		}
+		industries = append(industries, models.Industry{Name: name})
+	}
+
+	employments := make([]models.Employment, 0, len(e.Catalogue.Employments))
+	for _, emp := range e.Catalogue.Employments {
+		name := strings.TrimSpace(emp)
+		if name == "" {
+			continue
+		}
+		employments = append(employments, models.Employment{Name: name})
+	}
+
+	programs := make([]models.Program, 0, len(e.Catalogue.Educations))
+	for _, edu := range e.Catalogue.Educations {
+		name := strings.TrimSpace(edu)
+		if name == "" {
+			continue
+		}
+		programs = append(programs, models.Program{Name: name})
 	}
 
 	return models.Exhibitor{
-		EventroID:           e.ID,
+		EventroID:           nullIfEmpty(eventroId),
 		Name:                e.Organization.Name,
-		CompanyWebsite:      &e.Organization.Website,
-		About:               &e.Catalogue.About,
-		Tier:                &tier,
-		LogoFreesizeUrl:     &e.Organization.Logo,
-		FairLocation:        location,
 		Type:                "company",
+		Tier:                &tier,
+		CompanyWebsite:      nullIfEmpty(website),
+		About:               nullIfEmpty(about),
+		LogoFreesizeUrl:     nullIfEmpty(logo),
+		Cities:              cities,
+		Industries:          industries,
+		Employments:         employments,
+		Programs:            programs,
 		ClimateCompensation: false,
 		Flyer:               "",
 	}
+}
+
+func nullIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // ---------- Tier Derivation ----------
@@ -172,5 +247,5 @@ func deriveTier(products []eventroProduct) string {
 			return "Bronze"
 		}
 	}
-	return "Standard"
+	return "Bronze"
 }

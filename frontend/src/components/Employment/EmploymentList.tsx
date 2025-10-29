@@ -2,7 +2,6 @@ import {
   List,
   Datagrid,
   TextField,
-  ReferenceField,
   EditButton,
   ListProps,
   DeleteWithConfirmButton,
@@ -12,10 +11,7 @@ export const EmploymentList = (props: ListProps) => (
   <List {...props}>
     <Datagrid>
       <TextField source="id" />
-      <TextField source="title" />
-      <ReferenceField source="exhibitor_id" reference="exhibitors">
-        <TextField source="name" />
-      </ReferenceField>
+      <TextField source="name" />
       <EditButton />
       <DeleteWithConfirmButton
         confirmTitle="Are you sure?"
