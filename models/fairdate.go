@@ -28,23 +28,23 @@ func NewFairDate() FairDate {
     var fairDate FairDate
 
     // Set fair information
-    fairDate.Fair.Description = "THS Armada 2025"
-    fairDate.Fair.Days = []string{"2025-11-18", "2025-11-19"}
+    fairDate.Fair.Description = "THS Armada 2026"
+    fairDate.Fair.Days = []string{"2026-11-17", "2026-11-18"}
 
     // Set ticket information (null end date)
     fairDate.Ticket.End = nil
 
     // Set IR (Initial Registration) information
-    fairDate.IR.Start = "2025-03-03"
-    fairDate.IR.End = "2025-05-23"
-    fairDate.IR.Acceptance = "2025-06-02"
+    fairDate.IR.Start = "2026-03-01"
+    fairDate.IR.End = "2026-06-01"
+    fairDate.IR.Acceptance = "2026-06-01"
 
     // Set FR (Final Registration) information
-    fairDate.FR.Start = "2025-08-11"
-    fairDate.FR.End = "2025-09-26"
+    fairDate.FR.Start = "2026-08-01"
+    fairDate.FR.End = "2026-09-01"
 
     // Set Events information
-    fairDate.Events.Start = "2025-11-03"
+    fairDate.Events.Start = "2026-11-02"
     // Handle the empty end date
     emptyEnd := ""
     fairDate.Events.End = emptyEnd
