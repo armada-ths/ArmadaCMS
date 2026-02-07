@@ -37,6 +37,7 @@ func main() {
 		models.Employment{},
 		models.Exhibitor{},
 		models.Event{},
+		models.FairDateConfig{},
 		// Enter your models here
 	)
 
@@ -134,6 +135,13 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/employments", controllers.CreateEmployment).Methods("POST")
 	protectedAPI.HandleFunc("/employments/{id}", controllers.UpdateEmployment).Methods("PUT")
 	protectedAPI.HandleFunc("/employments/{id}", controllers.DeleteEmployment).Methods("DELETE")
+
+	// fairdates (admin CRUD)
+	publicAPI.HandleFunc("/fairdates", controllers.GetFairDateConfigs).Methods("GET")
+	publicAPI.HandleFunc("/fairdates/{id}", controllers.GetFairDateConfigByID).Methods("GET")
+	protectedAPI.HandleFunc("/fairdates", controllers.CreateFairDateConfig).Methods("POST")
+	protectedAPI.HandleFunc("/fairdates/{id}", controllers.UpdateFairDateConfig).Methods("PUT")
+	protectedAPI.HandleFunc("/fairdates/{id}", controllers.DeleteFairDateConfig).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")

@@ -28,6 +28,9 @@ import { IndustryList } from "./components/Industry/IndustryList";
 import { ProgramCreate } from "./components/Program/ProgramCreate";
 import { ProgramEdit } from "./components/Program/ProgramEdit";
 import { ProgramList } from "./components/Program/ProgramList";
+import { FairDateList } from "./components/FairDate/FairDateList";
+import { FairDateCreate } from "./components/FairDate/FairDateCreate";
+import { FairDateEdit } from "./components/FairDate/FairDateEdit";
 
 import { Icon } from "@mui/material";
 export const MyMenu = () => (
@@ -103,6 +106,12 @@ export const App = () => (
       list={EmploymentList}
       create={EmploymentCreate}
       edit={EmploymentEdit}
+    />
+    <Resource
+      name="fairdates"
+      list={FairDateList}
+      create={FairDateCreate}
+      edit={FairDateEdit}
     />
 
     <CustomRoutes>
