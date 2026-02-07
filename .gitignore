@@ -26,3 +26,6 @@ go.work.sum
 
 ./tmp
 tmp
+
+# Claude files
+tmpclaude-*-cwd
