@@ -1,21 +1,82 @@
 {
-    "family": "go-backend-task",
-    "networkMode": "awsvpc",
-    "requiresCompatibilities": ["FARGATE"],
-    "cpu": "256",
-    "memory": "512",
-    "executionRoleArn": "arn:aws:iam::593054043164:role/AIS-Prod-ais-stack-ServiceTaskDefExecutionRole919F-99QBGDABOKDA",
-    "containerDefinitions": [
-      {
-        "name": "armadacms",
-    "image": "593054043164.dkr.ecr.eu-north-1.amazonaws.com/armadacms:v2",
-        "portMappings": [
-          {
-            "containerPort": 8080,
-            "protocol": "tcp"
-          }
-        ],
-        "essential": true
+  "family": "armadacms",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "3072",
+  "executionRoleArn": "arn:aws:iam::593054043164:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::593054043164:role/ecsTaskExecutionRole",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "armadacms",
+      "image": "593054043164.dkr.ecr.eu-north-1.amazonaws.com/armadacms:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [],
+      "secrets": [
+        {
+          "name": "EVENTRO_API",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_API::"
+        },
+        {
+          "name": "EVENTRO_FAIR_ID",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_FAIR_ID::"
+        },
+        {
+          "name": "EVENTRO_ORG",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_ORG::"
+        },
+        {
+          "name": "VITE_JSON_SERVER_URL",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:VITE_JSON_SERVER_URL::"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:DB_HOST::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:DB_PORT::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:DB_USER::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:DB_PASSWORD::"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:DB_NAME::"
+        },
+        {
+          "name": "API_PORT",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:API_PORT::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-create-group": "true",
+          "awslogs-group": "/ecs/",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs",
+          "max-buffer-size": "25m",
+          "mode": "non-blocking"
+        }
       }
-    ]
-  }
+    }
+  ]
+}
