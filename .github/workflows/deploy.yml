@@ -8,45 +8,71 @@ on:
 env:
   AWS_REGION: eu-north-1
   ECR_REPOSITORY: armadacms
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER_NAME }} # Set in GitHub repo variables
-  ECS_SERVICE: ${{ vars.ECS_SERVICE_NAME }} # Set in GitHub repo variables
-  CONTAINER_NAME: armadacms # Must match containerDefinitions[].name in task def
-  TASK_FAMILY: armadacms # Must match task-definition.json "family"
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER_NAME }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE_NAME }}
+  CONTAINER_NAME: armadacms
+  TASK_FAMILY: armadacms
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Deploy
     runs-on: ubuntu-latest
 
-    # Required for OIDC authentication with AWS
     permissions:
       id-token: write
       contents: read
+      pull-requests: read
 
     steps:
-      # ---- Checkout ----
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ---- AWS Credentials ----
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Option A (recommended): OIDC — no long-lived keys
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          # Option B: Access keys (uncomment below, comment out role-to-assume)
-          # aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # aws-region: ${{ env.AWS_REGION }}
 
-      # ---- ECR Login ----
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ---- Build & Push Docker Image ----
-      - name: Build, tag, and push image to Amazon ECR
+      # Find the merged PR number so we can look up the pre-built image
+      - name: Find merged PR number
+        id: find-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=$(gh pr list --state merged --base main --json number,mergeCommit \
+            --jq '.[] | select(.mergeCommit.oid == "${{ github.sha }}") | .number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "Found merged PR #$PR_NUMBER"
+          else
+            echo "number=" >> $GITHUB_OUTPUT
+            echo "No merged PR found (likely a direct push)"
+          fi
+
+      # Check if a pre-built image exists from the PR workflow
+      - name: Check for pre-built image
+        id: check-image
+        if: steps.find-pr.outputs.number != ''
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: pr-${{ steps.find-pr.outputs.number }}
+        run: |
+          if docker manifest inspect $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG > /dev/null 2>&1; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+            echo "Pre-built image found: $IMAGE_TAG"
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "No pre-built image found for $IMAGE_TAG"
+          fi
+
+      # Fallback: build from scratch if no pre-built image (e.g. direct push to main)
+      - name: Build image (fallback)
+        if: steps.check-image.outputs.found != 'true'
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -62,6 +88,25 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Tag pre-built image as latest
+        if: steps.check-image.outputs.found == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: pr-${{ steps.find-pr.outputs.number }}
+        run: |
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Set image output
+        id: image
+        run: |
+          if [ "${{ steps.check-image.outputs.found }}" == "true" ]; then
+            echo "image=${{ steps.check-image.outputs.image }}" >> $GITHUB_OUTPUT
+          else
+            echo "image=${{ steps.build-image.outputs.image }}" >> $GITHUB_OUTPUT
+          fi
+
       # ---- Update ECS Task Definition ----
       - name: Download current ECS task definition
         run: |
@@ -76,7 +121,7 @@ jobs:
         with:
           task-definition: current-task-def.json
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
+          image: ${{ steps.image.outputs.image }}
 
       # ---- Deploy to ECS ----
       - name: Deploy Amazon ECS task definition
