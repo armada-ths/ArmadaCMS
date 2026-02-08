@@ -20,7 +20,7 @@ const port = 8080
 func main() {
 	fmt.Println("Hello, world.")
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("No .env file found, using environment variables directly")
 	}
 
 	db.ConnectDB()

@@ -1,0 +1,48 @@
+# ----------------------
+# Stage 1: Build React frontend
+# ----------------------
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install --legacy-peer-deps
+
+COPY frontend/ .
+RUN npm run build
+
+# ----------------------
+# Stage 2: Build Go binary
+# ----------------------
+FROM golang:1.24-alpine AS backend-builder
+
+RUN apk update && apk upgrade && \
+    apk add --no-cache bash git openssh
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+COPY --from=frontend-builder /frontend/dist ./frontend/dist
+
+# Build a statically linked production binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/server .
+
+# ----------------------
+# Stage 3: Minimal production image
+# ----------------------
+FROM alpine:3.20
+
+RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy compiled binary and frontend assets
+COPY --from=backend-builder /app/server .
+COPY --from=backend-builder /app/frontend/dist ./frontend/dist
+
+EXPOSE 8080
+
+ENTRYPOINT ["./server"]
