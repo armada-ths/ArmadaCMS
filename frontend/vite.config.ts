@@ -12,6 +12,30 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     sourcemap: mode === "development",
+    chunkSizeWarningLimit: 850,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": [
+            "react",
+            "react-dom",
+            "react-router",
+            "react-router-dom",
+          ],
+          "vendor-admin": [
+            "@mui/material",
+            "@mui/icons-material",
+            "@emotion/react",
+            "@emotion/styled",
+            "react-admin",
+            "ra-core",
+            "ra-ui-materialui",
+            "ra-data-json-server",
+            "ra-data-simple-rest",
+          ],
+        },
+      },
+    },
   },
 
   // ✅ Adds @ alias and keeps your React Admin debug aliases
