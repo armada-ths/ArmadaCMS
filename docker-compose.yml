@@ -1,7 +1,5 @@
 # Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
 
-version: "3.5"
-
 # Define services
 services:
   # App Service
@@ -13,18 +11,17 @@ services:
     ports:
       - "8080:8080" # Forward the exposed port 8080 on the container to port 8080 on the host machine
     restart: unless-stopped
+    env_file:
+      - .env
     environment: # Pass environment variables to the service
-      DB_HOST: terraform-20250411194126172200000001.cg6cp6bnc2ao.eu-north-1.rds.amazonaws.com
-      DB_PORT: 5432
-      API_PORT: 80
-      DB_USER: postgres
-      DB_PASSWORD: secretpassword
-      DB_NAME: armadacms
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE}
     networks: # Networks to join (Services on the same network can communicate with each other using their name)
       - backend
-    volumes:
-      - .:/app
-      - /app/frontend/dist # preserve the Docker-built frontend, don't overwrite with host
 
 networks:
   backend:

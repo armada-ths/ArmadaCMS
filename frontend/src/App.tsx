@@ -31,6 +31,9 @@ import { ProgramList } from "./components/Program/ProgramList";
 import { FairDateList } from "./components/FairDate/FairDateList";
 import { FairDateCreate } from "./components/FairDate/FairDateCreate";
 import { FairDateEdit } from "./components/FairDate/FairDateEdit";
+import { FeatureFlagList } from "./components/FeatureFlag/FeatureFlagList";
+import { FeatureFlagCreate } from "./components/FeatureFlag/FeatureFlagCreate";
+import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
 
 import { Icon } from "@mui/material";
 export const MyMenu = () => (
@@ -112,6 +115,12 @@ export const App = () => (
       list={FairDateList}
       create={FairDateCreate}
       edit={FairDateEdit}
+    />
+    <Resource
+      name="featureflags"
+      list={FeatureFlagList}
+      create={FeatureFlagCreate}
+      edit={FeatureFlagEdit}
     />
 
     <CustomRoutes>
