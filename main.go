@@ -38,8 +38,13 @@ func main() {
 		models.Exhibitor{},
 		models.Event{},
 		models.FairDateConfig{},
+		models.FeatureFlag{},
 		// Enter your models here
 	)
+
+	if err := controllers.SeedFeatureFlags(db.DB); err != nil {
+		log.Printf("failed to seed feature flags: %v", err)
+	}
 
 	wrappedMux := CreateMuxClient()
 	colonPort := fmt.Sprintf(":%d", port)
@@ -142,6 +147,13 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/fairdates", controllers.CreateFairDateConfig).Methods("POST")
 	protectedAPI.HandleFunc("/fairdates/{id}", controllers.UpdateFairDateConfig).Methods("PUT")
 	protectedAPI.HandleFunc("/fairdates/{id}", controllers.DeleteFairDateConfig).Methods("DELETE")
+
+	// feature flags
+	publicAPI.HandleFunc("/featureflags", controllers.GetFeatureFlags).Methods("GET")
+	publicAPI.HandleFunc("/featureflags/{id}", controllers.GetFeatureFlagByID).Methods("GET")
+	protectedAPI.HandleFunc("/featureflags", controllers.CreateFeatureFlag).Methods("POST")
+	protectedAPI.HandleFunc("/featureflags/{id}", controllers.UpdateFeatureFlag).Methods("PUT")
+	protectedAPI.HandleFunc("/featureflags/{id}", controllers.DeleteFeatureFlag).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
