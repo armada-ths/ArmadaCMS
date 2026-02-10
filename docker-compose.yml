@@ -1,6 +1,6 @@
 # Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
 
-version: '3.5'
+version: "3.5"
 
 # Define services
 services:
@@ -24,6 +24,7 @@ services:
       - backend
     volumes:
       - .:/app
+      - /app/frontend/dist # preserve the Docker-built frontend, don't overwrite with host
 
 networks:
   backend:
