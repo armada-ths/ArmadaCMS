@@ -57,8 +57,6 @@ Builds the frontend and backend in one step:
 docker compose up --build
 ```
 
-> DB credentials can also be set directly in `docker-compose.yml` under `environment`.
-
 ### Option B: Run locally
 
 1. **Build the admin frontend**
