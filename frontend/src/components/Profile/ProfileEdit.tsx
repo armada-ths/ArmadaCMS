@@ -10,6 +10,13 @@ import {
 } from "react-admin";
 import React, { useState } from "react";
 
+const RANK_CHOICES = [
+  { id: "Project Manager", name: "Project Manager" },
+  { id: "Project Group", name: "Project Group" },
+  { id: "Operation Team", name: "Operation Team" },
+  { id: "Host", name: "Host" },
+];
+
 export const ProfileEdit = (props: EditProps) => {
   const [selectedOption, setSelectedOption] = useState<
     "upload" | "link" | "display"
@@ -25,9 +32,22 @@ export const ProfileEdit = (props: EditProps) => {
     <Edit {...props}>
       <SimpleForm>
         <TextInput label="Name" source="name" />
+        <SelectInput
+          label="Rank"
+          source="rank"
+          choices={RANK_CHOICES}
+          emptyText="No rank"
+          format={(value) => value ?? ""}
+          parse={(value) => (value === "" ? null : value)}
+        />
         <TextInput label="Title" source="title" />
         <ReferenceInput label="Team" source="team_id" reference="teams">
-          <SelectInput optionText="team_name" />
+          <SelectInput
+            optionText="team_name"
+            emptyText="No team"
+            format={(value) => value ?? ""}
+            parse={(value) => (value === "" ? null : value)}
+          />
         </ReferenceInput>
         <TextInput label="Linkedin" source="linkedin" />
         <TextInput label="Email" source="email" type="email" />

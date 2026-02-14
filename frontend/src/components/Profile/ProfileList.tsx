@@ -13,6 +13,7 @@ export const ProfileList = (props: ListProps) => {
     <List {...props}>
       <Datagrid>
         <TextField source="name" />
+        <TextField source="rank" />
         <TextField source="title" />
         <TextField source="team.team_name" label="Team name" />
         <TextField source="linkedin" />

@@ -18,6 +18,10 @@ func GetOrganizationEndpoint(w http.ResponseWriter, r *http.Request) {
 	query.Preload("Team").Find(&profiles)
 	teams := make(map[string][]models.Person)
 	for _, profile := range profiles {
+		if profile.Team == nil || profile.TeamID == nil || profile.Team.TeamName == "" {
+			continue
+		}
+
 		members := teams[profile.Team.TeamName]
 		members = append(members, models.ConvertProfileToPerson(profile))
 		teams[profile.Team.TeamName] = members

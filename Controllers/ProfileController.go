@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -68,16 +69,19 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamIDStr := r.FormValue("team_id")
-	var err error
-	teamID, err := strconv.Atoi(teamIDStr)
-	if err != nil {
-		log.Println("Invalid team_id:", teamIDStr)
-		http.Error(w, "team_id must be an integer", http.StatusBadRequest)
-		return
+	teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
+	if teamIDStr != "" {
+		teamID, err := strconv.Atoi(teamIDStr)
+		if err != nil {
+			log.Println("Invalid team_id:", teamIDStr)
+			http.Error(w, "team_id must be an integer", http.StatusBadRequest)
+			return
+		}
+		teamIDInt32 := int32(teamID)
+		profile.TeamID = &teamIDInt32
 	}
-	profile.TeamID = int32(teamID)
 	profile.Name = r.FormValue("name")
+	profile.Rank = r.FormValue("rank")
 	profile.Title = r.FormValue("title")
 	profile.Linkedin = r.FormValue("linkedin")
 	profile.Email = r.FormValue("email")
@@ -87,19 +91,21 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		profile.Photo = photoUrl
 	} else {
 		photoFile, header, err := r.FormFile("file")
-		if err != nil {
+		if err != nil && err != http.ErrMissingFile {
 			log.Println("Error retrieving the file:", err)
-			http.Error(w, "File is required", http.StatusBadRequest)
+			http.Error(w, "File is corrupt", http.StatusBadRequest)
 			return
 		}
-		defer photoFile.Close()
-		fileURL, err := utils.UploadToS3(photoFile, header)
-		if err != nil {
-			log.Println("Error uploading the file:", err)
-			http.Error(w, "Error uploading file", http.StatusBadRequest)
-			return
+		if err == nil {
+			defer photoFile.Close()
+			fileURL, err := utils.UploadToS3(photoFile, header)
+			if err != nil {
+				log.Println("Error uploading the file:", err)
+				http.Error(w, "Error uploading file", http.StatusBadRequest)
+				return
+			}
+			profile.Photo = fileURL
 		}
-		profile.Photo = fileURL
 	}
 
 	if err := db.DB.Create(&profile).Error; err != nil {
@@ -131,16 +137,23 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamIDStr := r.FormValue("team_id")
-	var err error
-	teamID, err := strconv.Atoi(teamIDStr)
-	if err != nil {
-		log.Println("Invalid team_id:", teamIDStr)
-		http.Error(w, "team_id must be an integer", http.StatusBadRequest)
-		return
+	teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
+	teamIDProvided := false
+	if r.MultipartForm != nil {
+		_, teamIDProvided = r.MultipartForm.Value["team_id"]
 	}
-	updates.TeamID = int32(teamID)
+	if teamIDStr != "" {
+		teamID, err := strconv.Atoi(teamIDStr)
+		if err != nil {
+			log.Println("Invalid team_id:", teamIDStr)
+			http.Error(w, "team_id must be an integer", http.StatusBadRequest)
+			return
+		}
+		teamIDInt32 := int32(teamID)
+		updates.TeamID = &teamIDInt32
+	}
 	updates.Name = r.FormValue("name")
+	updates.Rank = r.FormValue("rank")
 	updates.Title = r.FormValue("title")
 	updates.Linkedin = r.FormValue("linkedin")
 	updates.Email = r.FormValue("email")
@@ -166,7 +179,21 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	db.DB.Model(&profile).Updates(updates)
+	updateMap := map[string]interface{}{
+		"name":     updates.Name,
+		"rank":     updates.Rank,
+		"title":    updates.Title,
+		"linkedin": updates.Linkedin,
+		"email":    updates.Email,
+	}
+	if teamIDProvided {
+		updateMap["team_id"] = updates.TeamID
+	}
+	if updates.Photo != "" {
+		updateMap["photo"] = updates.Photo
+	}
+
+	db.DB.Model(&profile).Updates(updateMap)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updates)

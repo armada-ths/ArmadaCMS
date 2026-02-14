@@ -9,6 +9,7 @@ export const Panel = () => {
     const endpoints = [
       { name: "Exhibitors", path: "/eventroexhibitors" },
       { name: "Events", path: "/eventroevents" },
+      { name: "Members", path: "/eventromembers" },
     ];
 
     try {
@@ -19,7 +20,7 @@ export const Panel = () => {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("auth")}`,
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
           }).then(async (res) => {
             if (!res.ok) {
@@ -61,7 +62,7 @@ export const Panel = () => {
         Trigger Eventro Sync
       </button>
       <p className="text-sm text-gray-500">
-        This will sync both Exhibitors and Events from Eventro.
+        This will sync Exhibitors, Events, and Team Members from Eventro.
       </p>
     </div>
   );
