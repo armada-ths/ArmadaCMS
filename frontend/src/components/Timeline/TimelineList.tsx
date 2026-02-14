@@ -1,11 +1,5 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  EditButton,
-  ListProps,
-  DeleteWithConfirmButton,
-} from "react-admin";
+import { List, Datagrid, TextField, EditButton, ListProps } from "react-admin";
+import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const TimelineList = (props: ListProps) => {
   return (
@@ -14,10 +8,7 @@ export const TimelineList = (props: ListProps) => {
         <TextField source="timeline_title" />
         <TextField source="timeline_date" />
         <EditButton />
-        <DeleteWithConfirmButton
-          confirmTitle="Are you sure?"
-          confirmContent="This is PERMANENT, no backups"
-        />
+        <PermissionDeleteButton />
       </Datagrid>
     </List>
   );

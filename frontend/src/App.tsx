@@ -34,15 +34,30 @@ import { FairDateEdit } from "./components/FairDate/FairDateEdit";
 import { FeatureFlagList } from "./components/FeatureFlag/FeatureFlagList";
 import { FeatureFlagCreate } from "./components/FeatureFlag/FeatureFlagCreate";
 import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
+import { RoleList } from "./components/Role/RoleList";
+import { RoleCreate } from "./components/Role/RoleCreate";
+import { RoleEdit } from "./components/Role/RoleEdit";
 
 import { Icon } from "@mui/material";
-export const MyMenu = () => (
-  <Menu>
-    <Menu.DashboardItem />
-    <Menu.ResourceItems />
-    <Menu.Item to="/panel" primaryText="Panel" leftIcon={<Icon />} />
-  </Menu>
-);
+import { usePermissions } from "react-admin";
+
+const hasPerm = (perms: string[], required: string) =>
+  perms.some((p) => p === "*" || p === required);
+
+export const MyMenu = () => {
+  const { permissions } = usePermissions();
+  const perms: string[] = Array.isArray(permissions) ? permissions : [];
+  const canAccessPanel = hasPerm(perms, "panel.access");
+
+  return (
+    <Menu>
+      <Menu.ResourceItems />
+      {canAccessPanel && (
+        <Menu.Item to="/panel" primaryText="Panel" leftIcon={<Icon />} />
+      )}
+    </Menu>
+  );
+};
 import { ReactNode } from "react";
 import { Route } from "react-router";
 import { Panel } from "./components/Panel/Panel";
@@ -121,6 +136,13 @@ export const App = () => (
       list={FeatureFlagList}
       create={FeatureFlagCreate}
       edit={FeatureFlagEdit}
+    />
+
+    <Resource
+      name="roles"
+      list={RoleList}
+      create={RoleCreate}
+      edit={RoleEdit}
     />
 
     <CustomRoutes>

@@ -10,22 +10,14 @@ import {
 } from "react-admin";
 import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
-export const ExhibitorList = (props: ListProps) => (
+export const RoleList = (props: ListProps) => (
   <List {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="name" />
-      <TextField source="type" />
-      <TextField source="tier" />
-      <TextField source="fairLocation" label="Fair location" />
-      <ArrayField source="industries">
-        <SingleFieldList>
-          <ChipField source="name" />
-        </SingleFieldList>
-      </ArrayField>
-      <ArrayField source="programs">
-        <SingleFieldList>
-          <ChipField source="name" />
+      <ArrayField source="permissions">
+        <SingleFieldList linkType={false}>
+          <ChipField source="" />
         </SingleFieldList>
       </ArrayField>
       <EditButton />

@@ -22,11 +22,12 @@ func GenerateRefreshToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func GenerateAccessToken(userID int) (string, error) {
-
+func GenerateAccessToken(userID int, role string, permissions []string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"user_id":     userID,
+		"role":        role,
+		"permissions": permissions,
+		"exp":         time.Now().Add(15 * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

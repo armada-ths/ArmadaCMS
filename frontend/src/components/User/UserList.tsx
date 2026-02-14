@@ -5,8 +5,9 @@ import {
   DateField,
   EditButton,
   ListProps,
-  DeleteWithConfirmButton,
+  ReferenceField,
 } from "react-admin";
+import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const UserList = (props: ListProps) => {
   return (
@@ -14,13 +15,13 @@ export const UserList = (props: ListProps) => {
       <Datagrid>
         <TextField source="username" />
         <TextField source="name" />
+        <ReferenceField source="role_id" reference="roles" link={false}>
+          <TextField source="name" />
+        </ReferenceField>
         <DateField source="created_at" />
         <DateField source="updated_at" />
         <EditButton />
-        <DeleteWithConfirmButton
-          confirmTitle="Are you sure?"
-          confirmContent="This is PERMANENT, no backups"
-        />
+        <PermissionDeleteButton />
       </Datagrid>
     </List>
   );

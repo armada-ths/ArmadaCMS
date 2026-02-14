@@ -1,12 +1,5 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  EditButton,
-  ListProps,
-  DeleteWithConfirmButton,
-  // FileField,
-} from "react-admin";
+import { List, Datagrid, TextField, EditButton, ListProps } from "react-admin";
+import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const ProfileList = (props: ListProps) => {
   return (
@@ -18,12 +11,8 @@ export const ProfileList = (props: ListProps) => {
         <TextField source="team.team_name" label="Team name" />
         <TextField source="linkedin" />
         <TextField source="email" />
-        {/* <FileField source="photo" /> */}
         <EditButton />
-        <DeleteWithConfirmButton
-          confirmTitle="Are you sure?"
-          confirmContent="This is PERMANENT, no backups"
-        />
+        <PermissionDeleteButton />
       </Datagrid>
     </List>
   );

@@ -1,4 +1,11 @@
-import { Edit, EditProps, SimpleForm, TextInput } from "react-admin";
+import {
+  Edit,
+  EditProps,
+  SimpleForm,
+  TextInput,
+  ReferenceInput,
+  SelectInput,
+} from "react-admin";
 
 export const UserEdit = (props: EditProps) => {
   return (
@@ -8,6 +15,13 @@ export const UserEdit = (props: EditProps) => {
         <TextInput label="New password" source="password" type="password" />
         <TextInput label="Name" source="name" />
         <TextInput label="Avatar" source="avatar" />
+        <ReferenceInput source="role_id" reference="roles">
+          <SelectInput
+            label="Role"
+            optionText="name"
+            helperText="Leave empty for full admin access"
+          />
+        </ReferenceInput>
       </SimpleForm>
     </Edit>
   );

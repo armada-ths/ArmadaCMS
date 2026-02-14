@@ -1,11 +1,5 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  EditButton,
-  ListProps,
-  DeleteWithConfirmButton,
-} from "react-admin";
+import { List, Datagrid, TextField, EditButton, ListProps } from "react-admin";
+import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const IndustryList = (props: ListProps) => (
   <List {...props}>
@@ -13,10 +7,7 @@ export const IndustryList = (props: ListProps) => (
       <TextField source="id" />
       <TextField source="name" />
       <EditButton />
-      <DeleteWithConfirmButton
-        confirmTitle="Are you sure?"
-        confirmContent="This is PERMANENT"
-      />
+      <PermissionDeleteButton />
     </Datagrid>
   </List>
 );
