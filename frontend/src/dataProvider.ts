@@ -43,12 +43,51 @@ const createMultipartFormData = (
 ) => {
   const formData = new FormData();
 
+  const appendFirstRawFile = (value: unknown) => {
+    if (value == null) return false;
+
+    if (Array.isArray(value)) {
+      const fileEntry = value.find(
+        (
+          entry,
+        ): entry is {
+          rawFile?: File;
+        } =>
+          typeof entry === "object" &&
+          entry !== null &&
+          "rawFile" in entry &&
+          (entry as { rawFile?: File }).rawFile instanceof File,
+      );
+
+      if (fileEntry?.rawFile) {
+        formData.append("file", fileEntry.rawFile);
+        return true;
+      }
+    }
+
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "rawFile" in value &&
+      (value as { rawFile?: File }).rawFile instanceof File
+    ) {
+      formData.append("file", (value as { rawFile: File }).rawFile);
+      return true;
+    }
+
+    return false;
+  };
+
   Object.entries(params.data).forEach(([key, value]) => {
+    if (key === "team_id" && value == null) {
+      formData.append("team_id", "");
+      return;
+    }
     if (value == null) return;
 
     // Handle React Admin ImageInput
-    if (value.rawFile instanceof File) {
-      formData.append("file", value.rawFile);
+    if (appendFirstRawFile(value)) {
+      return;
     }
 
     // Handle logo/image/link fields
