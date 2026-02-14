@@ -10,6 +10,8 @@ import (
 type contextKey string
 
 const userIDKey contextKey = "user_id"
+const roleKey contextKey = "role"
+const permissionsKey contextKey = "permissions"
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +43,23 @@ func Middleware(next http.Handler) http.Handler {
 
 		// add user_id to request context
 		ctx := context.WithValue(r.Context(), userIDKey, int(uid))
+
+		// Extract role
+		if role, ok := (*claims)["role"].(string); ok {
+			ctx = context.WithValue(ctx, roleKey, role)
+		}
+
+		// Extract permissions
+		if permsRaw, ok := (*claims)["permissions"].([]interface{}); ok {
+			perms := make([]string, 0, len(permsRaw))
+			for _, p := range permsRaw {
+				if s, ok := p.(string); ok {
+					perms = append(perms, s)
+				}
+			}
+			ctx = context.WithValue(ctx, permissionsKey, perms)
+		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -48,4 +67,38 @@ func Middleware(next http.Handler) http.Handler {
 func GetUserIDFromContext(r *http.Request) (int, bool) {
 	uid, ok := r.Context().Value(userIDKey).(int)
 	return uid, ok
+}
+
+func GetPermissionsFromContext(r *http.Request) []string {
+	perms, _ := r.Context().Value(permissionsKey).([]string)
+	return perms
+}
+
+func GetRoleFromContext(r *http.Request) string {
+	role, _ := r.Context().Value(roleKey).(string)
+	return role
+}
+
+// HasPermission checks if the user's permissions include the required one.
+// The wildcard "*" grants access to everything.
+func HasPermission(perms []string, required string) bool {
+	for _, p := range perms {
+		if p == "*" || p == required {
+			return true
+		}
+	}
+	return false
+}
+
+// RequirePermission returns middleware that checks the user has a specific permission.
+// Used to wrap individual route handlers.
+func RequirePermission(permission string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		perms := GetPermissionsFromContext(r)
+		if !HasPermission(perms, permission) {
+			http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
+			return
+		}
+		handler(w, r)
+	}
 }

@@ -14,7 +14,7 @@ import (
 func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) {
 
 	var user models.User
-	if err := db.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := db.DB.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("wrong username or password")
 		}
@@ -25,6 +25,17 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		return nil, errors.New("wrong username or password")
 	}
 
+	// Resolve role name and permissions for JWT
+	roleName := "admin"
+	var permissions []string
+	if user.Role != nil {
+		roleName = user.Role.Name
+		permissions = user.Role.Permissions
+	} else {
+		// Users without an assigned role get full admin access
+		permissions = []string{"*"}
+	}
+
 	refreshToken, err := utils.GenerateRefreshToken()
 	if err != nil {
 		return nil, errors.New("not authenticated (2)")
@@ -33,7 +44,7 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		return nil, errors.New("not authenticated (3)")
 	}
 
-	accessToken, _ := utils.GenerateAccessToken(int(user.ID))
+	accessToken, _ := utils.GenerateAccessToken(int(user.ID), roleName, permissions)
 
 	return &models.Tokens{
 		AccessToken:  accessToken,

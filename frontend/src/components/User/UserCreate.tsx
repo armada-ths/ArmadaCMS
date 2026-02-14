@@ -1,5 +1,12 @@
 import React from "react";
-import { Create, CreateProps, SimpleForm, TextInput } from "react-admin";
+import {
+  Create,
+  CreateProps,
+  SimpleForm,
+  TextInput,
+  ReferenceInput,
+  SelectInput,
+} from "react-admin";
 
 export const UserCreate = (props: CreateProps) => {
   return (
@@ -9,6 +16,13 @@ export const UserCreate = (props: CreateProps) => {
         <TextInput label="Password" source="password" type="password" />
         <TextInput label="Name" source="name" />
         <TextInput label="Avatar" source="avatar" />
+        <ReferenceInput source="role_id" reference="roles">
+          <SelectInput
+            label="Role"
+            optionText="name"
+            helperText="Leave empty for full admin access"
+          />
+        </ReferenceInput>
       </SimpleForm>
     </Create>
   );

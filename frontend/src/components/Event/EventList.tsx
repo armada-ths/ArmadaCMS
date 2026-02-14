@@ -5,8 +5,8 @@ import {
   DateField,
   EditButton,
   ListProps,
-  DeleteWithConfirmButton,
 } from "react-admin";
+import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const EventList = (props: ListProps) => (
   <List {...props}>
@@ -19,10 +19,7 @@ export const EventList = (props: ListProps) => (
       <TextField source="registrationRequired" />
       <TextField source="show" />
       <EditButton />
-      <DeleteWithConfirmButton
-        confirmTitle="Are you sure?"
-        confirmContent="This is PERMANENT"
-      />
+      <PermissionDeleteButton />
     </Datagrid>
   </List>
 );

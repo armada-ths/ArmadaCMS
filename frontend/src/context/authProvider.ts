@@ -1,6 +1,31 @@
 import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
 
+/**
+ * Decode a JWT payload without verification (browser-side).
+ * We only need this to read claims; the server validates the signature.
+ */
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  try {
+    const base64 = token.split(".")[1];
+    const json = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+}
+
+function getPermissionsFromToken(): string[] {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return [];
+  const claims = decodeJwtPayload(token);
+  return (claims.permissions as string[]) ?? [];
+}
+
+function hasPermission(permissions: string[], required: string): boolean {
+  return permissions.some((p) => p === "*" || p === required);
+}
+
 export const authProvider: AuthProvider = {
   async login({ username, password }) {
     try {
@@ -41,11 +66,25 @@ export const authProvider: AuthProvider = {
   },
 
   async getIdentity() {
-    // optional: decode JWT to extract identity info
     const token = localStorage.getItem("accessToken");
     if (!token) {
       throw new Error("No identity found");
     }
-    return { id: "me", fullName: "Authenticated User" };
+    const claims = decodeJwtPayload(token);
+    return {
+      id: claims.user_id as number,
+      fullName: (claims.role as string) ?? "User",
+    };
+  },
+
+  async getPermissions() {
+    return getPermissionsFromToken();
+  },
+
+  async canAccess({ action, resource }: { action: string; resource: string }) {
+    const permissions = getPermissionsFromToken();
+    // Map React-Admin actions to our permission strings
+    const permissionKey = `${resource}.${action}`;
+    return hasPermission(permissions, permissionKey);
   },
 };
