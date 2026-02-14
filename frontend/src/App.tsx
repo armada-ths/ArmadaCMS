@@ -37,6 +37,7 @@ import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
 import { RoleList } from "./components/Role/RoleList";
 import { RoleCreate } from "./components/Role/RoleCreate";
 import { RoleEdit } from "./components/Role/RoleEdit";
+import { CustomLoginPage } from "./components/CustomLoginPage";
 
 import { Icon } from "@mui/material";
 import { usePermissions } from "react-admin";
@@ -70,6 +71,7 @@ export const App = () => (
     dataProvider={dataProvider}
     authProvider={authProvider}
     layout={MyLayout}
+    loginPage={CustomLoginPage}
   >
     <Resource
       name="customusers"
