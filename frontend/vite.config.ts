@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => ({
 
   server: {
     host: true,
+    watch: {
+      // Required for HMR with Docker volume mounts on Windows/macOS
+      usePolling: true,
+      interval: 1000,
+    },
   },
 
   build: {
