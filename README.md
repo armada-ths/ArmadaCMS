@@ -49,7 +49,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    Edit `.env` with your Postgres credentials. See `.env.example` for all available variables and descriptions.
 
-### Option A: Docker (recommended)
+### Option A: Docker production-style (slow — full rebuild)
 
 Builds the frontend and backend in one step:
 
@@ -57,33 +57,33 @@ Builds the frontend and backend in one step:
 docker compose up --build
 ```
 
-### Option B: Run locally
+### Option B: Docker with hot reload (recommended for Docker users)
 
-1. **Build the admin frontend**
+Runs Go (Air hot-reload) and Vite (HMR) in separate containers with volume mounts — no image rebuild needed on code changes:
 
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   cd ..
-   ```
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
 
-2. **Start the Go server**
+Only the first run requires `--build`. After that, just `docker compose -f docker-compose.dev.yml up`.
 
-   ```bash
-   go run main.go
-   ```
+### Option C: Run locally without Docker (fastest)
 
-Once running, the server is available at:
+Run the Go backend and Vite frontend in **two separate terminals**:
 
-- **App**: [http://localhost:8080](http://localhost:8080)
-- **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
-- **Admin UI**: [http://localhost:8080/admin/](http://localhost:8080/admin/)
-- **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+**Terminal 1 — Go backend with hot reload:**
 
-### Frontend development
+```bash
+# Install Air (one-time)
+go install github.com/air-verse/air@latest
 
-To develop the admin frontend with hot reload:
+# Start backend with auto-rebuild on .go changes
+air
+```
+
+Or without Air: `go run main.go` (manual restart on changes).
+
+**Terminal 2 — Vite frontend with HMR:**
 
 ```bash
 cd frontend
@@ -91,7 +91,12 @@ npm install
 npm run dev
 ```
 
-This starts a Vite dev server that proxies API requests to `localhost:8080`.
+Once running (any option), the server is available at:
+
+- **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
+- **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(Option A only)_
+- **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173) _(Options B & C)_
+- **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
 
 ## Project Structure
 
@@ -111,9 +116,10 @@ ArmadaCMS/
 │       ├── dataProvider.ts    # Custom ra-data-simple-rest provider
 │       ├── components/        # List, Create, Edit per resource
 │       └── context/           # Auth provider, API endpoint config
-├── Dockerfile             # Multi-stage build (frontend + Go + Air)
+├── Dockerfile.dev         # Lightweight dev image (Go + Air only)
 ├── Dockerfile.prod        # Production multi-stage build
-└── docker-compose.yml     # Docker Compose config
+├── docker-compose.yml     # Docker Compose (production-style)
+└── docker-compose.dev.yml # Docker Compose (hot-reload dev)
 ```
 
 ## API

@@ -1,0 +1,50 @@
+# Development compose: Go backend with Air hot-reload + Vite frontend with HMR
+# Usage: docker compose -f docker-compose.dev.yml up
+#
+# Go changes → Air rebuilds automatically
+# Frontend changes → Vite HMR updates instantly in browser
+# Access frontend at http://localhost:5173
+# API served at http://localhost:8080
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    env_file:
+      - .env
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE}
+    networks:
+      - backend
+
+  frontend:
+    image: node:20-slim
+    working_dir: /frontend
+    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/frontend
+      - frontend-node-modules:/frontend/node_modules
+    networks:
+      - backend
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  frontend-node-modules:
+
+networks:
+  backend:

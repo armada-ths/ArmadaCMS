@@ -56,6 +56,16 @@ export const authProvider: AuthProvider = {
     if (!access || !refresh) {
       throw new Error("Not authenticated");
     }
+
+    // Check if the access token has expired
+    const claims = decodeJwtPayload(access);
+    const exp = claims.exp as number | undefined;
+    if (exp && exp * 1000 < Date.now()) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      throw new Error("Session expired");
+    }
+
     return Promise.resolve();
   },
 
