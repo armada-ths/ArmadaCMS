@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ArmadaCMS: Docker Compose (dev + integrated browser)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose -f docker-compose.dev.yml up --build",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "action": "startDebugging",
+        "name": "ArmadaCMS: Integrated browser (localhost:5173)",
+        "pattern": "Server running on\\s+(https?://[^\\s]+)"
+      }
+    },
+    {
+      "name": "ArmadaCMS: API (Go, local + integrated browser)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "serverReadyAction": {
+        "action": "startDebugging",
+        "name": "ArmadaCMS: Integrated browser (localhost:8080/admin)",
+        "pattern": "Server running on\\s+(https?://[^\\s]+)"
+      }
+    },
+    {
+      "name": "ArmadaCMS: API (Go, local)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "ArmadaCMS: Integrated browser (localhost:5173)",
+      "type": "editor-browser",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "ArmadaCMS: Integrated browser (localhost:8080/admin)",
+      "type": "editor-browser",
+      "request": "launch",
+      "url": "http://localhost:8080/admin",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "ArmadaCMS: Docker Compose (dev)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose -f docker-compose.dev.yml up --build",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
