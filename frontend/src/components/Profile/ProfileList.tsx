@@ -1,4 +1,11 @@
-import { List, Datagrid, TextField, EditButton, ListProps } from "react-admin";
+import {
+  List,
+  Datagrid,
+  TextField,
+  EditButton,
+  ListProps,
+  ReferenceField,
+} from "react-admin";
 import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const ProfileList = (props: ListProps) => {
@@ -8,7 +15,9 @@ export const ProfileList = (props: ListProps) => {
         <TextField source="name" />
         <TextField source="rank" />
         <TextField source="title" />
-        <TextField source="team.team_name" label="Team name" />
+        <ReferenceField source="team_id" reference="teams" label="Team name">
+          <TextField source="team_name" />
+        </ReferenceField>
         <TextField source="linkedin" />
         <TextField source="email" />
         <EditButton />

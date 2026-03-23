@@ -96,6 +96,46 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if err == gorm.ErrRecordNotFound {
+				// fallback dedupe: if a profile with the same name already exists,
+				// reuse it instead of creating a duplicate
+				errByName := db.DB.
+					Where("LOWER(name) = ?", strings.ToLower(fullName)).
+					First(&existing).Error
+
+				if errByName != nil && errByName != gorm.ErrRecordNotFound {
+					log.Printf("❌ Failed reading profile for name %s: %v", fullName, errByName)
+					continue
+				}
+
+				if errByName == nil {
+					updates := map[string]interface{}{}
+					if existing.EventroKey == nil {
+						updates["eventro_key"] = eventroKey
+					}
+					if strings.TrimSpace(existing.Rank) == "" && rank != "" {
+						updates["rank"] = rank
+					}
+					if strings.TrimSpace(existing.Title) == "" && role != "" {
+						updates["title"] = role
+					}
+					if strings.TrimSpace(existing.Email) == "" && email != "" {
+						updates["email"] = email
+					}
+					if strings.TrimSpace(existing.Photo) == "" && image != "" {
+						updates["photo"] = image
+					}
+
+					if len(updates) > 0 {
+						if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+							log.Printf("❌ Failed updating existing profile by name %s: %v", fullName, updateErr)
+							continue
+						}
+						updated++
+					}
+
+					continue
+				}
+
 				profile := models.Profile{
 					EventroKey: &eventroKey,
 					Name:       fullName,

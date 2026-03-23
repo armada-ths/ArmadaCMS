@@ -31,13 +31,14 @@ func main() {
 		models.Blogpost{},
 		models.Profile{},
 		models.Team{},
-		models.TimelineDate{},
 		models.RefreshToken{},
 		models.Industry{},
 		models.Program{},
 		models.Employment{},
 		models.Exhibitor{},
 		models.Event{},
+		models.RecruitmentPeriod{},
+		models.RecruitmentRole{},
 		models.FairDateConfig{},
 		models.FeatureFlag{},
 		// Enter your models here
@@ -117,12 +118,6 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/teams/{id}", auth.RequirePermission("teams.edit", controllers.UpdateTeam)).Methods("PUT")
 	protectedAPI.HandleFunc("/teams/{id}", auth.RequirePermission("teams.delete", controllers.DeleteTeam)).Methods("DELETE")
 
-	publicAPI.HandleFunc("/timeline", controllers.GetTimelineDates).Methods("GET")
-	publicAPI.HandleFunc("/timeline/{id}", controllers.GetTimelineDateByID).Methods("GET")
-	protectedAPI.HandleFunc("/timeline", auth.RequirePermission("timeline.create", controllers.CreateTimelineDate)).Methods("POST")
-	protectedAPI.HandleFunc("/timeline/{id}", auth.RequirePermission("timeline.edit", controllers.UpdateTimelineDate)).Methods("PUT")
-	protectedAPI.HandleFunc("/timeline/{id}", auth.RequirePermission("timeline.delete", controllers.DeleteTimelineDate)).Methods("DELETE")
-
 	publicAPI.HandleFunc("/programs", controllers.GetPrograms).Methods("GET")
 	publicAPI.HandleFunc("/programs/{id}", controllers.GetProgramByID).Methods("GET")
 	protectedAPI.HandleFunc("/programs", auth.RequirePermission("programs.create", controllers.CreateProgram)).Methods("POST")
@@ -177,6 +172,20 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	publicAPI.HandleFunc("/eventroexhibitors", controllers.FetchExhibitorsEventro).Methods("GET")
 	publicAPI.HandleFunc("/eventroevents", controllers.FetchEventsEventro).Methods("GET")
 	publicAPI.HandleFunc("/eventromembers", controllers.FetchMembersEventro).Methods("GET")
+	publicAPI.HandleFunc("/eventrorecruitments", controllers.FetchRecruitmentsEventro).Methods("GET")
+	publicAPI.HandleFunc("/recruitment", controllers.GetRecruitment).Methods("GET")
+
+	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.list", controllers.GetRecruitmentPeriods)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.show", controllers.GetRecruitmentPeriodByID)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.create", controllers.CreateRecruitmentPeriod)).Methods("POST")
+	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.edit", controllers.UpdateRecruitmentPeriod)).Methods("PUT")
+	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.delete", controllers.DeleteRecruitmentPeriod)).Methods("DELETE")
+
+	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.list", controllers.GetRecruitmentRoles)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.show", controllers.GetRecruitmentRoleByID)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.create", controllers.CreateRecruitmentRole)).Methods("POST")
+	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.edit", controllers.UpdateRecruitmentRole)).Methods("PUT")
+	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.delete", controllers.DeleteRecruitmentRole)).Methods("DELETE")
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 

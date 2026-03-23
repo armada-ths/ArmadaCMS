@@ -10,9 +10,6 @@ import { TeamList } from "./components/Team/TeamList";
 import { TeamCreate } from "./components/Team/TeamCreate";
 import { TeamEdit } from "./components/Team/TeamEdit";
 import { authProvider } from "./context/authProvider";
-import { TimelineList } from "./components/Timeline/TimelineList";
-import { TimelineCreate } from "./components/Timeline/TimelineCreate";
-import { TimelineEdit } from "./components/Timeline/TimelineEdit";
 import { EmploymentCreate } from "./components/Employment/EmploymentCreate";
 import { EmploymentEdit } from "./components/Employment/EmploymentEdit";
 import { EmploymentList } from "./components/Employment/EmploymentList";
@@ -37,10 +34,19 @@ import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
 import { RoleList } from "./components/Role/RoleList";
 import { RoleCreate } from "./components/Role/RoleCreate";
 import { RoleEdit } from "./components/Role/RoleEdit";
+import { RecruitmentPeriodList } from "./components/RecruitmentPeriod/RecruitmentPeriodList";
+import { RecruitmentPeriodCreate } from "./components/RecruitmentPeriod/RecruitmentPeriodCreate";
+import { RecruitmentPeriodEdit } from "./components/RecruitmentPeriod/RecruitmentPeriodEdit";
+import { RecruitmentRoleList } from "./components/RecruitmentRole/RecruitmentRoleList";
+import { RecruitmentRoleCreate } from "./components/RecruitmentRole/RecruitmentRoleCreate";
+import { RecruitmentRoleEdit } from "./components/RecruitmentRole/RecruitmentRoleEdit";
 import { CustomLoginPage } from "./components/CustomLoginPage";
+import { EventroSync } from "./components/EventroSync/EventroSync";
 
 import { Icon } from "@mui/material";
 import { usePermissions } from "react-admin";
+import { ReactNode } from "react";
+import { Route } from "react-router";
 
 const hasPerm = (perms: string[], required: string) =>
   perms.some((p) => p === "*" || p === required);
@@ -48,24 +54,26 @@ const hasPerm = (perms: string[], required: string) =>
 export const MyMenu = () => {
   const { permissions } = usePermissions();
   const perms: string[] = Array.isArray(permissions) ? permissions : [];
-  const canAccessPanel = hasPerm(perms, "panel.access");
+  const canAccessEventroSync = hasPerm(perms, "eventrosync.access");
 
   return (
     <Menu>
       <Menu.ResourceItems />
-      {canAccessPanel && (
-        <Menu.Item to="/panel" primaryText="Panel" leftIcon={<Icon />} />
+      {canAccessEventroSync && (
+        <Menu.Item
+          to="/eventrosync"
+          primaryText="Eventro sync"
+          leftIcon={<Icon />}
+        />
       )}
     </Menu>
   );
 };
-import { ReactNode } from "react";
-import { Route } from "react-router";
-import { Panel } from "./components/Panel/Panel";
 
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
   <Layout menu={MyMenu}>{children}</Layout>
 );
+
 export const App = () => (
   <Admin
     dataProvider={dataProvider}
@@ -75,6 +83,7 @@ export const App = () => (
   >
     <Resource
       name="customusers"
+      options={{ label: "Custom users" }}
       list={UserList}
       create={UserCreate}
       edit={UserEdit}
@@ -90,12 +99,6 @@ export const App = () => (
       list={TeamList}
       create={TeamCreate}
       edit={TeamEdit}
-    />
-    <Resource
-      name="timeline"
-      list={TimelineList}
-      create={TimelineCreate}
-      edit={TimelineEdit}
     />
     <Resource
       name="programs"
@@ -129,12 +132,14 @@ export const App = () => (
     />
     <Resource
       name="fairdates"
+      options={{ label: "Fair dates" }}
       list={FairDateList}
       create={FairDateCreate}
       edit={FairDateEdit}
     />
     <Resource
       name="featureflags"
+      options={{ label: "Feature flags" }}
       list={FeatureFlagList}
       create={FeatureFlagCreate}
       edit={FeatureFlagEdit}
@@ -147,8 +152,24 @@ export const App = () => (
       edit={RoleEdit}
     />
 
+    <Resource
+      name="recruitmentperiods"
+      options={{ label: "Recruitment periods" }}
+      list={RecruitmentPeriodList}
+      create={RecruitmentPeriodCreate}
+      edit={RecruitmentPeriodEdit}
+    />
+
+    <Resource
+      name="recruitmentroles"
+      options={{ label: "Recruitment roles" }}
+      list={RecruitmentRoleList}
+      create={RecruitmentRoleCreate}
+      edit={RecruitmentRoleEdit}
+    />
+
     <CustomRoutes>
-      <Route path="/panel" element={<Panel />} />
+      <Route path="/eventrosync" element={<EventroSync />} />
     </CustomRoutes>
   </Admin>
 );
