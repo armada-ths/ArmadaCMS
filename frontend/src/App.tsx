@@ -49,127 +49,127 @@ import { ReactNode } from "react";
 import { Route } from "react-router";
 
 const hasPerm = (perms: string[], required: string) =>
-    perms.some((p) => p === "*" || p === required);
+  perms.some((p) => p === "*" || p === required);
 
 export const MyMenu = () => {
-    const { permissions } = usePermissions();
-    const perms: string[] = Array.isArray(permissions) ? permissions : [];
-    const canAccessEventroSync = hasPerm(perms, "eventrosync.access");
+  const { permissions } = usePermissions();
+  const perms: string[] = Array.isArray(permissions) ? permissions : [];
+  const canAccessEventroSync = hasPerm(perms, "eventrosync.access");
 
-    return (
-        <Menu>
-            <Menu.ResourceItems />
-            {canAccessEventroSync && (
-                <Menu.Item
-                    to="/eventrosync"
-                    primaryText="Eventro sync"
-                    leftIcon={<Icon />}
-                />
-            )}
-        </Menu>
-    );
+  return (
+    <Menu>
+      <Menu.ResourceItems />
+      {canAccessEventroSync && (
+        <Menu.Item
+          to="/eventrosync"
+          primaryText="Eventro sync"
+          leftIcon={<Icon />}
+        />
+      )}
+    </Menu>
+  );
 };
 
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
-    <Layout menu={MyMenu}>{children}</Layout>
+  <Layout menu={MyMenu}>{children}</Layout>
 );
 
 export const App = () => (
-    <Admin
-        dataProvider={dataProvider}
-        authProvider={authProvider}
-        layout={MyLayout}
-        loginPage={CustomLoginPage}
-    >
-        <Resource
-            name="customusers"
-            options={{ label: "Custom users" }}
-            list={UserList}
-            create={UserCreate}
-            edit={UserEdit}
-        />
-        <Resource
-            name="profiles"
-            list={ProfileList}
-            create={ProfileCreate}
-            edit={ProfileEdit}
-        />
-        <Resource
-            name="teams"
-            list={TeamList}
-            create={TeamCreate}
-            edit={TeamEdit}
-        />
-        <Resource
-            name="programs"
-            list={ProgramList}
-            create={ProgramCreate}
-            edit={ProgramEdit}
-        />
-        <Resource
-            name="industries"
-            list={IndustryList}
-            create={IndustryCreate}
-            edit={IndustryEdit}
-        />
-        <Resource
-            name="events"
-            list={EventList}
-            create={EventCreate}
-            edit={EventEdit}
-        />
-        <Resource
-            name="exhibitors"
-            list={ExhibitorList}
-            create={ExhibitorCreate}
-            edit={ExhibitorEdit}
-        />
-        <Resource
-            name="employments"
-            list={EmploymentList}
-            create={EmploymentCreate}
-            edit={EmploymentEdit}
-        />
-        <Resource
-            name="fairdates"
-            options={{ label: "Fair dates" }}
-            list={FairDateList}
-            create={FairDateCreate}
-            edit={FairDateEdit}
-        />
-        <Resource
-            name="featureflags"
-            options={{ label: "Feature flags" }}
-            list={FeatureFlagList}
-            create={FeatureFlagCreate}
-            edit={FeatureFlagEdit}
-        />
+  <Admin
+    dataProvider={dataProvider}
+    authProvider={authProvider}
+    layout={MyLayout}
+    loginPage={CustomLoginPage}
+  >
+    <Resource
+      name="customusers"
+      options={{ label: "Custom users" }}
+      list={UserList}
+      create={UserCreate}
+      edit={UserEdit}
+    />
+    <Resource
+      name="profiles"
+      list={ProfileList}
+      create={ProfileCreate}
+      edit={ProfileEdit}
+    />
+    <Resource
+      name="teams"
+      list={TeamList}
+      create={TeamCreate}
+      edit={TeamEdit}
+    />
+    <Resource
+      name="programs"
+      list={ProgramList}
+      create={ProgramCreate}
+      edit={ProgramEdit}
+    />
+    <Resource
+      name="industries"
+      list={IndustryList}
+      create={IndustryCreate}
+      edit={IndustryEdit}
+    />
+    <Resource
+      name="events"
+      list={EventList}
+      create={EventCreate}
+      edit={EventEdit}
+    />
+    <Resource
+      name="exhibitors"
+      list={ExhibitorList}
+      create={ExhibitorCreate}
+      edit={ExhibitorEdit}
+    />
+    <Resource
+      name="employments"
+      list={EmploymentList}
+      create={EmploymentCreate}
+      edit={EmploymentEdit}
+    />
+    <Resource
+      name="fairdates"
+      options={{ label: "Fair dates" }}
+      list={FairDateList}
+      create={FairDateCreate}
+      edit={FairDateEdit}
+    />
+    <Resource
+      name="featureflags"
+      options={{ label: "Feature flags" }}
+      list={FeatureFlagList}
+      create={FeatureFlagCreate}
+      edit={FeatureFlagEdit}
+    />
 
-        <Resource
-            name="roles"
-            list={RoleList}
-            create={RoleCreate}
-            edit={RoleEdit}
-        />
+    <Resource
+      name="roles"
+      list={RoleList}
+      create={RoleCreate}
+      edit={RoleEdit}
+    />
 
-        <Resource
-            name="recruitmentperiods"
-            options={{ label: "Recruitment periods" }}
-            list={RecruitmentPeriodList}
-            create={RecruitmentPeriodCreate}
-            edit={RecruitmentPeriodEdit}
-        />
+    <Resource
+      name="recruitmentperiods"
+      options={{ label: "Recruitment periods" }}
+      list={RecruitmentPeriodList}
+      create={RecruitmentPeriodCreate}
+      edit={RecruitmentPeriodEdit}
+    />
 
-        <Resource
-            name="recruitmentroles"
-            options={{ label: "Recruitment roles" }}
-            list={RecruitmentRoleList}
-            create={RecruitmentRoleCreate}
-            edit={RecruitmentRoleEdit}
-        />
+    <Resource
+      name="recruitmentroles"
+      options={{ label: "Recruitment roles" }}
+      list={RecruitmentRoleList}
+      create={RecruitmentRoleCreate}
+      edit={RecruitmentRoleEdit}
+    />
 
-        <CustomRoutes>
-            <Route path="/eventrosync" element={<EventroSync />} />
-        </CustomRoutes>
-    </Admin>
+    <CustomRoutes>
+      <Route path="/eventrosync" element={<EventroSync />} />
+    </CustomRoutes>
+  </Admin>
 );
