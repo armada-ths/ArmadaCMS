@@ -11,6 +11,10 @@ import {
   ImageField,
 } from "react-admin";
 import { toLocalInputValue, toUTCISOString } from "@/utils/dateTimeHelpers";
+import {
+  IMAGE_INPUT_ACCEPT,
+  validateImageUpload,
+} from "@/utils/imageUploadValidation";
 
 export const EventCreate = (props: CreateProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -76,7 +80,12 @@ export const EventCreate = (props: CreateProps) => {
           </label>
         </div>
         {selectedOption === "upload" ? (
-          <ImageInput label="Photo" source="imageFile">
+          <ImageInput
+            label="Photo"
+            source="imageFile"
+            accept={IMAGE_INPUT_ACCEPT}
+            validate={validateImageUpload}
+          >
             <ImageField source="src" title="title" />
           </ImageInput>
         ) : (

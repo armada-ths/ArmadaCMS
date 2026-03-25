@@ -9,6 +9,10 @@ import {
   ImageField,
 } from "react-admin";
 import React, { useState } from "react";
+import {
+  IMAGE_INPUT_ACCEPT,
+  validateImageUpload,
+} from "@/utils/imageUploadValidation";
 
 const RANK_CHOICES = [
   { id: "Project Manager", name: "Project Manager" },
@@ -73,7 +77,12 @@ export const ProfileCreate = (props: CreateProps) => {
           </label>
         </div>
         {selectedOption === "upload" ? (
-          <ImageInput label="Photo" source="photoFile">
+          <ImageInput
+            label="Photo"
+            source="photoFile"
+            accept={IMAGE_INPUT_ACCEPT}
+            validate={validateImageUpload}
+          >
             <ImageField source="src" title="title" />
           </ImageInput>
         ) : (

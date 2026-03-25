@@ -10,6 +10,10 @@ import {
   ImageField,
   ImageInput,
 } from "react-admin";
+import {
+  IMAGE_INPUT_ACCEPT,
+  validateImageUpload,
+} from "@/utils/imageUploadValidation";
 
 export const EventEdit = (props: EditProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -61,7 +65,12 @@ export const EventEdit = (props: EditProps) => {
 
         {/* Show input based on selected option */}
         {selectedOption === "upload" && (
-          <ImageInput label="Photo" source="file">
+          <ImageInput
+            label="Photo"
+            source="file"
+            accept={IMAGE_INPUT_ACCEPT}
+            validate={validateImageUpload}
+          >
             <ImageField source="src" title="title" />
           </ImageInput>
         )}

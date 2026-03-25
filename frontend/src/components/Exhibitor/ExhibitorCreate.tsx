@@ -11,6 +11,10 @@ import {
 } from "react-admin";
 import { Employment, Industry, Program } from "./ExhibitorEdit";
 import { useState } from "react";
+import {
+  IMAGE_INPUT_ACCEPT,
+  validateImageUpload,
+} from "@/utils/imageUploadValidation";
 
 export const ExhibitorCreate = (props: CreateProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -76,7 +80,12 @@ export const ExhibitorCreate = (props: CreateProps) => {
           </label>
         </div>
         {selectedOption === "upload" ? (
-          <ImageInput label="Logo freesize" source="logoFreesize">
+          <ImageInput
+            label="Logo freesize"
+            source="logoFreesize"
+            accept={IMAGE_INPUT_ACCEPT}
+            validate={validateImageUpload}
+          >
             <ImageField source="src" title="title" />
           </ImageInput>
         ) : (

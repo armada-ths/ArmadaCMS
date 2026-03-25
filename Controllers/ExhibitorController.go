@@ -5,6 +5,7 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -104,6 +105,10 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		fileURL, err := utils.UploadToS3(file, header)
 		if err != nil {
+			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 			return
 		}
@@ -173,6 +178,10 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		fileURL, err := utils.UploadToS3(file, header)
 		if err != nil {
+			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 			return
 		}

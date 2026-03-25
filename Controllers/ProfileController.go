@@ -5,6 +5,7 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -101,7 +102,11 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 			fileURL, err := utils.UploadToS3(photoFile, header)
 			if err != nil {
 				log.Println("Error uploading the file:", err)
-				http.Error(w, "Error uploading file", http.StatusBadRequest)
+				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+					return
+				}
+				http.Error(w, "Error uploading file", http.StatusInternalServerError)
 				return
 			}
 			profile.Photo = fileURL
@@ -172,7 +177,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			fileURL, err := utils.UploadToS3(photoFile, header)
 			if err != nil {
 				log.Println("Error uploading the file:", err)
-				http.Error(w, "Error uploading file", http.StatusBadRequest)
+				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+					return
+				}
+				http.Error(w, "Error uploading file", http.StatusInternalServerError)
 				return
 			}
 			updates.Photo = fileURL

@@ -10,6 +10,10 @@ import {
   ImageInput,
   ImageField,
 } from "react-admin";
+import {
+  IMAGE_INPUT_ACCEPT,
+  validateImageUpload,
+} from "@/utils/imageUploadValidation";
 
 export interface Program {
   id: number;
@@ -87,7 +91,12 @@ export const ExhibitorEdit = (props: EditProps) => {
           </label>
         </div>
         {selectedOption === "upload" ? (
-          <ImageInput label="Logo freesize" source="logoFreesize">
+          <ImageInput
+            label="Logo freesize"
+            source="logoFreesize"
+            accept={IMAGE_INPUT_ACCEPT}
+            validate={validateImageUpload}
+          >
             <ImageField source="src" title="title" />
           </ImageInput>
         ) : (

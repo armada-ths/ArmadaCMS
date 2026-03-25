@@ -5,6 +5,7 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -126,6 +127,10 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 				defer file.Close()
 				fileURL, err := utils.UploadToS3(file, header)
 				if err != nil {
+					if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+						http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+						return
+					}
 					http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 					return
 				}
@@ -198,10 +203,16 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			defer file.Close()
 			fileURL, err := utils.UploadToS3(file, header)
-			if err == nil {
-				updates.ImageURL = &fileURL
-				fieldsToUpdate = append(fieldsToUpdate, "image_url")
+			if err != nil {
+				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+					return
+				}
+				http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+				return
 			}
+			updates.ImageURL = &fileURL
+			fieldsToUpdate = append(fieldsToUpdate, "image_url")
 		}
 	}
 
