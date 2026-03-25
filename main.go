@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -77,7 +78,33 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	buildDir := "./frontend/dist"
 	fs := http.FileServer(http.Dir(buildDir))
-	mux.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", fs))
+
+	serveAdminIndex := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
+	}
+
+	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusPermanentRedirect)
+	})
+	mux.HandleFunc("/admin/", serveAdminIndex)
+	mux.PathPrefix("/admin/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		relPath := strings.TrimPrefix(r.URL.Path, "/admin/")
+		if relPath == "" || relPath == "." {
+			serveAdminIndex(w, r)
+			return
+		}
+
+		assetPath := filepath.Join(buildDir, filepath.FromSlash(relPath))
+		if info, err := os.Stat(assetPath); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, assetPath)
+			return
+		}
+
+		serveAdminIndex(w, r)
+	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
