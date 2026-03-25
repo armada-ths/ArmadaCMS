@@ -19,6 +19,10 @@ import {
   validateExternalUrl,
 } from "@/utils/externalLinkGuards";
 import { InputAdornment } from "@mui/material";
+import {
+  normalizeEmailInput,
+  validateEmailFormat,
+} from "@/utils/emailValidation";
 
 const RANK_CHOICES = [
   { id: "Project Manager", name: "Project Manager" },
@@ -72,7 +76,13 @@ export const ProfileCreate = (props: CreateProps) => {
             },
           }}
         />
-        <TextInput label="Email" source="email" type="email" />
+        <TextInput
+          label="Email"
+          source="email"
+          type="email"
+          parse={normalizeEmailInput}
+          validate={validateEmailFormat}
+        />
         {/* <FileInput label="Photo" source="photo" /> */}
         <div>
           <label>
