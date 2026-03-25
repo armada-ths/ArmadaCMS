@@ -13,6 +13,16 @@ import {
   IMAGE_INPUT_ACCEPT,
   validateImageUpload,
 } from "@/utils/imageUploadValidation";
+import {
+  formatExternalUrlInput,
+  normalizeExternalUrl,
+  validateExternalUrl,
+} from "@/utils/externalLinkGuards";
+import { InputAdornment } from "@mui/material";
+import {
+  normalizeEmailInput,
+  validateEmailFormat,
+} from "@/utils/emailValidation";
 
 const RANK_CHOICES = [
   { id: "Project Manager", name: "Project Manager" },
@@ -52,8 +62,27 @@ export const ProfileCreate = (props: CreateProps) => {
             parse={(value) => (value === "" ? null : value)}
           />
         </ReferenceInput>
-        <TextInput label="Linkedin" source="linkedin" />
-        <TextInput label="Email" source="email" type="email" />
+        <TextInput
+          label="Linkedin"
+          source="linkedin"
+          format={formatExternalUrlInput}
+          parse={normalizeExternalUrl}
+          validate={validateExternalUrl}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">https://</InputAdornment>
+              ),
+            },
+          }}
+        />
+        <TextInput
+          label="Email"
+          source="email"
+          type="email"
+          parse={normalizeEmailInput}
+          validate={validateEmailFormat}
+        />
         {/* <FileInput label="Photo" source="photo" /> */}
         <div>
           <label>
