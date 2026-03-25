@@ -15,6 +15,12 @@ import {
   IMAGE_INPUT_ACCEPT,
   validateImageUpload,
 } from "@/utils/imageUploadValidation";
+import {
+  formatExternalUrlInput,
+  normalizeExternalUrl,
+  validateExternalUrl,
+} from "@/utils/externalLinkGuards";
+import { InputAdornment } from "@mui/material";
 
 export const ExhibitorCreate = (props: CreateProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -54,7 +60,19 @@ export const ExhibitorCreate = (props: CreateProps) => {
         <TextInput source="name" />
         <TextInput source="type" />
         <TextInput source="tier" />
-        <TextInput source="companyWebsite" />
+        <TextInput
+          source="companyWebsite"
+          format={formatExternalUrlInput}
+          parse={normalizeExternalUrl}
+          validate={validateExternalUrl}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">https://</InputAdornment>
+              ),
+            },
+          }}
+        />
         <TextInput source="about" />
         <TextInput source="purpose" />
         <TextInput source="logoSquared" />
