@@ -4,8 +4,10 @@ import {
   UpdateParams,
   DataProvider,
   fetchUtils,
+  HttpError,
 } from "react-admin";
 import globalApi from "./context/globalApi";
+import { assertValidImageUpload } from "./utils/imageUploadValidation";
 
 const endpoint = globalApi();
 
@@ -86,6 +88,7 @@ const createMultipartFormData = (
     if (value == null) return;
 
     // Handle React Admin ImageInput
+    assertValidImageUpload(value);
     if (appendFirstRawFile(value)) {
       return;
     }
@@ -132,7 +135,14 @@ export const dataProvider: DataProvider = {
 
   create: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      const formData = createMultipartFormData(params);
+      let formData: FormData;
+      try {
+        formData = createMultipartFormData(params);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unsupported file format.";
+        return Promise.reject(new HttpError(message, 400));
+      }
       return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
     }
     return baseDataProvider.create(resource, params);
@@ -140,7 +150,14 @@ export const dataProvider: DataProvider = {
 
   update: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      const formData = createMultipartFormData(params);
+      let formData: FormData;
+      try {
+        formData = createMultipartFormData(params);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unsupported file format.";
+        return Promise.reject(new HttpError(message, 400));
+      }
       return uploadFormData(
         `${endpoint}/${resource}/${params.id}`,
         "PUT",
