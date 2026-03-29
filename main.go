@@ -16,8 +16,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const port = 8080
-
 func main() {
 	fmt.Println("Hello, world.")
 	if err := godotenv.Load(); err != nil {
@@ -54,12 +52,22 @@ func main() {
 	}
 
 	wrappedMux := CreateMuxClient()
-	colonPort := fmt.Sprintf(":%d", port)
-	fmt.Println("Server running on http://localhost" + colonPort)
-	if err := http.ListenAndServe(colonPort, wrappedMux); err != nil {
+	listenAddr := getListenAddr()
+	fmt.Println("Server running on http://localhost" + listenAddr)
+	if err := http.ListenAndServe(listenAddr, wrappedMux); err != nil {
 		log.Fatal("Server error:", err)
 	}
 }
+
+func getListenAddr() string {
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		port = "8080"
+	}
+
+	return fmt.Sprintf(":%s", port)
+}
+
 func CreateMuxClient() http.Handler {
 	mux := mux.NewRouter()
 
