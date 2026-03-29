@@ -20,24 +20,36 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 850,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": [
-            "react",
-            "react-dom",
-            "react-router",
-            "react-router-dom",
-          ],
-          "vendor-admin": [
-            "@mui/material",
-            "@mui/icons-material",
-            "@emotion/react",
-            "@emotion/styled",
-            "react-admin",
-            "ra-core",
-            "ra-ui-materialui",
-            "ra-data-json-server",
-            "ra-data-simple-rest",
-          ],
+        manualChunks(id) {
+          const isInPackage = (pkg: string) =>
+            id.includes(`/node_modules/${pkg}/`) ||
+            id.includes(`\\node_modules\\${pkg}\\`);
+
+          if (
+            ["react", "react-dom", "react-router", "react-router-dom"].some(
+              isInPackage,
+            )
+          ) {
+            return "vendor-react";
+          }
+
+          if (
+            [
+              "@mui/material",
+              "@mui/icons-material",
+              "@emotion/react",
+              "@emotion/styled",
+              "react-admin",
+              "ra-core",
+              "ra-ui-materialui",
+              "ra-data-json-server",
+              "ra-data-simple-rest",
+            ].some(isInPackage)
+          ) {
+            return "vendor-admin";
+          }
+
+          return undefined;
         },
       },
     },
