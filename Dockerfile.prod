@@ -14,7 +14,7 @@ RUN npm run build
 # ----------------------
 # Stage 2: Build Go binary
 # ----------------------
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 
 RUN apk update && apk upgrade && \
     apk add --no-cache bash git openssh
