@@ -1,0 +1,15 @@
+.git
+.github
+.vscode
+.env
+.env.*
+!.env.example
+tmp/
+.tmp/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db

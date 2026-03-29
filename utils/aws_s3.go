@@ -25,6 +25,15 @@ var allowedImageContentTypes = map[string]struct{}{
 	"image/gif":  {},
 }
 
+func getAWSRegion() string {
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		return "eu-north-1"
+	}
+
+	return region
+}
+
 func detectAndValidateImageContentType(file multipart.File) (string, error) {
 	buf := make([]byte, 512)
 	n, err := file.Read(buf)
@@ -52,9 +61,11 @@ func UploadToS3(file multipart.File, header *multipart.FileHeader) (string, erro
 		return "", err
 	}
 
+	region := getAWSRegion()
+
 	cfg, err := config.LoadDefaultConfig(
 		context.TODO(),
-		config.WithRegion("eu-north-1"),
+		config.WithRegion(region),
 	)
 
 	if err != nil {
@@ -88,5 +99,5 @@ func UploadToS3(file multipart.File, header *multipart.FileHeader) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("unable to upload file to S3, %v", err)
 	}
-	return fmt.Sprintf("https://%s.s3.eu-north-1.amazonaws.com/%s", os.Getenv("S3_BUCKET"), filename), nil
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("S3_BUCKET"), region, filename), nil
 }

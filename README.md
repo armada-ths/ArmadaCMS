@@ -22,7 +22,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ### Infrastructure
 
-- **Deployment**: Docker on AWS
+- **Deployment**: Docker (currently deployed on AWS ECS, prepared for Cloud Run migration)
 - **Database**: PostgreSQL (AWS RDS)
 
 ## Prerequisites
@@ -96,11 +96,80 @@ Once running (any option), the server is available at:
 - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
 - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(Option A only)_
 - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173) _(Options B & C)_
-- **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+- **Health check**: [http://localhost:8080/health](http://localhost:8080/health) _(recommended startup/liveness endpoint for Cloud Run)_
+
+## Deploying to Cloud Run
+
+The application is now prepared for a Cloud Run deployment while keeping the current AWS RDS database and AWS S3 file storage.
+
+### Why this works well
+
+- `Dockerfile.prod` already builds a single production image containing both the Go API and the React-Admin frontend
+- `main.go` now respects Cloud Run's `PORT` environment variable automatically
+- the admin frontend uses same-origin API requests in production, so `/admin/` and `/api/v1` can stay on the same Cloud Run service
+- `/health` is a lightweight endpoint that is suitable for smoke checks after deployment
+
+### Required production environment variables
+
+At minimum, configure these in Cloud Run:
+
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `DB_SSLMODE=require`
+- `jwtsecret_laganda`
+- `S3_BUCKET`
+- `AWS_REGION`
+- `EVENTRO_API`
+- `EVENTRO_FAIR_ID`
+- `EVENTRO_ORG`
+
+Optional but recommended for Cloud Run:
+
+- `DB_MAX_OPEN_CONNS`
+- `DB_MAX_IDLE_CONNS`
+- `DB_CONN_MAX_LIFETIME_MINUTES`
+- `DB_CONN_MAX_IDLE_TIME_MINUTES`
+
+If you are not using workload-based AWS credentials, also set:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+### Recommended first Cloud Run settings
+
+Use conservative settings first and tune later based on real traffic:
+
+- **CPU**: `1`
+- **Memory**: `512Mi` or `1Gi`
+- **Min instances**: `0`
+- **Max instances**: `2`
+- **Concurrency**: `10`
+- **Timeout**: `120s`
+
+These settings help prevent your application from opening too many PostgreSQL connections if Cloud Run scales up.
+
+### Deployment approach
+
+You can deploy from the Google Cloud console directly by connecting the GitHub repository to Cloud Run, which is a good fit if you want the built-in auto-deploy flow instead of maintaining a custom CI workflow.
+
+Suggested deployment path:
+
+1. Connect the repository in the Cloud Run console.
+2. Point the build at the `ArmadaCMS/` directory.
+3. Use `Dockerfile.prod` as the production container build.
+4. Configure the environment variables and secrets listed above.
+5. Verify the deployed service with `GET /health` before switching production traffic.
+
+For a longer step-by-step reference, see:
+
+- [`docs/cloud-run-migration-plan.md`](./docs/cloud-run-migration-plan.md)
 
 ## Project Structure
 
-```
+```text
 ArmadaCMS/
 ├── main.go               # Entry point — routing, auto-migration, server startup
 ├── auth/
