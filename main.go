@@ -16,6 +16,24 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var adminClientRouteSegments = map[string]struct{}{
+	"customusers":        {},
+	"profiles":           {},
+	"teams":              {},
+	"programs":           {},
+	"industries":         {},
+	"events":             {},
+	"exhibitors":         {},
+	"employments":        {},
+	"fairdates":          {},
+	"featureflags":       {},
+	"roles":              {},
+	"recruitmentperiods": {},
+	"recruitmentroles":   {},
+	"eventrosync":        {},
+	"login":              {},
+}
+
 func main() {
 	fmt.Println("Hello, world.")
 	if err := godotenv.Load(); err != nil {
@@ -82,25 +100,53 @@ func CreateMuxClient() http.Handler {
 	wrappedMux := HandleCORS(mux)
 	return wrappedMux
 }
+func isKnownAdminClientPath(relPath string) bool {
+	trimmed := strings.Trim(relPath, "/")
+	if trimmed == "" || trimmed == "." {
+		return true
+	}
+
+	if filepath.Ext(trimmed) != "" {
+		return true
+	}
+
+	firstSegment := strings.SplitN(trimmed, "/", 2)[0]
+	_, ok := adminClientRouteSegments[firstSegment]
+	return ok
+}
+
 func CreateControllers(mux *mux.Router) *mux.Router {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	buildDir := "./frontend/dist"
 
-	serveAdminIndex := func(w http.ResponseWriter, r *http.Request) {
+	serveAdminIndex := func(w http.ResponseWriter, r *http.Request, status int) {
+		indexPath := filepath.Join(buildDir, "index.html")
+		indexContent, err := os.ReadFile(indexPath)
+		if err != nil {
+			http.Error(w, "Failed to load admin app", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
-		http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(status)
+		if r.Method != http.MethodHead {
+			_, _ = w.Write(indexContent)
+		}
 	}
 
 	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/", http.StatusPermanentRedirect)
 	})
-	mux.HandleFunc("/admin/", serveAdminIndex)
+	mux.HandleFunc("/admin/", func(w http.ResponseWriter, r *http.Request) {
+		serveAdminIndex(w, r, http.StatusOK)
+	})
 	mux.PathPrefix("/admin/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		relPath := strings.TrimPrefix(r.URL.Path, "/admin/")
 		if relPath == "" || relPath == "." {
-			serveAdminIndex(w, r)
+			serveAdminIndex(w, r, http.StatusOK)
 			return
 		}
 
@@ -110,12 +156,12 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 			return
 		}
 
-		if filepath.Ext(relPath) != "" {
-			http.NotFound(w, r)
+		if !isKnownAdminClientPath(relPath) {
+			serveAdminIndex(w, r, http.StatusNotFound)
 			return
 		}
 
-		serveAdminIndex(w, r)
+		serveAdminIndex(w, r, http.StatusOK)
 	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

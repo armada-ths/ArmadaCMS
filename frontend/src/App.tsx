@@ -76,6 +76,7 @@ export const MyLayout = ({ children }: { children?: ReactNode }) => (
 
 export const App = () => (
   <Admin
+    basename="/admin"
     dataProvider={dataProvider}
     authProvider={authProvider}
     layout={MyLayout}
