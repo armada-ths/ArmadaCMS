@@ -42,7 +42,7 @@ export const authProvider: AuthProvider = {
 
   async checkError(error) {
     const status = error.status;
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       throw new Error("Session expired");
