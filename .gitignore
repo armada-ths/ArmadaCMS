@@ -29,3 +29,6 @@ tmp
 
 # Claude files
 tmpclaude-*-cwd
+
+# Debug binaries
+__debug_bin*
