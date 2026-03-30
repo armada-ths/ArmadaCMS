@@ -41,7 +41,7 @@ func GetRecruitmentRoles(w http.ResponseWriter, r *http.Request) {
 	db.DB.Model(&models.RecruitmentRole{}).Count(&total)
 
 	query = query.Offset(start).Limit(limit)
-	query.Preload("Team").Find(&items)
+	query.Preload("Team").Preload("Recruitment").Find(&items)
 
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
 	w.Header().Set("Content-Range", fmt.Sprintf("recruitmentroles %d-%d/%d", start, end, total))
@@ -53,7 +53,7 @@ func GetRecruitmentRoleByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	var item models.RecruitmentRole
-	if err := db.DB.Preload("Team").First(&item, id).Error; err != nil {
+	if err := db.DB.Preload("Team").Preload("Recruitment").First(&item, id).Error; err != nil {
 		http.Error(w, "recruitment role not found", http.StatusNotFound)
 		return
 	}
@@ -88,7 +88,7 @@ func CreateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Preload("Team").First(&item, item.ID)
+	db.DB.Preload("Team").Preload("Recruitment").First(&item, item.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -120,7 +120,7 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	db.DB.Model(&item).Updates(updates)
-	db.DB.Preload("Team").First(&item, id)
+	db.DB.Preload("Team").Preload("Recruitment").First(&item, id)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)

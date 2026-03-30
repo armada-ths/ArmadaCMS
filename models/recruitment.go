@@ -13,11 +13,12 @@ type RecruitmentPeriod struct {
 }
 
 type RecruitmentRole struct {
-	ID            uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
-	EventroRoleID *string `gorm:"column:eventro_role_id;uniqueIndex" json:"eventroRoleId,omitempty"`
-	RecruitmentID uint    `gorm:"column:recruitment_id;not null;index" json:"recruitmentId"`
-	TeamID        *uint   `gorm:"column:team_id;index" json:"team_id,omitempty"`
-	Team          *Team   `gorm:"foreignKey:TeamID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team,omitempty"`
-	Name          string  `gorm:"column:name;not null;default:''" json:"name"`
-	Description   string  `gorm:"column:description;not null;default:''" json:"description"`
+	ID            uint               `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	EventroRoleID *string            `gorm:"column:eventro_role_id;uniqueIndex" json:"eventroRoleId,omitempty"`
+	RecruitmentID uint               `gorm:"column:recruitment_id;not null;index" json:"recruitmentId"`
+	Recruitment   *RecruitmentPeriod `gorm:"foreignKey:RecruitmentID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"recruitment,omitempty"`
+	TeamID        *uint              `gorm:"column:team_id;index" json:"team_id,omitempty"`
+	Team          *Team              `gorm:"foreignKey:TeamID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team,omitempty"`
+	Name          string             `gorm:"column:name;not null;default:''" json:"name"`
+	Description   string             `gorm:"column:description;not null;default:''" json:"description"`
 }
