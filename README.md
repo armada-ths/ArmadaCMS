@@ -49,6 +49,78 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    Edit `.env` with your Postgres credentials. See `.env.example` for all available variables and descriptions.
 
+3. **Start a local PostgreSQL instance (recommended for local backend development)**
+
+   The repo now includes a small standalone Postgres Compose file:
+
+   ```bash
+   docker compose -f docker-compose.db.yml up -d
+   ```
+
+   This creates a local database with the following defaults:
+   - Host: `localhost`
+   - Port: `5432`
+   - Database: `armadacms`
+   - User: `postgres`
+   - Password: `postgres`
+   - Image: `postgres:17`
+
+   For local use, set your `.env` database section to:
+
+   ```bash
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USER=postgres
+   DB_PASSWORD=postgres
+   DB_NAME=armadacms
+   DB_SSLMODE=disable
+   ```
+
+   To stop the database later without deleting its data:
+
+   ```bash
+   docker compose -f docker-compose.db.yml stop
+   ```
+
+   To stop it and remove the container while keeping the named volume available for reuse:
+
+   ```bash
+   docker compose -f docker-compose.db.yml down
+   ```
+
+4. **Optionally clone a remote database into your local Postgres**
+
+   If you want realistic local data, the repo includes a PowerShell import script that can clone any reachable PostgreSQL database (for example staging, or prod if your current IP is temporarily allowlisted).
+
+   Add these values to your local `.env` first:
+
+   ```bash
+   SOURCE_DB_HOST=
+   SOURCE_DB_PORT=5432
+   SOURCE_DB_USER=postgres
+   SOURCE_DB_PASSWORD=
+   SOURCE_DB_NAME=
+   SOURCE_DB_SSLMODE=require
+   SOURCE_DB_TOOLS_IMAGE=postgres:17
+   ```
+
+   Then run:
+
+   ```powershell
+   ./scripts/import-remote-db.ps1
+   ```
+
+   What it does:
+   - dumps the remote PostgreSQL database using a Dockerized `pg_dump`
+   - drops and recreates your local `armadacms` database
+   - imports the dump into the local Docker Postgres container
+
+   Notes:
+   - The `pg_dump` client must be the same major version as the source database, or newer. Since production is PostgreSQL 17, the default clone tooling now uses `postgres:17`.
+   - The remote database still has to be reachable from your machine. If production only allows the Cloud Run NAT IP, you must temporarily allowlist your current IP or clone from staging instead.
+   - The script replaces your local database completely.
+   - Cloning production means copying real data locally, so handle that dump carefully and prefer staging where possible.
+
 ### Option A: Docker production-style (slow — full rebuild)
 
 Builds the frontend and backend in one step:
@@ -66,6 +138,14 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 
 Only the first run requires `--build`. After that, just `docker compose -f docker-compose.dev.yml up`.
+
+If you are using the standalone local Postgres from `docker-compose.db.yml`, the backend container will automatically connect to it through `host.docker.internal` while your regular local `.env` can keep `DB_HOST=localhost` for non-Docker runs.
+
+If you need a different hostname for Docker-based backend development, set this in `.env`:
+
+```bash
+DB_HOST_DOCKER=host.docker.internal
+```
 
 ### Option C: Run locally without Docker (fastest)
 
