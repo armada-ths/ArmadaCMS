@@ -65,8 +65,7 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 	// return with exhibitor preloaded
 	db.DB.Preload("Exhibitor").First(&item, item.ID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +92,5 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 
 func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Employment{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Employment{}, id), "employment not found")
 }

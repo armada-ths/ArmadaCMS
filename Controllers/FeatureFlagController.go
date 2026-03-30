@@ -87,8 +87,7 @@ func CreateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
@@ -119,11 +118,7 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 
 func DeleteFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.FeatureFlag{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.FeatureFlag{}, id), "feature flag not found")
 }
 
 func SeedFeatureFlags(dbConn *gorm.DB) error {

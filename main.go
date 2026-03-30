@@ -85,7 +85,6 @@ func CreateMuxClient() http.Handler {
 func CreateControllers(mux *mux.Router) *mux.Router {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	buildDir := "./frontend/dist"
-	fs := http.FileServer(http.Dir(buildDir))
 
 	serveAdminIndex := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -108,6 +107,11 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 		assetPath := filepath.Join(buildDir, filepath.FromSlash(relPath))
 		if info, err := os.Stat(assetPath); err == nil && !info.IsDir() {
 			http.ServeFile(w, r, assetPath)
+			return
+		}
+
+		if filepath.Ext(relPath) != "" {
+			http.NotFound(w, r)
 			return
 		}
 
@@ -224,14 +228,8 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 
-	mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(buildDir, r.URL.Path)
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			http.ServeFile(w, r, filepath.Join(buildDir, "index.html"))
-			return
-		}
-		fs.ServeHTTP(w, r)
+	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
 	})
 
 	return mux

@@ -11,18 +11,20 @@ import (
 	"gorm.io/gorm"
 )
 
+var ErrInvalidCredentials = errors.New("wrong username or password")
+
 func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) {
 
 	var user models.User
 	if err := db.DB.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("wrong username or password")
+			return nil, ErrInvalidCredentials
 		}
 		return nil, err
 	}
 	if err := utils.CheckPasswordHash(password, user.Password); err != nil {
 		log.Println(err)
-		return nil, errors.New("wrong username or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	// Resolve role name and permissions for JWT

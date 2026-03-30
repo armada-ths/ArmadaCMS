@@ -65,8 +65,7 @@ func CreateRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(role)
+	writeCreatedJSONResponse(w, role)
 }
 
 func UpdateRole(w http.ResponseWriter, r *http.Request) {
@@ -94,11 +93,7 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Role{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Role{}, id), "role not found")
 }
 
 // SeedRoles creates the default roles if they don't exist yet.

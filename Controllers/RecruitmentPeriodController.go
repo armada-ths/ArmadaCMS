@@ -98,8 +98,7 @@ func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 
 	db.DB.Preload("Roles").Preload("Roles.Team").First(&item, item.ID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
@@ -146,11 +145,7 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.RecruitmentPeriod{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.RecruitmentPeriod{}, id), "recruitment period not found")
 }
 
 func parseFlexibleDateTime(value *string) (*time.Time, error) {
