@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetIndustries(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +59,9 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "industries", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, nil); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -80,7 +83,15 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Model(&item).Updates(updates)
+	before := item
+	if err := updateWithAudit(r, "industries", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -88,5 +99,5 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIndustry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Industry{}, id), "industry not found")
+	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil)
 }

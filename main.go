@@ -43,6 +43,7 @@ func main() {
 	db.ConnectDB()
 
 	db.DB.AutoMigrate(
+		models.AuditLog{},
 		models.Role{},
 		models.User{},
 		models.Blogpost{},

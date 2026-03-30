@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetPrograms(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +59,9 @@ func CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "programs", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, nil); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -80,7 +83,15 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Model(&item).Updates(updates)
+	before := item
+	if err := updateWithAudit(r, "programs", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -88,5 +99,5 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 
 func DeleteProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Program{}, id), "program not found")
+	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil)
 }

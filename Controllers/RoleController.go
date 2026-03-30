@@ -60,7 +60,9 @@ func CreateRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	if err := db.DB.Create(&role).Error; err != nil {
+	if err := createWithAudit(r, "roles", &role, func(tx *gorm.DB) error {
+		return tx.Create(&role).Error
+	}, nil); err != nil {
 		log.Println(err)
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
@@ -82,10 +84,18 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Model(&role).Updates(models.Role{
-		Name:        body.Name,
-		Permissions: body.Permissions,
-	})
+	before := role
+	if err := updateWithAudit(r, "roles", id, before, &role, func(tx *gorm.DB) error {
+		return tx.Model(&role).Updates(models.Role{
+			Name:        body.Name,
+			Permissions: body.Permissions,
+		}).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&role, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(role)
@@ -93,7 +103,7 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Role{}, id), "role not found")
+	writeDeleteResponseWithAudit[models.Role](w, r, "roles", id, "role not found", nil)
 }
 
 // SeedRoles creates the default roles if they don't exist yet.

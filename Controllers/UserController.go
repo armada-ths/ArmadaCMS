@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 type userBody struct {
@@ -97,7 +98,11 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		RoleID:   userBody.RoleID,
 	}
 	user.Password = utils.HashPassword(userBody.Password)
-	if err := db.DB.Create(&user).Error; err != nil {
+	if err := createWithAudit(r, "customusers", &user, func(tx *gorm.DB) error {
+		return tx.Create(&user).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Role").First(&user, user.ID).Error
+	}); err != nil {
 		log.Println(err)
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
@@ -135,14 +140,24 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateUser.Password = user.Password
 	}
 
-	db.DB.Model(&user).Updates(updateUser)
+	before := user
+	if err := updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
+		return tx.Model(&user).Updates(updateUser).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Role").First(&user, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.User{}, id), "user not found")
+	writeDeleteResponseWithAudit[models.User](w, r, "customusers", id, "user not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Role")
+	})
 }
 
 // GetMe returns the current authenticated user's info including role/permissions.

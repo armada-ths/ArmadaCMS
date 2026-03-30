@@ -83,7 +83,9 @@ func CreateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	if item.AutoValue == nil {
 		item.AutoValue = boolPtr(item.Enabled)
 	}
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "featureflags", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, nil); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -110,7 +112,15 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 		"enabled":     updates.Enabled,
 	}
 
-	db.DB.Model(&item).Updates(updatePayload)
+	before := item
+	if err := updateWithAudit(r, "featureflags", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updatePayload).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -118,7 +128,7 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 
 func DeleteFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.FeatureFlag{}, id), "feature flag not found")
+	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil)
 }
 
 func SeedFeatureFlags(dbConn *gorm.DB) error {

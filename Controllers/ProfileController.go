@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetProfiles(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +114,11 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := db.DB.Create(&profile).Error; err != nil {
+	if err := createWithAudit(r, "profiles", &profile, func(tx *gorm.DB) error {
+		return tx.Create(&profile).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Team").First(&profile, profile.ID).Error
+	}); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -201,7 +206,15 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updateMap["photo"] = updates.Photo
 	}
 
-	db.DB.Model(&profile).Updates(updateMap)
+	before := profile
+	if err := updateWithAudit(r, "profiles", id, before, &profile, func(tx *gorm.DB) error {
+		return tx.Model(&profile).Updates(updateMap).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Team").First(&profile, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updates)
@@ -231,5 +244,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 //	}
 func DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Profile{}, id), "profile not found")
+	writeDeleteResponseWithAudit[models.Profile](w, r, "profiles", id, "profile not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Team")
+	})
 }
