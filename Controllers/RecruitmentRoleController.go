@@ -90,8 +90,7 @@ func CreateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 
 	db.DB.Preload("Team").Preload("Recruitment").First(&item, item.ID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
@@ -128,9 +127,5 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.RecruitmentRole{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.RecruitmentRole{}, id), "recruitment role not found")
 }

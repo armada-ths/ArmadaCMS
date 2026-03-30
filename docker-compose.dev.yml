@@ -13,6 +13,8 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
       - go-mod-cache:/go/pkg/mod
@@ -20,12 +22,7 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_SSLMODE: ${DB_SSLMODE}
+      DB_HOST: ${DB_HOST_DOCKER:-host.docker.internal}
     networks:
       - backend
 

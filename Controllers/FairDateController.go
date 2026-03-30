@@ -62,8 +62,7 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
@@ -89,9 +88,5 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 func DeleteFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.FairDateConfig{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.FairDateConfig{}, id), "fair date config not found")
 }

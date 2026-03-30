@@ -64,8 +64,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(team)
+	writeCreatedJSONResponse(w, team)
 }
 func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -90,9 +89,5 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 }
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Team{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Team{}, id), "team not found")
 }

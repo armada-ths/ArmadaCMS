@@ -118,8 +118,7 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profile)
+	writeCreatedJSONResponse(w, profile)
 }
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	var updates models.Profile
@@ -232,9 +231,5 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 //	}
 func DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Profile{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Profile{}, id), "profile not found")
 }

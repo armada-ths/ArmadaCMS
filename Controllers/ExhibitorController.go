@@ -132,8 +132,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(exhibitor)
+	writeCreatedJSONResponse(w, exhibitor)
 }
 
 func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
@@ -240,9 +239,5 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 
 func DeleteExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Exhibitor{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Exhibitor{}, id), "exhibitor not found")
 }

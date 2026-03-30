@@ -62,8 +62,7 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	writeCreatedJSONResponse(w, item)
 }
 
 func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
@@ -89,9 +88,5 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIndustry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if err := db.DB.Delete(&models.Industry{}, id).Error; err != nil {
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeDeleteResponse(w, db.DB.Delete(&models.Industry{}, id), "industry not found")
 }

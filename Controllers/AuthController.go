@@ -3,6 +3,7 @@ package controllers
 import (
 	"ArmadaCMS/main/Flow"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 )
@@ -28,7 +29,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	response, err := Flow.VerifyLoginWithPassword(username, password)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, Flow.ErrInvalidCredentials) {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		http.Error(w, "Login failed", http.StatusInternalServerError)
 		return
 	}
 
