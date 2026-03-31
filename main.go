@@ -30,6 +30,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"roles":              {},
 	"recruitmentperiods": {},
 	"recruitmentroles":   {},
+	"auditlogs":          {},
 	"eventrosync":        {},
 	"login":              {},
 }
@@ -275,6 +276,10 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.create", controllers.CreateRecruitmentRole)).Methods("POST")
 	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.edit", controllers.UpdateRecruitmentRole)).Methods("PUT")
 	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.delete", controllers.DeleteRecruitmentRole)).Methods("DELETE")
+
+	// audit logs — read-only
+	protectedAPI.HandleFunc("/auditlogs", auth.RequirePermission("auditlogs.list", controllers.GetAuditLogs)).Methods("GET")
+	protectedAPI.HandleFunc("/auditlogs/{id}", auth.RequirePermission("auditlogs.show", controllers.GetAuditLogByID)).Methods("GET")
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 

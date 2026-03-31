@@ -40,6 +40,8 @@ import { RecruitmentPeriodEdit } from "./components/RecruitmentPeriod/Recruitmen
 import { RecruitmentRoleList } from "./components/RecruitmentRole/RecruitmentRoleList";
 import { RecruitmentRoleCreate } from "./components/RecruitmentRole/RecruitmentRoleCreate";
 import { RecruitmentRoleEdit } from "./components/RecruitmentRole/RecruitmentRoleEdit";
+import { AuditLogList } from "./components/AuditLog/AuditLogList";
+import { AuditLogShow } from "./components/AuditLog/AuditLogShow";
 import { CustomLoginPage } from "./components/CustomLoginPage";
 import { EventroSync } from "./components/EventroSync/EventroSync";
 
@@ -167,6 +169,13 @@ export const App = () => (
       list={RecruitmentRoleList}
       create={RecruitmentRoleCreate}
       edit={RecruitmentRoleEdit}
+    />
+
+    <Resource
+      name="auditlogs"
+      options={{ label: "Audit logs" }}
+      list={AuditLogList}
+      show={AuditLogShow}
     />
 
     <CustomRoutes>
