@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 type recruitmentPeriodPayload struct {
@@ -91,12 +92,14 @@ func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 		EndDate:   endDate,
 	}
 
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "recruitmentperiods", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Roles").Preload("Roles.Team").First(&item, item.ID).Error
+	}); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-
-	db.DB.Preload("Roles").Preload("Roles.Team").First(&item, item.ID)
 
 	writeCreatedJSONResponse(w, item)
 }
@@ -136,8 +139,15 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 		"end_date":   endDate,
 	}
 
-	db.DB.Model(&item).Updates(updates)
-	db.DB.Preload("Roles").Preload("Roles.Team").First(&item, id)
+	before := item
+	if err := updateWithAudit(r, "recruitmentperiods", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Roles").Preload("Roles.Team").First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -145,7 +155,9 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.RecruitmentPeriod{}, id), "recruitment period not found")
+	writeDeleteResponseWithAudit[models.RecruitmentPeriod](w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Roles").Preload("Roles.Team")
+	})
 }
 
 func parseFlexibleDateTime(value *string) (*time.Time, error) {

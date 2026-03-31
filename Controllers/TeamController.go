@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetTeams(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +60,9 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	if err := db.DB.Create(&team).Error; err != nil {
+	if err := createWithAudit(r, "teams", &team, func(tx *gorm.DB) error {
+		return tx.Create(&team).Error
+	}, nil); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -82,12 +85,20 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Model(&team).Updates(updates)
+	before := team
+	if err := updateWithAudit(r, "teams", id, before, &team, func(tx *gorm.DB) error {
+		return tx.Model(&team).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&team, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(team)
 }
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Team{}, id), "team not found")
+	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil)
 }

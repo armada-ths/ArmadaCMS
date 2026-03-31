@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 type recruitmentRolePayload struct {
@@ -83,12 +84,14 @@ func CreateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		Description:   strings.TrimSpace(payload.Description),
 	}
 
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "recruitmentroles", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Team").Preload("Recruitment").First(&item, item.ID).Error
+	}); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-
-	db.DB.Preload("Team").Preload("Recruitment").First(&item, item.ID)
 
 	writeCreatedJSONResponse(w, item)
 }
@@ -118,8 +121,15 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		updates["recruitment_id"] = *payload.RecruitmentID
 	}
 
-	db.DB.Model(&item).Updates(updates)
-	db.DB.Preload("Team").Preload("Recruitment").First(&item, id)
+	before := item
+	if err := updateWithAudit(r, "recruitmentroles", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Team").Preload("Recruitment").First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -127,5 +137,7 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 
 func DeleteRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.RecruitmentRole{}, id), "recruitment role not found")
+	writeDeleteResponseWithAudit[models.RecruitmentRole](w, r, "recruitmentroles", id, "recruitment role not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Team").Preload("Recruitment")
+	})
 }

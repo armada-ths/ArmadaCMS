@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetEmployments(w http.ResponseWriter, r *http.Request) {
@@ -58,12 +59,14 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	if err := db.DB.Create(&item).Error; err != nil {
+	if err := createWithAudit(r, "employments", &item, func(tx *gorm.DB) error {
+		return tx.Create(&item).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Exhibitor").First(&item, item.ID).Error
+	}); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	// return with exhibitor preloaded
-	db.DB.Preload("Exhibitor").First(&item, item.ID)
 
 	writeCreatedJSONResponse(w, item)
 }
@@ -83,8 +86,15 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.DB.Model(&item).Updates(updates)
-	db.DB.Preload("Exhibitor").First(&item, id)
+	before := item
+	if err := updateWithAudit(r, "employments", id, before, &item, func(tx *gorm.DB) error {
+		return tx.Model(&item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Exhibitor").First(&item, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
@@ -92,5 +102,7 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 
 func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Employment{}, id), "employment not found")
+	writeDeleteResponseWithAudit[models.Employment](w, r, "employments", id, "employment not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Exhibitor")
+	})
 }

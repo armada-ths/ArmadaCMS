@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetEvents(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +140,9 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := db.DB.Create(&event).Error; err != nil {
+	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
+		return tx.Create(&event).Error
+	}, nil); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -215,7 +218,15 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	db.DB.Model(&event).Select(fieldsToUpdate).Updates(updates)
+	before := event
+	if err := updateWithAudit(r, "events", id, before, &event, func(tx *gorm.DB) error {
+		return tx.Model(&event).Select(fieldsToUpdate).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&event, id).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updates)
@@ -223,5 +234,5 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 
 func DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Event{}, id), "event not found")
+	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil)
 }

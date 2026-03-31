@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func GetExhibitors(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +128,11 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create
-	if err = db.DB.Create(&exhibitor).Error; err != nil {
+	if err = createWithAudit(r, "exhibitors", &exhibitor, func(tx *gorm.DB) error {
+		return tx.Create(&exhibitor).Error
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Industries").Preload("Programs").Preload("Employments").First(&exhibitor, exhibitor.ID).Error
+	}); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -146,6 +151,8 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Exhibitor not found", http.StatusNotFound)
 		return
 	}
+
+	before := exhibitor
 
 	// --- Parse multipart form ---
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
@@ -206,30 +213,33 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// --- Update main exhibitor fields ---
-	if err := db.DB.Model(&exhibitor).Select("*").Updates(exhibitor).Error; err != nil {
+	if err := updateWithAudit(r, "exhibitors", id, before, &exhibitor, func(tx *gorm.DB) error {
+		if err := tx.Model(&exhibitor).Select("*").Updates(exhibitor).Error; err != nil {
+			return err
+		}
+
+		if updates.Programs != nil {
+			if err := tx.Model(&exhibitor).Association("Programs").Replace(updates.Programs); err != nil {
+				return err
+			}
+		}
+		if updates.Industries != nil {
+			if err := tx.Model(&exhibitor).Association("Industries").Replace(updates.Industries); err != nil {
+				return err
+			}
+		}
+		if updates.Employments != nil {
+			if err := tx.Model(&exhibitor).Association("Employments").Replace(updates.Employments); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, func(tx *gorm.DB) error {
+		return tx.Preload("Programs").Preload("Industries").Preload("Employments").First(&exhibitor, id).Error
+	}); err != nil {
 		http.Error(w, "Failed to update exhibitor", http.StatusInternalServerError)
 		return
-	}
-
-	// --- Replace associations ---
-	if updates.Programs != nil {
-		if err := db.DB.Model(&exhibitor).Association("Programs").Replace(updates.Programs); err != nil {
-			http.Error(w, "Failed to update programs", http.StatusInternalServerError)
-			return
-		}
-	}
-	if updates.Industries != nil {
-		if err := db.DB.Model(&exhibitor).Association("Industries").Replace(updates.Industries); err != nil {
-			http.Error(w, "Failed to update industries", http.StatusInternalServerError)
-			return
-		}
-	}
-	if updates.Employments != nil {
-		if err := db.DB.Model(&exhibitor).Association("Employments").Replace(updates.Employments); err != nil {
-			http.Error(w, "Failed to update employments", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	// --- Respond ---
@@ -239,5 +249,7 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 
 func DeleteExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponse(w, db.DB.Delete(&models.Exhibitor{}, id), "exhibitor not found")
+	writeDeleteResponseWithAudit[models.Exhibitor](w, r, "exhibitors", id, "exhibitor not found", func(tx *gorm.DB) *gorm.DB {
+		return tx.Preload("Industries").Preload("Programs").Preload("Employments")
+	})
 }
