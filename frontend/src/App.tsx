@@ -61,7 +61,7 @@ export const MyMenu = () => {
       <Menu.ResourceItems />
       {canAccessEventroSync && (
         <Menu.Item
-          to="/eventrosync"
+          to="/admin/eventrosync"
           primaryText="Eventro sync"
           leftIcon={<Icon />}
         />
