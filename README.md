@@ -2,6 +2,16 @@
 
 Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides REST endpoints consumed by the public website ([armada.nu](https://github.com/armada-ths/armada.nu)) and a React-Admin interface for content management.
 
+## Table of Contents
+
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [API](#api)
+- [Operations notes](#operations-notes)
+- [Adding a New Resource](#adding-a-new-resource)
+
 ## Tech Stack
 
 ### Backend
@@ -22,8 +32,10 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ### Infrastructure
 
-- **Deployment**: Docker (currently deployed on AWS ECS, prepared for Cloud Run migration)
+- **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
+- **Ingress**: HTTPS load balancing in front of Cloud Run
 - **Database**: PostgreSQL (AWS RDS)
+- **File storage**: AWS S3
 
 ## Prerequisites
 
@@ -51,7 +63,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 3. **Start a local PostgreSQL instance (recommended for local backend development)**
 
-   The repo now includes a small standalone Postgres Compose file:
+   The repo includes a small standalone Postgres Compose file:
 
    ```bash
    docker compose -f docker-compose.db.yml up -d
@@ -97,7 +109,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    ```bash
    SOURCE_DB_HOST=
    SOURCE_DB_PORT=5432
-   SOURCE_DB_USER=postgres
+   SOURCE_DB_USER=
    SOURCE_DB_PASSWORD=
    SOURCE_DB_NAME=
    SOURCE_DB_SSLMODE=require
@@ -116,8 +128,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    - imports the dump into the local Docker Postgres container
 
    Notes:
-   - The `pg_dump` client must be the same major version as the source database, or newer. Since production is PostgreSQL 17, the default clone tooling now uses `postgres:17`.
-   - The remote database still has to be reachable from your machine. If production only allows the Cloud Run NAT IP, you must temporarily allowlist your current IP or clone from staging instead.
+   - The `pg_dump` client must be the same major version as the source database, or newer. Since production is PostgreSQL 17, the default clone tooling uses `postgres:17`.
+   - The remote database has to be reachable from your machine. Since production only allows the Cloud Run NAT IP, you must temporarily allowlist your current IP or clone from staging instead.
    - The script replaces your local database completely.
    - Cloning production means copying real data locally, so handle that dump carefully and prefer staging where possible.
 
@@ -138,14 +150,6 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 
 Only the first run requires `--build`. After that, just `docker compose -f docker-compose.dev.yml up`.
-
-If you are using the standalone local Postgres from `docker-compose.db.yml`, the backend container will automatically connect to it through `host.docker.internal` while your regular local `.env` can keep `DB_HOST=localhost` for non-Docker runs.
-
-If you need a different hostname for Docker-based backend development, set this in `.env`:
-
-```bash
-DB_HOST_DOCKER=host.docker.internal
-```
 
 ### Option C: Run locally without Docker (fastest)
 
@@ -176,76 +180,7 @@ Once running (any option), the server is available at:
 - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
 - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(Option A only)_
 - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173) _(Options B & C)_
-- **Health check**: [http://localhost:8080/health](http://localhost:8080/health) _(recommended startup/liveness endpoint for Cloud Run)_
-
-## Deploying to Cloud Run
-
-The application is now prepared for a Cloud Run deployment while keeping the current AWS RDS database and AWS S3 file storage.
-
-### Why this works well
-
-- `Dockerfile.prod` already builds a single production image containing both the Go API and the React-Admin frontend
-- `main.go` now respects Cloud Run's `PORT` environment variable automatically
-- the admin frontend uses same-origin API requests in production, so `/admin/` and `/api/v1` can stay on the same Cloud Run service
-- `/health` is a lightweight endpoint that is suitable for smoke checks after deployment
-
-### Required production environment variables
-
-At minimum, configure these in Cloud Run:
-
-- `DB_HOST`
-- `DB_PORT`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_NAME`
-- `DB_SSLMODE=require`
-- `jwtsecret_laganda`
-- `S3_BUCKET`
-- `AWS_REGION`
-- `EVENTRO_API`
-- `EVENTRO_FAIR_ID`
-- `EVENTRO_ORG`
-
-Optional but recommended for Cloud Run:
-
-- `DB_MAX_OPEN_CONNS`
-- `DB_MAX_IDLE_CONNS`
-- `DB_CONN_MAX_LIFETIME_MINUTES`
-- `DB_CONN_MAX_IDLE_TIME_MINUTES`
-
-If you are not using workload-based AWS credentials, also set:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-
-### Recommended first Cloud Run settings
-
-Use conservative settings first and tune later based on real traffic:
-
-- **CPU**: `1`
-- **Memory**: `512Mi` or `1Gi`
-- **Min instances**: `0`
-- **Max instances**: `2`
-- **Concurrency**: `10`
-- **Timeout**: `120s`
-
-These settings help prevent your application from opening too many PostgreSQL connections if Cloud Run scales up.
-
-### Deployment approach
-
-You can deploy from the Google Cloud console directly by connecting the GitHub repository to Cloud Run, which is a good fit if you want the built-in auto-deploy flow instead of maintaining a custom CI workflow.
-
-Suggested deployment path:
-
-1. Connect the repository in the Cloud Run console.
-2. Point the build at the `ArmadaCMS/` directory.
-3. Use `Dockerfile.prod` as the production container build.
-4. Configure the environment variables and secrets listed above.
-5. Verify the deployed service with `GET /health` before switching production traffic.
-
-For a longer step-by-step reference, see:
-
-- [`docs/cloud-run-migration-plan.md`](./docs/cloud-run-migration-plan.md)
+- **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
 
 ## Project Structure
 
@@ -266,7 +201,7 @@ ArmadaCMS/
 │       ├── components/        # List, Create, Edit per resource
 │       └── context/           # Auth provider, API endpoint config
 ├── Dockerfile.dev         # Lightweight dev image (Go + Air only)
-├── Dockerfile.prod        # Production multi-stage build
+├── Dockerfile.prod        # Production multi-stage build for Cloud Run
 ├── docker-compose.yml     # Docker Compose (production-style)
 └── docker-compose.dev.yml # Docker Compose (hot-reload dev)
 ```
@@ -289,6 +224,13 @@ All endpoints are under `/api/v1`. Routes are split into:
 | `DELETE` | `/api/v1/exhibitors/{id}` | Required | Delete exhibitor    |
 | `GET`    | `/api/v1/dates`           | No       | Get fair dates      |
 | `GET`    | `/health`                 | No       | Health check        |
+
+## Operations notes
+
+- Production traffic is served through Cloud Run, while PostgreSQL and file uploads remain on AWS-managed services.
+- The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
+- Production database connections should use `DB_SSLMODE=require`.
+- Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
 
 ## Adding a New Resource
 
