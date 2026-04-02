@@ -421,17 +421,17 @@ substitutions:
   _DEPLOY_REGION: europe-north2
   _AR_HOSTNAME: europe-north2-docker.pkg.dev
   _AR_REPOSITORY: cloud-run-source-deploy
-  _TRIGGER_ID: 696f53ca-40bd-4c2d-8074-b9205d5bb475
+  _TRIGGER_ID: "696f53ca-40bd-4c2d-8074-b9205d5bb475"
   _AR_PROJECT_ID: just-sunrise-491718-m9
-  _GITHUB_APP_CLIENT_ID: Iv23likUDy90uN5q2Vc1
-  _GITHUB_APP_INSTALLATION_ID: 120895633
+  _GITHUB_APP_CLIENT_ID: "Iv23likUDy90uN5q2Vc1"
+  _GITHUB_APP_INSTALLATION_ID: "120895633"
   _GITHUB_APP_PRIVATE_KEY_SECRET: github-app-private-key
-  _GITHUB_ENVIRONMENT: Production
-  _GITHUB_OWNER: armada-ths
-  _GITHUB_REPO: ArmadaCMS
-  _PLATFORM: managed
-  _SERVICE_NAME: armadacms
-  REPO_NAME: armadacms
+  _GITHUB_ENVIRONMENT: "Production"
+  _GITHUB_OWNER: "armada-ths"
+  _GITHUB_REPO: "ArmadaCMS"
+  _PLATFORM: "managed"
+  _SERVICE_NAME: "armadacms"
+  REPO_NAME: "armadacms"
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed
