@@ -1,0 +1,325 @@
+availableSecrets:
+  secretManager:
+    - versionName: projects/$_AR_PROJECT_ID/secrets/$_GITHUB_APP_PRIVATE_KEY_SECRET/versions/latest
+      env: GITHUB_APP_PRIVATE_KEY
+
+steps:
+  - name: python:3.12-slim
+    id: Mint GitHub App Installation Token
+    secretEnv:
+      - GITHUB_APP_PRIVATE_KEY
+    env:
+      - GITHUB_APP_CLIENT_ID=$_GITHUB_APP_CLIENT_ID
+      - GITHUB_APP_INSTALLATION_ID=$_GITHUB_APP_INSTALLATION_ID
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        if [[ -z "${GITHUB_APP_PRIVATE_KEY:-}" ]] || [[ "${GITHUB_APP_CLIENT_ID}" == "YOUR_GITHUB_APP_CLIENT_ID" ]] || [[ "${GITHUB_APP_INSTALLATION_ID}" == "YOUR_GITHUB_APP_INSTALLATION_ID" ]]; then
+          echo "GitHub App configuration is incomplete; skipping deployment tracking."
+          exit 0
+        fi
+
+        python -m pip install --disable-pip-version-check --no-cache-dir pyjwt cryptography requests >/dev/null
+
+        python - <<'PY'
+        import os
+        import pathlib
+        import time
+
+        import jwt
+        import requests
+
+        client_id = os.environ["GITHUB_APP_CLIENT_ID"]
+        installation_id = os.environ["GITHUB_APP_INSTALLATION_ID"]
+        private_key = os.environ["GITHUB_APP_PRIVATE_KEY"].replace("\\n", "\n")
+
+        now = int(time.time())
+        payload = {
+            "iat": now - 60,
+            "exp": now + 540,
+          "iss": client_id,
+        }
+
+        app_jwt = jwt.encode(payload, private_key, algorithm="RS256")
+        response = requests.post(
+            f"https://api.github.com/app/installations/{installation_id}/access_tokens",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {app_jwt}",
+                "X-GitHub-Api-Version": "2026-03-10",
+            },
+            timeout=30,
+        )
+
+        pathlib.Path("/workspace/github_installation_token_response.json").write_text(response.text, encoding="utf-8")
+
+        if not response.ok:
+            print(f"Failed to mint GitHub App installation token (HTTP {response.status_code}).")
+            print(response.text)
+            raise SystemExit(0)
+
+        pathlib.Path("/workspace/github_installation_token").write_text(response.json()["token"], encoding="utf-8")
+        print("Minted GitHub App installation token.")
+        PY
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Create GitHub Deployment
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        LOG_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
+
+        if [[ ! -f /workspace/github_installation_token ]]; then
+          echo "GitHub App installation token is not available; skipping deployment tracking."
+          exit 0
+        fi
+
+        GITHUB_TOKEN="$(cat /workspace/github_installation_token)"
+
+        RESPONSE_FILE="/workspace/github_deployment_response.json"
+        HTTP_CODE="$({
+          curl -sS -o "${RESPONSE_FILE}" -w "%{http_code}" -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/deployments" \
+            -d "{\"ref\":\"${COMMIT_SHA}\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"auto_merge\":false,\"required_contexts\":[],\"description\":\"Cloud Build ${BUILD_ID}\",\"payload\":{\"build_id\":\"${BUILD_ID}\",\"project_id\":\"${PROJECT_ID}\",\"service\":\"${_SERVICE_NAME}\"}}"
+        } || true)"
+
+        if [[ ! "${HTTP_CODE}" =~ ^2 ]]; then
+          echo "Failed to create GitHub deployment (HTTP ${HTTP_CODE})."
+          cat "${RESPONSE_FILE}"
+          exit 0
+        fi
+
+        python -c "import json; print(json.load(open(r'${RESPONSE_FILE}', encoding='utf-8'))['id'])" > /workspace/github_deployment_id
+
+        DEPLOYMENT_ID="$(cat /workspace/github_deployment_id)"
+        echo "Created GitHub deployment ${DEPLOYMENT_ID}."
+
+        curl -sS -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2026-03-10" \
+          "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/deployments/${DEPLOYMENT_ID}/statuses" \
+          -d "{\"state\":\"queued\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"log_url\":\"${LOG_URL}\",\"description\":\"Cloud Build queued deployment\"}" \
+          >/dev/null || true
+
+  - name: gcr.io/cloud-builders/docker
+    id: Build
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        set +e
+        docker build \
+          --no-cache \
+          -t "${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${REPO_NAME}/${_SERVICE_NAME}:${COMMIT_SHA}" \
+          . \
+          -f Dockerfile.prod
+        BUILD_EXIT_CODE=$?
+        set -e
+
+        echo "${BUILD_EXIT_CODE}" > /workspace/build_exit_code
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]]; then
+          echo "Docker build failed with exit code ${BUILD_EXIT_CODE}."
+        fi
+
+  - name: gcr.io/cloud-builders/docker
+    id: Push
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        BUILD_EXIT_CODE=1
+        if [[ -f /workspace/build_exit_code ]]; then
+          BUILD_EXIT_CODE="$(cat /workspace/build_exit_code)"
+        fi
+
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]]; then
+          echo "Skipping docker push because docker build failed."
+          echo "${BUILD_EXIT_CODE}" > /workspace/push_exit_code
+          exit 0
+        fi
+
+        set +e
+        docker push "${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${REPO_NAME}/${_SERVICE_NAME}:${COMMIT_SHA}"
+        PUSH_EXIT_CODE=$?
+        set -e
+
+        echo "${PUSH_EXIT_CODE}" > /workspace/push_exit_code
+        if [[ "${PUSH_EXIT_CODE}" != "0" ]]; then
+          echo "Docker push failed with exit code ${PUSH_EXIT_CODE}."
+        fi
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Mark GitHub Deployment In Progress
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        if [[ ! -f /workspace/github_deployment_id ]] || [[ ! -f /workspace/github_installation_token ]]; then
+          echo "GitHub deployment tracking not initialized; skipping in-progress status."
+          exit 0
+        fi
+
+        GITHUB_TOKEN="$(cat /workspace/github_installation_token)"
+
+        BUILD_EXIT_CODE=1
+        PUSH_EXIT_CODE=1
+        if [[ -f /workspace/build_exit_code ]]; then
+          BUILD_EXIT_CODE="$(cat /workspace/build_exit_code)"
+        fi
+        if [[ -f /workspace/push_exit_code ]]; then
+          PUSH_EXIT_CODE="$(cat /workspace/push_exit_code)"
+        fi
+
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]] || [[ "${PUSH_EXIT_CODE}" != "0" ]]; then
+          echo "Skipping in-progress status because build or push failed."
+          exit 0
+        fi
+
+        DEPLOYMENT_ID="$(cat /workspace/github_deployment_id)"
+        LOG_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
+
+        curl -sS -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2026-03-10" \
+          "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/deployments/${DEPLOYMENT_ID}/statuses" \
+          -d "{\"state\":\"in_progress\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"log_url\":\"${LOG_URL}\",\"description\":\"Cloud Run deployment in progress\"}" \
+          >/dev/null || true
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Deploy
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        BUILD_EXIT_CODE=1
+        PUSH_EXIT_CODE=1
+        if [[ -f /workspace/build_exit_code ]]; then
+          BUILD_EXIT_CODE="$(cat /workspace/build_exit_code)"
+        fi
+        if [[ -f /workspace/push_exit_code ]]; then
+          PUSH_EXIT_CODE="$(cat /workspace/push_exit_code)"
+        fi
+
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]] || [[ "${PUSH_EXIT_CODE}" != "0" ]]; then
+          echo "Skipping Cloud Run deploy because build or push failed."
+          echo "1" > /workspace/deploy_exit_code
+          exit 0
+        fi
+
+        set +e
+        gcloud run services update "${_SERVICE_NAME}" \
+          --platform=managed \
+          "--image=${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${REPO_NAME}/${_SERVICE_NAME}:${COMMIT_SHA}" \
+          "--labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=${COMMIT_SHA},gcb-build-id=${BUILD_ID},gcb-trigger-id=${_TRIGGER_ID}" \
+          "--region=${_DEPLOY_REGION}" \
+          --quiet
+        DEPLOY_EXIT_CODE=$?
+        set -e
+
+        echo "${DEPLOY_EXIT_CODE}" > /workspace/deploy_exit_code
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Finalize GitHub Deployment
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        BUILD_EXIT_CODE=1
+        PUSH_EXIT_CODE=1
+        DEPLOY_EXIT_CODE=1
+        if [[ -f /workspace/build_exit_code ]]; then
+          BUILD_EXIT_CODE="$(cat /workspace/build_exit_code)"
+        fi
+        if [[ -f /workspace/push_exit_code ]]; then
+          PUSH_EXIT_CODE="$(cat /workspace/push_exit_code)"
+        fi
+        if [[ -f /workspace/deploy_exit_code ]]; then
+          DEPLOY_EXIT_CODE="$(cat /workspace/deploy_exit_code)"
+        fi
+
+        FAILURE_DESCRIPTION="Cloud Run deployment failed"
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]]; then
+          FAILURE_DESCRIPTION="Docker build failed"
+        elif [[ "${PUSH_EXIT_CODE}" != "0" ]]; then
+          FAILURE_DESCRIPTION="Docker push failed"
+        elif [[ "${DEPLOY_EXIT_CODE}" != "0" ]]; then
+          FAILURE_DESCRIPTION="Cloud Run deployment failed"
+        fi
+
+        if [[ -f /workspace/github_deployment_id ]] && [[ -f /workspace/github_installation_token ]]; then
+          DEPLOYMENT_ID="$(cat /workspace/github_deployment_id)"
+          GITHUB_TOKEN="$(cat /workspace/github_installation_token)"
+          LOG_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
+
+          if [[ "${BUILD_EXIT_CODE}" == "0" ]] && [[ "${PUSH_EXIT_CODE}" == "0" ]] && [[ "${DEPLOY_EXIT_CODE}" == "0" ]]; then
+            SERVICE_URL="$(gcloud run services describe "${_SERVICE_NAME}" --region="${_DEPLOY_REGION}" --format='value(status.url)' 2>/dev/null || true)"
+            curl -sS -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/deployments/${DEPLOYMENT_ID}/statuses" \
+              -d "{\"state\":\"success\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"environment_url\":\"${SERVICE_URL}\",\"log_url\":\"${LOG_URL}\",\"description\":\"Cloud Run deployment completed successfully\"}" \
+              >/dev/null || true
+          else
+            curl -sS -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/deployments/${DEPLOYMENT_ID}/statuses" \
+              -d "{\"state\":\"failure\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"log_url\":\"${LOG_URL}\",\"description\":\"${FAILURE_DESCRIPTION}\"}" \
+              >/dev/null || true
+          fi
+        fi
+
+        if [[ "${BUILD_EXIT_CODE}" != "0" ]]; then
+          echo "Docker build failed with exit code ${BUILD_EXIT_CODE}."
+          exit "${BUILD_EXIT_CODE}"
+        fi
+
+        if [[ "${PUSH_EXIT_CODE}" != "0" ]]; then
+          echo "Docker push failed with exit code ${PUSH_EXIT_CODE}."
+          exit "${PUSH_EXIT_CODE}"
+        fi
+
+        if [[ "${DEPLOY_EXIT_CODE}" != "0" ]]; then
+          echo "Deployment failed with exit code ${DEPLOY_EXIT_CODE}."
+          exit "${DEPLOY_EXIT_CODE}"
+        fi
+
+images:
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _DEPLOY_REGION: europe-north2
+  _AR_HOSTNAME: europe-north2-docker.pkg.dev
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _TRIGGER_ID: 696f53ca-40bd-4c2d-8074-b9205d5bb475
+  _AR_PROJECT_ID: just-sunrise-491718-m9
+  _GITHUB_APP_CLIENT_ID: YOUR_GITHUB_APP_CLIENT_ID
+  _GITHUB_APP_INSTALLATION_ID: YOUR_GITHUB_APP_INSTALLATION_ID
+  _GITHUB_APP_PRIVATE_KEY_SECRET: github-app-private-key
+  _GITHUB_ENVIRONMENT: production
+  _GITHUB_OWNER: armada-ths
+  _GITHUB_REPO: ArmadaCMS
+  _PLATFORM: managed
+  _SERVICE_NAME: armadacms
+  REPO_NAME: armadacms
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - armadacms
