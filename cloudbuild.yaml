@@ -104,7 +104,8 @@ steps:
 
             if [[ -n "$${ASSOCIATED_PR_NUMBER}" ]]; then
               CANDIDATE_TAG="pr-$${ASSOCIATED_PR_NUMBER}"
-              if gcloud artifacts docker tags list "$${IMAGE_REPOSITORY}" --filter="tag=$${CANDIDATE_TAG}" --format='value(tag)' | grep -qx "$${CANDIDATE_TAG}"; then
+              echo "Checking Artifact Registry for prebuilt tag $${CANDIDATE_TAG}."
+              if gcloud artifacts docker tags list "$${IMAGE_REPOSITORY}" --format='value(tag)' | grep -Fxq "$${CANDIDATE_TAG}"; then
                 IMAGE_TAG="$${CANDIDATE_TAG}"
                 BUILD_REQUIRED="false"
                 echo "Found prebuilt PR image for PR #$${ASSOCIATED_PR_NUMBER}; deploy will reuse tag $${IMAGE_TAG}."
