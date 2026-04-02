@@ -96,7 +96,7 @@ steps:
           exit 0
         fi
 
-        python -c "import json; print(json.load(open(r'$${RESPONSE_FILE}', encoding='utf-8'))['id'])" > /workspace/github_deployment_id
+        python3 -c "import json; print(json.load(open(r'$${RESPONSE_FILE}', encoding='utf-8'))['id'])" > /workspace/github_deployment_id
 
         DEPLOYMENT_ID="$$(cat /workspace/github_deployment_id)"
         echo "Created GitHub deployment $${DEPLOYMENT_ID}."
