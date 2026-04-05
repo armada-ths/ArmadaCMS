@@ -18,35 +18,18 @@ Deployed to **Google Cloud Run** (containerised). DB: AWS RDS Postgres. File sto
 
 ## Developer workflows
 
-**Local Postgres (fastest):**
-
-```bash
-docker compose -f docker-compose.db.yml up -d   # starts postgres:17 on :5432
-```
-
-Default credentials: host `localhost`, db `armadacms`, user/password `postgres`. Copy `.env.example` → `.env`.
-
-**Backend** (port 8080):
-
-```bash
-air            # hot-reload via Air (recommended)
-go run main.go # or manual restart
-```
-
-**Admin frontend** (`frontend/`, port 5173 in dev):
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
-`npm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
-
-**Docker dev** (Go + Vite in containers with hot reload):
+**Docker dev (recommended):**
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build  # first run
 docker compose -f docker-compose.dev.yml up           # subsequent
 ```
+
+This runs the Go API, React-Admin frontend, Postgres, and MinIO together with hot reload.
+
+Default credentials: host `localhost`, db `armadacms`, user/password `postgres`. Copy `.env.example` → `.env`.
+
+`npm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
 **Tests**: none. Verify manually — `curl http://localhost:8080/health` and affected `/api/v1` endpoints.
 
@@ -78,16 +61,15 @@ docker compose -f docker-compose.dev.yml up           # subsequent
 
 All vars loaded from `.env` (see `.env.example`). Key vars:
 
-| Var                                             | Purpose                                                    |
-| ----------------------------------------------- | ---------------------------------------------------------- |
-| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                                        |
-| `DB_HOST_DOCKER`                                | Overrides `DB_HOST` in Docker dev (`host.docker.internal`) |
-| `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.**          |
-| `S3_BUCKET`, `AWS_REGION`                       | S3 file storage (region default: `eu-north-1`)             |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | S3 credentials (optional if IAM role in use)               |
-| `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                                  |
-| `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)            |
-| `PORT`                                          | Server port (default: 8080)                                |
+| Var                                             | Purpose                                           |
+| ----------------------------------------------- | ------------------------------------------------- |
+| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                               |
+| `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.** |
+| `S3_BUCKET`, `AWS_REGION`                       | S3 file storage (region default: `eu-north-1`)    |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | S3 credentials (optional if IAM role in use)      |
+| `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                         |
+| `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)   |
+| `PORT`                                          | Server port (default: 8080)                       |
 
 ## Adding a new resource (checklist)
 

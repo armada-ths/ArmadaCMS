@@ -20,7 +20,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
 - **ORM**: [GORM](https://gorm.io/) (Postgres)
 - **Auth**: JWT (Bearer tokens)
-- **File storage**: AWS S3
+- **File storage**: MinIO (local dev), AWS S3 (staging/production)
 - **Hot reload**: [Air](https://github.com/air-verse/air) (in Docker dev mode)
 
 ### Admin Frontend
@@ -39,10 +39,9 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ## Prerequisites
 
-- [Go 1.24+](https://go.dev/dl/)
-- [Node.js 20+](https://nodejs.org/) and npm (for the admin frontend)
-- [Docker](https://www.docker.com/) and Docker Compose (optional, for containerized setup)
-- PostgreSQL instance (local or remote)
+- [Docker](https://www.docker.com/) and Docker Compose _(required for local development)_
+- [Go 1.24+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
+- [Node.js 20+](https://nodejs.org/) and npm _(optional, for running frontend tooling directly)_
 
 ## Getting Started
 
@@ -59,28 +58,10 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    cp .env.example .env
    ```
 
-   Edit `.env` with your Postgres credentials. See `.env.example` for all available variables and descriptions.
+   For the Docker development stack, the defaults in `.env.example` already point to the bundled Postgres and MinIO services:
 
-3. **Start a local PostgreSQL instance (recommended for local backend development)**
-
-   The repo includes a small standalone Postgres Compose file:
-
-   ```bash
-   docker compose -f docker-compose.db.yml up -d
-   ```
-
-   This creates a local database with the following defaults:
-   - Host: `localhost`
-   - Port: `5432`
-   - Database: `armadacms`
-   - User: `postgres`
-   - Password: `postgres`
-   - Image: `postgres:17`
-
-   For local use, set your `.env` database section to:
-
-   ```bash
-   DB_HOST=localhost
+   ```env
+   DB_HOST=postgres
    DB_PORT=5432
    DB_USER=postgres
    DB_PASSWORD=postgres
@@ -88,25 +69,60 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    DB_SSLMODE=disable
    ```
 
-   To stop the database later without deleting its data:
+   See `.env.example` for the full list of variables, including MinIO and AWS S3 settings.
+
+3. **Start the local development stack**
 
    ```bash
-   docker compose -f docker-compose.db.yml stop
+   docker compose -f docker-compose.dev.yml up --build
    ```
 
-   To stop it and remove the container while keeping the named volume available for reuse:
+   This starts the Go API (Air hot reload), the React-Admin frontend (Vite HMR), Postgres, and MinIO in one Docker Compose workflow.
+
+   Only the first run requires `--build`. After that, use:
 
    ```bash
-   docker compose -f docker-compose.db.yml down
+   docker compose -f docker-compose.dev.yml up
+   ```
+
+   Postgres defaults:
+   - Host (from containers): `postgres`
+   - Host (from your machine): `localhost`
+   - Port: `5432`
+   - Database: `armadacms`
+   - User: `postgres`
+   - Password: `postgres`
+
+   MinIO defaults:
+   - API: `http://localhost:9000`
+   - Console: `http://localhost:9001`
+   - Login: `minioadmin` / `minioadmin`
+
+   To stop the stack later without deleting data:
+
+   ```bash
+   docker compose -f docker-compose.dev.yml stop
+   ```
+
+   To remove the containers while keeping named volumes available for reuse:
+
+   ```bash
+   docker compose -f docker-compose.dev.yml down
    ```
 
 4. **Optionally clone a remote database into your local Postgres**
 
-   If you want realistic local data, the repo includes a PowerShell import script that can clone any reachable PostgreSQL database (for example staging, or prod if your current IP is temporarily allowlisted).
+   If you want realistic local data, the repo includes a PowerShell import script that can clone any reachable PostgreSQL database, for example staging or a temporarily allowlisted production instance.
+
+   Start the Postgres container from the dev stack first if it is not already running:
+
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d postgres
+   ```
 
    Add these values to your local `.env` first:
 
-   ```bash
+   ```env
    SOURCE_DB_HOST=
    SOURCE_DB_PORT=5432
    SOURCE_DB_USER=
@@ -122,7 +138,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    ./scripts/import-remote-db.ps1
    ```
 
-   What it does:
+   The script:
    - dumps the remote PostgreSQL database using a Dockerized `pg_dump`
    - drops and recreates your local `armadacms` database
    - imports the dump into the local Docker Postgres container
@@ -133,54 +149,53 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    - The script replaces your local database completely.
    - Cloning production means copying real data locally, so handle that dump carefully and prefer staging where possible.
 
-### Option A: Docker production-style (slow — full rebuild)
+5. **Optionally verify the production-style container locally**
 
-Builds the frontend and backend in one step:
+   This is slower than the development stack above, but closer to what runs in production:
 
-```bash
-docker compose up --build
-```
+   ```bash
+   docker compose up --build
+   ```
 
-### Option B: Docker with hot reload (recommended for Docker users)
+   The Go app is served on `http://localhost:8080`, with the admin frontend bundled at `/admin/`.
 
-Runs Go (Air hot-reload) and Vite (HMR) in separate containers with volume mounts — no image rebuild needed on code changes:
+   This workflow is mainly for production verification, not day-to-day local development. If you want it to talk to locally started Postgres and MinIO on Docker Desktop, use `host.docker.internal` instead of `localhost`, for example:
 
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
+   ```env
+   DB_HOST=host.docker.internal
+   S3_ENDPOINT=http://host.docker.internal:9000
+   S3_PUBLIC_URL=http://localhost:9000
+   ```
 
-Only the first run requires `--build`. After that, just `docker compose -f docker-compose.dev.yml up`.
+6. **Set up file uploads (MinIO or AWS S3)**
 
-### Option C: Run locally without Docker (fastest)
+   File uploads (profile photos, exhibitor logos, event images) require an S3-compatible store. **For local development, MinIO is the recommended default.**
+   - The Docker development stack already starts MinIO automatically and uses the `.env.example` default `S3_ENDPOINT=http://minio:9000`.
+   - The production-style local verification flow also needs container-reachable endpoints such as `host.docker.internal` if you want to use locally started services.
 
-Run the Go backend and Vite frontend in **two separate terminals**:
+   MinIO listens on port `9000`, and the console is available at [http://localhost:9001](http://localhost:9001) with login `minioadmin` / `minioadmin`.
 
-**Terminal 1 — Go backend with hot reload:**
+   For Docker-based workflows, make sure your `.env` has the MinIO block active (it is enabled by default in `.env.example`):
 
-```bash
-# Install Air (one-time)
-go install github.com/air-verse/air@latest
+   ```env
+   S3_BUCKET=armada-dev
+   S3_ENDPOINT=http://minio:9000
+   S3_PUBLIC_URL=http://localhost:9000
+   AWS_ACCESS_KEY_ID=minioadmin
+   AWS_SECRET_ACCESS_KEY=minioadmin
+   ```
 
-# Start backend with auto-rebuild on .go changes
-air
-```
+   `S3_ENDPOINT` is the address the Go server uses to reach MinIO. `S3_PUBLIC_URL` is the address the browser uses to load uploaded files. In Docker-based development, those values differ because the backend reaches MinIO at `minio:9000` while the browser uses `localhost:9000`.
 
-Or without Air: `go run main.go` (manual restart on changes).
+   If you want to use AWS S3 instead, comment out the MinIO block in `.env` and enable the AWS S3 settings from `.env.example`.
 
-**Terminal 2 — Vite frontend with HMR:**
+7. **Verify the app is running**
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Once running (any option), the server is available at:
-
-- **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
-- **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(Option A only)_
-- **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173) _(Options B & C)_
-- **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+   Once the development stack is running, the following URLs are available:
+   - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
+   - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173)
+   - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(production-style local verification only)_
+   - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
 
 ## Project Structure
 
