@@ -5,31 +5,8 @@
       "name": "Docker",
       "type": "node-terminal",
       "request": "launch",
-      "preLaunchTask": "Start local Postgres",
       "command": "docker compose -f docker-compose.dev.yml up",
       "cwd": "${workspaceFolder}",
-      "serverReadyAction": {
-        "action": "startDebugging",
-        "name": "Admin Browser",
-        "pattern": "Local:\\s+(https?://[^\\s]+)"
-      }
-    },
-    {
-      "name": "API",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "preLaunchTask": "Start local Postgres",
-      "program": "${workspaceFolder}",
-      "cwd": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/.env"
-    },
-    {
-      "name": "Admin Dev",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/frontend",
       "serverReadyAction": {
         "action": "startDebugging",
         "name": "Admin Browser",
@@ -42,13 +19,13 @@
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}"
-    }
-  ],
-  "compounds": [
+    },
     {
-      "name": "API + Admin Dev",
-      "configurations": ["API", "Admin Dev"],
-      "stopAll": true
+      "name": "MinIO Console",
+      "type": "editor-browser",
+      "request": "launch",
+      "url": "http://localhost:9001",
+      "webRoot": "${workspaceFolder}"
     }
   ]
 }

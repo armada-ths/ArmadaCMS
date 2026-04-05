@@ -88,7 +88,7 @@ $localName = Get-RequiredValue -Config $config -Key "DB_NAME"
 
 $runningState = (& docker inspect -f "{{.State.Running}}" $localContainer 2>$null)
 if ($LASTEXITCODE -ne 0 -or $runningState.Trim() -ne "true") {
-    throw "Local Postgres container '$localContainer' is not running. Start it first with: docker compose -f docker-compose.db.yml up -d"
+    throw "Local Postgres container '$localContainer' is not running. Start it first with docker compose -f docker-compose.dev.yml up -d postgres."
 }
 
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("armadacms-db-clone-" + [guid]::NewGuid().ToString("N"))
