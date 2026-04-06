@@ -208,6 +208,8 @@ ArmadaCMS/
 ├── models/                # GORM model structs
 ├── db/
 │   └── connect.go         # Postgres connection setup
+├── infra/
+│   └── terraform/         # GCP infrastructure as code (Cloud Run, secrets, Artifact Registry, optional egress)
 ├── utils/                 # Helpers (S3 upload, JWT, password hashing)
 ├── frontend/              # React-Admin SPA (Vite)
 │   └── src/
@@ -246,6 +248,13 @@ All endpoints are under `/api/v1`. Routes are split into:
 - The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
 - Production database connections should use `DB_SSLMODE=require`.
 - Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
+
+## Infrastructure as code
+
+- Terraform is organized under `infra/terraform/` by provider and root.
+- The current ArmadaCMS runtime stack lives in `infra/terraform/gcp/prod/`.
+- That GCP production root can manage Artifact Registry, Secret Manager, IAM, Cloud Run, and optional stable egress for AWS RDS allow-listing.
+- See `infra/terraform/README.md` for the overall layout, and `infra/terraform/gcp/prod/README.md` for the active GCP production stack, imports, and HCP Terraform setup.
 
 ## Adding a New Resource
 
