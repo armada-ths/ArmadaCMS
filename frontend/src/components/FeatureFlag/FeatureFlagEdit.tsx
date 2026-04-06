@@ -4,9 +4,7 @@ import {
   SimpleForm,
   TextInput,
   BooleanInput,
-  Labeled,
 } from "react-admin";
-import { AutoOverrideBadge } from "./AutoOverrideBadge";
 
 export const FeatureFlagEdit = (props: EditProps) => (
   <Edit {...props}>
@@ -14,9 +12,6 @@ export const FeatureFlagEdit = (props: EditProps) => (
       <TextInput source="key" disabled />
       <TextInput source="description" />
       <BooleanInput source="enabled" />
-      <Labeled label="Auto override">
-        <AutoOverrideBadge />
-      </Labeled>
     </SimpleForm>
   </Edit>
 );

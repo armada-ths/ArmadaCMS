@@ -46,7 +46,7 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 - **File uploads**: controllers accepting files use `multipart/form-data`; files go to AWS S3 via `utils/aws_s3.go` (validates MIME, generates timestamped key).
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
 - **Eventro integration**: `Controllers/EventroController.go` proxies the external Eventro API (exhibitors/events/members/recruitments). Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the `EventroSync` admin page.
-- **Feature flags**: `FeatureFlagController` auto-updates `EXHIBITOR_SIGNUP` based on IR/FR date windows on every GET. `models/feature_flag.go` has `DefaultFeatureFlags` that seed the DB on startup.
+- **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
 
 ## Admin frontend patterns
 

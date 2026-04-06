@@ -63,6 +63,13 @@ func main() {
 		// Enter your models here
 	)
 
+	// Drop stale columns removed from the FeatureFlag model
+	db.DB.Exec("ALTER TABLE feature_flags DROP COLUMN IF EXISTS auto_value")
+	db.DB.Exec("ALTER TABLE feature_flags DROP COLUMN IF EXISTS auto_updated_at")
+
+	// Remove retired feature flags
+	db.DB.Exec("DELETE FROM feature_flags WHERE key = 'EXHIBITOR_SIGNUP'")
+
 	if err := controllers.SeedRoles(db.DB); err != nil {
 		log.Printf("failed to seed roles: %v", err)
 	}
