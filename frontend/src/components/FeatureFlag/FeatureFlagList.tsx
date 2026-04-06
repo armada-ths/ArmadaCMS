@@ -6,7 +6,6 @@ import {
   EditButton,
   ListProps,
 } from "react-admin";
-import { AutoOverrideBadge } from "./AutoOverrideBadge";
 
 export const FeatureFlagList = (props: ListProps) => (
   <List {...props}>
@@ -15,7 +14,6 @@ export const FeatureFlagList = (props: ListProps) => (
       <TextField source="key" />
       <TextField source="description" />
       <BooleanField source="enabled" />
-      <AutoOverrideBadge />
       <EditButton />
     </Datagrid>
   </List>
