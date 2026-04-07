@@ -1,26 +1,30 @@
-# armadacms
+# ArmadaCMS admin frontend
 
-## Installation
+This directory contains the React-Admin SPA used for the ArmadaCMS admin interface.
 
-Install the application dependencies by running:
+For full-project setup, Docker-based local development, environment variables, and backend integration, use the repository root guide: [`../README.md`](../README.md).
+
+## Use this README when
+
+Use this document only if you want to run or validate the frontend directly from `frontend/` against an already running API.
+
+## Install dependencies
 
 ```sh
 npm install
 ```
 
-## Development
-
-Start the application in development mode by running:
+## Run locally
 
 ```sh
 npm run dev
 ```
 
-## Production
-
-Build the application in production mode by running:
+## Validate changes
 
 ```sh
 npm run build
+npm run type-check
+npm run lint:check
 ```
 
