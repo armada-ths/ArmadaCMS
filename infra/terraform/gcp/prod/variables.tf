@@ -83,12 +83,6 @@ variable "deploy_cloud_run_service" {
   default     = false
 }
 
-variable "allow_unauthenticated" {
-  description = "Whether to allow public unauthenticated invocation of the Cloud Run service."
-  type        = bool
-  default     = true
-}
-
 variable "deletion_protection" {
   description = "Enable Cloud Run deletion protection. Recommended for production."
   type        = bool

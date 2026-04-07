@@ -105,6 +105,10 @@ resource "google_compute_url_map" "cloud_run_lb_redirect" {
     redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
     strip_query            = false
   }
+
+  lifecycle {
+    ignore_changes = [description]
+  }
 }
 
 resource "google_compute_target_http_proxy" "cloud_run_lb_redirect" {

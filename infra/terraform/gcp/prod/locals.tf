@@ -47,7 +47,7 @@ locals {
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
   plain_env_vars = {
-    DB_HOST                       = data.tfe_outputs.aws_prod.values["rds_host"]
+    DB_HOST                       = nonsensitive(data.tfe_outputs.aws_prod.values["rds_host"])
     DB_PORT                       = "5432"
     DB_USER                       = "postgres"
     DB_NAME                       = "armadacms"

@@ -109,7 +109,7 @@ resource "google_cloud_run_v2_service" "armadacms" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  count = var.deploy_cloud_run_service && var.allow_unauthenticated ? 1 : 0
+  count = var.deploy_cloud_run_service ? 1 : 0
 
   project  = var.project_id
   location = google_cloud_run_v2_service.armadacms[0].location
