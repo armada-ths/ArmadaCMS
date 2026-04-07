@@ -166,14 +166,35 @@ For this root, use:
 
 ### Variables and secrets in HCP Terraform
 
-For HCP Terraform runs, store environment-specific values such as these as workspace variables:
+This root now includes a committed `prod.auto.tfvars` file for the current non-secret production defaults, so you do **not** need to copy all of `terraform.tfvars` into HCP Terraform.
 
-- `project_id`
-- `github_app_private_key`
-- `secret_values`
-- any production overrides for scaling or egress
+### Keep directly in HCP Terraform
+
+Store these as **Terraform variables** in the workspace:
+
+- `github_app_private_key` _(sensitive)_
+- `secret_values` _(sensitive map for Secret Manager-managed values such as `DB_PASSWORD`, `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG`, `jwtsecret_laganda`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`)_
+
+Store these as **environment variables** in the workspace for HCP Terraform's GCP dynamic credentials setup:
+
+- `TFC_GCP_PROVIDER_AUTH=true`
+- `TFC_GCP_WORKLOAD_PROVIDER_NAME`
+- `TFC_GCP_RUN_SERVICE_ACCOUNT_EMAIL`
+
+Optional HCP Terraform variables are only needed if you want the workspace to override the committed production defaults in `prod.auto.tfvars`.
 
 Mark secrets as sensitive in HCP Terraform so they stay out of plan output.
+
+### What lives in Git
+
+The committed `prod.auto.tfvars` file now carries the current non-secret production defaults, including:
+
+- project and region settings
+- service names and scaling values
+- VPC / NAT / load balancer configuration
+- non-secret Cloud Run environment values such as `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`, `S3_BUCKET`, and `AWS_REGION`
+
+You can keep using a local ignored `terraform.tfvars` file for temporary local-only overrides, but it is no longer required for the normal production configuration.
 
 ### Migrating from local state later
 
