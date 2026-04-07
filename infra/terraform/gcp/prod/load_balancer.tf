@@ -22,6 +22,12 @@ resource "google_compute_backend_service" "cloud_run_lb" {
   load_balancing_scheme           = "EXTERNAL_MANAGED"
   connection_draining_timeout_sec = 0
 
+  log_config {
+    enable        = true
+    sample_rate   = 1.0
+    optional_mode = "EXCLUDE_ALL_OPTIONAL"
+  }
+
   backend {
     group = google_compute_region_network_endpoint_group.cloud_run_lb_neg[0].id
   }
