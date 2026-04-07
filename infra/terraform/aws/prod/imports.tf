@@ -57,6 +57,6 @@ import {
 }
 
 import {
-  id = "armadacms-prod-s3-membership"
-  to = aws_iam_group_membership.s3_uploader
+  id = "armadacms-prod-s3/ArmadaCMSProductionUploads"
+  to = aws_iam_user_group_membership.s3_uploader
 }

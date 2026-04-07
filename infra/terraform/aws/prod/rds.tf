@@ -1,13 +1,9 @@
-data "aws_vpc" "default" {
-  default = true
-}
-
 # ── Security group ──────────────────────────────────────────────────────────────
 
 resource "aws_security_group" "rds" {
   name        = "armadacms-rds-sg"
   description = "PostgreSQL access for ArmadaCMS from Cloud Run NAT"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = local.vpc_id
 
   ingress {
     description = "PostgreSQL from Cloud Run NAT"

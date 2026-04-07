@@ -1,8 +1,7 @@
 # ── IAM policy ─────────────────────────────────────────────────────────────────
 
 resource "aws_iam_policy" "s3_uploads" {
-  name        = "ArmadaCMSProdS3UploadsPolicy"
-  description = "Allows the ArmadaCMS Cloud Run service to upload files to the production S3 bucket. Write access is restricted to the Cloud Run NAT outbound IP."
+  name = "ArmadaCMSProdS3UploadsPolicy"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -49,10 +48,9 @@ resource "aws_iam_user" "s3_uploader" {
   tags = local.common_tags
 }
 
-resource "aws_iam_group_membership" "s3_uploader" {
-  name  = "armadacms-prod-s3-membership"
-  group = aws_iam_group.s3_uploaders.name
-  users = [aws_iam_user.s3_uploader.name]
+resource "aws_iam_user_group_membership" "s3_uploader" {
+  user   = aws_iam_user.s3_uploader.name
+  groups = [aws_iam_group.s3_uploaders.name]
 }
 
 # ── Access key ─────────────────────────────────────────────────────────────────
