@@ -3,6 +3,11 @@ output "rds_endpoint" {
   value       = "${aws_db_instance.main.address}:${aws_db_instance.main.port}"
 }
 
+output "rds_host" {
+  description = "RDS PostgreSQL hostname (without port). Used by the GCP workspace to configure Cloud Run's DB_HOST environment variable."
+  value       = aws_db_instance.main.address
+}
+
 output "rds_db_name" {
   description = "PostgreSQL database name."
   value       = aws_db_instance.main.db_name
