@@ -1,12 +1,13 @@
 resource "google_cloud_run_v2_service" "armadacms" {
   count = var.deploy_cloud_run_service ? 1 : 0
 
-  project             = var.project_id
-  name                = var.service_name
-  location            = var.region
-  ingress             = var.cloud_run_ingress
-  deletion_protection = var.deletion_protection
-  labels              = local.labels
+  project              = var.project_id
+  name                 = var.service_name
+  location             = var.region
+  ingress              = var.cloud_run_ingress
+  deletion_protection  = var.deletion_protection
+  invoker_iam_disabled = true
+  labels               = local.labels
 
   template {
     service_account                  = var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)
@@ -94,6 +95,9 @@ resource "google_cloud_run_v2_service" "armadacms" {
   lifecycle {
     ignore_changes = [
       labels,
+      client,
+      client_version,
+      scaling,
       template[0].labels,
       template[0].containers[0].image,
     ]
@@ -108,12 +112,4 @@ resource "google_cloud_run_v2_service" "armadacms" {
   ]
 }
 
-resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  count = var.deploy_cloud_run_service ? 1 : 0
 
-  project  = var.project_id
-  location = google_cloud_run_v2_service.armadacms[0].location
-  name     = google_cloud_run_v2_service.armadacms[0].name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
