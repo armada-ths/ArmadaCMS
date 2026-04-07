@@ -9,8 +9,9 @@ container_image_path            = "armadacms/armadacms"
 bootstrap_image_tag             = "bootstrap"
 
 deploy_cloud_run_service = true
-allow_unauthenticated    = false
+allow_unauthenticated    = true
 deletion_protection      = true
+cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
 manage_runtime_service_account    = false
 cloud_run_service_account_email   = "475154911163-compute@developer.gserviceaccount.com"

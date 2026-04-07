@@ -9,8 +9,9 @@ container_image_path            = "armadacms/armadacms"
 bootstrap_image_tag             = "bootstrap"
 
 deploy_cloud_run_service = false
-allow_unauthenticated    = false
+allow_unauthenticated    = true
 deletion_protection      = true
+cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
 manage_runtime_service_account = false
 # Leave empty to fall back to the default compute service account, or set an explicit email.
