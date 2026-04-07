@@ -10,6 +10,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - [Project Structure](#project-structure)
 - [API](#api)
 - [Operations notes](#operations-notes)
+- [Infrastructure as code](#infrastructure-as-code)
 - [Adding a New Resource](#adding-a-new-resource)
 
 ## Tech Stack
@@ -209,7 +210,7 @@ ArmadaCMS/
 ├── db/
 │   └── connect.go         # Postgres connection setup
 ├── infra/
-│   └── terraform/         # GCP infrastructure as code (Cloud Run, secrets, Artifact Registry, optional egress)
+│   └── terraform/         # Terraform layout, shared conventions, and provider-specific roots
 ├── utils/                 # Helpers (S3 upload, JWT, password hashing)
 ├── frontend/              # React-Admin SPA (Vite)
 │   └── src/
@@ -251,10 +252,13 @@ All endpoints are under `/api/v1`. Routes are split into:
 
 ## Infrastructure as code
 
-- Terraform is organized under `infra/terraform/` by provider and root.
-- The current ArmadaCMS runtime stack lives in `infra/terraform/gcp/prod/`.
-- That GCP production root can manage Artifact Registry, Secret Manager, IAM, Cloud Run, and optional stable egress for AWS RDS allow-listing.
-- See `infra/terraform/README.md` for the overall layout, and `infra/terraform/gcp/prod/README.md` for the active GCP production stack, imports, and HCP Terraform setup.
+Terraform documentation is split by scope:
+
+- [`infra/terraform/README.md`](infra/terraform/README.md) — shared layout, conventions, workspace naming, and cross-workspace wiring
+- [`infra/terraform/gcp/prod/README.md`](infra/terraform/gcp/prod/README.md) — GCP production root details and workspace setup
+- [`infra/terraform/aws/prod/README.md`](infra/terraform/aws/prod/README.md) — AWS production root details and workspace setup
+
+Use those documents as the canonical source for infrastructure specifics rather than duplicating them here.
 
 ## Adding a New Resource
 

@@ -2,43 +2,45 @@
 
 This directory is organized by **provider** and then by **environment/root**.
 
+Use this README for the shared Terraform structure and conventions. For root-specific files, variables, and operational notes, follow the links to each root README.
+
 ## Current structure
 
 ```text
 infra/terraform/
 ├── README.md
 ├── gcp/
-│   └── prod/      # Current ArmadaCMS runtime stack on Google Cloud
-├── aws/           # Reserved for future AWS Terraform roots
-└── vercel/        # Reserved for future Vercel Terraform roots
+│   └── prod/      # GCP runtime stack — Cloud Run, networking, load balancer, secrets
+└── aws/
+    └── prod/      # AWS production — RDS PostgreSQL, S3, IAM
 ```
 
-## Recommended approach
+## Active roots
+
+| Root        | HCP Terraform workspace | What it manages                                              | Details                  |
+| ----------- | ----------------------- | ------------------------------------------------------------ | ------------------------ |
+| `gcp/prod/` | `armadacms-gcp-prod`    | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager | [`gcp/prod/README.md`](gcp/prod/README.md) |
+| `aws/prod/` | `armadacms-aws-prod`    | RDS PostgreSQL, S3 file bucket, IAM upload user              | [`aws/prod/README.md`](aws/prod/README.md) |
+
+## Cross-workspace state sharing
+
+The two roots share live infrastructure values without hardcoding them:
+
+- `aws/prod` reads the GCP NAT egress IP (`static_egress_ip`) from `armadacms-gcp-prod` to restrict the RDS security group and the S3 IAM policy to that IP.
+- `gcp/prod` reads `rds_host`, `rds_db_name`, `s3_bucket_name`, and `s3_bucket_region` from `armadacms-aws-prod` to populate Cloud Run environment variables.
+
+Both use `data "tfe_outputs"` blocks. For this to work, each workspace must be granted remote state read access to the other — configure this in HCP Terraform under each workspace's **Settings → Remote state sharing**.
+
+## Conventions
 
 - Keep **one Terraform root per logical stack**.
 - Keep **one HCP Terraform workspace per environment per root**.
-- Do not mix unrelated providers in one root just because Terraform technically allows it.
+- Do not mix unrelated providers in one root.
 
-For this repo today:
+## Workspace naming pattern
 
-- `gcp/prod/` is the active Terraform root for the ArmadaCMS runtime stack.
-- There is no GCP staging root yet because there is no GCP staging environment.
-- AWS and Vercel directories are placeholders for future roots when those parts are ready to be managed separately.
+```text
+armadacms-<provider>-<environment>
+```
 
-## Suggested workspace naming
-
-Examples:
-
-- `armadacms-gcp-prod`
-- `armadacms-aws-prod`
-- `armadacms-vercel-prod`
-
-If staging environments are added later, mirror the same pattern:
-
-- `armadacms-gcp-staging`
-- `armadacms-aws-staging`
-- `armadacms-vercel-staging`
-
-## Active root
-
-See `gcp/prod/README.md` for the current GCP production stack, bootstrap sequence, imports, and HCP Terraform backend setup.
+Examples: `armadacms-gcp-prod`, `armadacms-aws-prod`, `armadacms-gcp-staging`.
