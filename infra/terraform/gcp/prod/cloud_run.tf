@@ -22,7 +22,7 @@ resource "google_cloud_run_v2_service" "armadacms" {
     dynamic "vpc_access" {
       for_each = var.enable_vpc_egress && var.cloud_run_vpc_egress_mode != "NONE" ? [1] : []
       content {
-        egress = var.vpc_egress
+        egress = local.vpc_egress
 
         connector = var.cloud_run_vpc_egress_mode == "CONNECTOR" ? google_vpc_access_connector.serverless[0].id : null
 
@@ -31,7 +31,7 @@ resource "google_cloud_run_v2_service" "armadacms" {
           content {
             network    = local.selected_vpc_network_name
             subnetwork = local.selected_vpc_subnetwork_name
-            tags       = var.cloud_run_vpc_network_tags
+            tags       = []
           }
         }
       }
@@ -50,7 +50,7 @@ resource "google_cloud_run_v2_service" "armadacms" {
           memory = var.cloud_run_memory
         }
         cpu_idle          = true
-        startup_cpu_boost = var.enable_startup_cpu_boost
+        startup_cpu_boost = true
       }
 
       startup_probe {
@@ -109,7 +109,7 @@ resource "google_cloud_run_v2_service" "armadacms" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  count = var.deploy_cloud_run_service && var.allow_unauthenticated ? 1 : 0
+  count = var.deploy_cloud_run_service ? 1 : 0
 
   project  = var.project_id
   location = google_cloud_run_v2_service.armadacms[0].location

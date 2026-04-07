@@ -30,7 +30,7 @@ resource "google_compute_subnetwork" "serverless" {
   project                  = var.project_id
   region                   = var.region
   name                     = var.vpc_subnetwork_name
-  ip_cidr_range            = var.vpc_subnet_cidr
+  ip_cidr_range            = local.vpc_subnet_cidr
   network                  = google_compute_network.serverless[0].id
   private_ip_google_access = true
 }
@@ -47,7 +47,7 @@ resource "google_compute_address" "nat" {
 
   project = var.project_id
   region  = var.region
-  name    = var.nat_ip_name
+  name    = local.nat_ip_name
 }
 
 resource "google_compute_router" "nat" {
@@ -55,7 +55,7 @@ resource "google_compute_router" "nat" {
 
   project = var.project_id
   region  = var.region
-  name    = var.nat_router_name
+  name    = local.nat_router_name
   network = local.selected_vpc_network_id
 }
 
@@ -64,7 +64,7 @@ resource "google_compute_router_nat" "serverless" {
 
   project                            = var.project_id
   region                             = var.region
-  name                               = var.nat_name
+  name                               = local.nat_name
   router                             = google_compute_router.nat[0].name
   nat_ip_allocate_option             = "MANUAL_ONLY"
   nat_ips                            = [google_compute_address.nat[0].self_link]
@@ -86,9 +86,9 @@ resource "google_vpc_access_connector" "serverless" {
 
   project       = var.project_id
   region        = var.region
-  name          = var.vpc_connector_name
+  name          = local.vpc_connector_name
   network       = local.selected_vpc_network_name
-  ip_cidr_range = var.vpc_connector_cidr
+  ip_cidr_range = local.vpc_connector_cidr
 
   depends_on = [google_compute_subnetwork.serverless]
 }

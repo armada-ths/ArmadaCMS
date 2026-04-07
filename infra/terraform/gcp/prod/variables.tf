@@ -77,22 +77,10 @@ variable "secret_values" {
   default     = {}
 }
 
-variable "additional_plain_env_vars" {
-  description = "Extra non-secret environment variables to inject into the Cloud Run container."
-  type        = map(string)
-  default     = {}
-}
-
 variable "deploy_cloud_run_service" {
   description = "Whether Terraform should manage the Cloud Run service itself. Set this to false for the initial bootstrap if secrets have not been populated yet."
   type        = bool
   default     = false
-}
-
-variable "allow_unauthenticated" {
-  description = "Whether to allow public unauthenticated invocation of the Cloud Run service."
-  type        = bool
-  default     = true
 }
 
 variable "deletion_protection" {
@@ -152,12 +140,6 @@ variable "max_instances" {
   default     = 2
 }
 
-variable "enable_startup_cpu_boost" {
-  description = "Whether to enable Cloud Run startup CPU boost for faster cold starts."
-  type        = bool
-  default     = true
-}
-
 variable "cloud_build_service_account_email" {
   description = "Optional override for the Cloud Build service account email. Leave empty to use the project's default Cloud Build service account."
   type        = string
@@ -168,78 +150,6 @@ variable "manage_cloud_build_triggers" {
   description = "Whether Terraform should manage the existing Cloud Build triggers for ArmadaCMS."
   type        = bool
   default     = false
-}
-
-variable "cloud_build_trigger_location" {
-  description = "Location of the Cloud Build triggers. Existing ArmadaCMS triggers live in the global location."
-  type        = string
-  default     = "global"
-}
-
-variable "cloud_build_config_filename" {
-  description = "Path to the Cloud Build configuration file used by the triggers."
-  type        = string
-  default     = "cloudbuild.yaml"
-}
-
-variable "cloud_build_repo_owner" {
-  description = "GitHub owner for the ArmadaCMS repository watched by Cloud Build triggers."
-  type        = string
-  default     = "armada-ths"
-}
-
-variable "cloud_build_repo_name" {
-  description = "GitHub repository name watched by Cloud Build triggers."
-  type        = string
-  default     = "ArmadaCMS"
-}
-
-variable "cloud_build_main_branch_regex" {
-  description = "Regex for the main-branch deploy trigger."
-  type        = string
-  default     = "^main$"
-}
-
-variable "cloud_build_main_trigger_name" {
-  description = "Name of the Cloud Build trigger that deploys main to production."
-  type        = string
-  default     = "armadacms-main-deploy"
-}
-
-variable "cloud_build_main_trigger_description" {
-  description = "Description of the production Cloud Build trigger."
-  type        = string
-  default     = "Build and deploy to Cloud Run service armadacms on push to \"^main$\""
-}
-
-variable "cloud_build_main_trigger_id_substitution" {
-  description = "_TRIGGER_ID substitution value used by the production deploy trigger."
-  type        = string
-  default     = "armadacms-main"
-}
-
-variable "cloud_build_pr_trigger_name" {
-  description = "Name of the Cloud Build trigger that builds PR images."
-  type        = string
-  default     = "armadacms-pr-build"
-}
-
-variable "cloud_build_pr_trigger_description" {
-  description = "Description of the PR Cloud Build trigger."
-  type        = string
-  default     = "Build and push ArmadaCMS PR image tagged pr-<PR number>"
-}
-
-variable "cloud_build_pr_trigger_id_substitution" {
-  description = "_TRIGGER_ID substitution value used by the PR build trigger."
-  type        = string
-  default     = "armadacms-pr"
-}
-
-variable "cloud_build_include_logs" {
-  description = "How Cloud Build should include build logs in trigger status reporting."
-  type        = string
-  default     = "INCLUDE_BUILD_LOGS_WITH_STATUS"
 }
 
 variable "manage_secret_accessor_bindings" {
@@ -299,68 +209,6 @@ variable "manage_vpc_network_resources" {
   default     = false
 }
 
-variable "vpc_subnet_cidr" {
-  description = "CIDR range for the managed subnetwork used by Cloud NAT when manage_vpc_network_resources is true."
-  type        = string
-  default     = "10.20.0.0/24"
-}
-
-variable "vpc_connector_name" {
-  description = "Name of the serverless VPC access connector."
-  type        = string
-  default     = "armadacms-serverless"
-}
-
-variable "vpc_connector_cidr" {
-  description = "CIDR range reserved for the serverless VPC access connector. Must not overlap the subnetwork CIDR."
-  type        = string
-  default     = "10.8.0.0/28"
-}
-
-variable "vpc_egress" {
-  description = "Traffic egress setting when the Cloud Run service is attached to the VPC."
-  type        = string
-  default     = "ALL_TRAFFIC"
-
-  validation {
-    condition = contains([
-      "ALL_TRAFFIC",
-      "PRIVATE_RANGES_ONLY",
-    ], var.vpc_egress)
-    error_message = "vpc_egress must be ALL_TRAFFIC or PRIVATE_RANGES_ONLY."
-  }
-}
-
-variable "nat_router_name" {
-  description = "Name of the Cloud Router used for Cloud NAT."
-  type        = string
-  default     = "armadacms-serverless-nat-router"
-}
-
-variable "nat_name" {
-  description = "Name of the Cloud NAT configuration used for stable egress."
-  type        = string
-  default     = "armadacms-nat"
-}
-
-variable "nat_ip_name" {
-  description = "Name of the reserved external IP address used for Cloud NAT egress."
-  type        = string
-  default     = "armadacms-egress-ip"
-}
-
-variable "cloud_run_vpc_network_tags" {
-  description = "Optional network tags applied to Cloud Run's direct VPC interface when cloud_run_vpc_egress_mode is DIRECT_VPC."
-  type        = list(string)
-  default     = []
-}
-
-variable "additional_project_services" {
-  description = "Extra Google APIs to enable in the target project."
-  type        = list(string)
-  default     = []
-}
-
 variable "enable_https_load_balancer" {
   description = "Whether Terraform should manage an external HTTPS load balancer in front of the Cloud Run service."
   type        = bool
@@ -377,72 +225,6 @@ variable "lb_enable_http_redirect" {
   description = "Whether to expose port 80 and redirect HTTP traffic to HTTPS."
   type        = bool
   default     = true
-}
-
-variable "lb_serverless_neg_name" {
-  description = "Name of the serverless NEG that points at the Cloud Run service."
-  type        = string
-  default     = "armadacms-neg"
-}
-
-variable "lb_backend_service_name" {
-  description = "Name of the global backend service used by the HTTPS load balancer."
-  type        = string
-  default     = "armadacms-backend"
-}
-
-variable "lb_url_map_name" {
-  description = "Name of the primary URL map for the HTTPS load balancer."
-  type        = string
-  default     = "armadacms-lb"
-}
-
-variable "lb_redirect_url_map_name" {
-  description = "Name of the URL map used for HTTP to HTTPS redirects."
-  type        = string
-  default     = "armadacms-https-redirect"
-}
-
-variable "lb_target_https_proxy_name" {
-  description = "Name of the target HTTPS proxy."
-  type        = string
-  default     = "armadacms-lb-target-proxy"
-}
-
-variable "lb_target_http_proxy_name" {
-  description = "Name of the target HTTP proxy used for redirects."
-  type        = string
-  default     = "armadacms-https-target-proxy"
-}
-
-variable "lb_https_forwarding_rule_name" {
-  description = "Name of the global forwarding rule for HTTPS traffic."
-  type        = string
-  default     = "armadacms-https"
-}
-
-variable "lb_http_forwarding_rule_name" {
-  description = "Name of the global forwarding rule for HTTP traffic."
-  type        = string
-  default     = "armadacms-https-forwarding-rule"
-}
-
-variable "lb_global_address_name" {
-  description = "Name of the global IP address resource for the load balancer."
-  type        = string
-  default     = "armadacms-lb-ip"
-}
-
-variable "lb_managed_certificate_name" {
-  description = "Name of the Google-managed SSL certificate resource when Terraform manages the certificate."
-  type        = string
-  default     = "cms-armada-nu-cert"
-}
-
-variable "lb_backend_timeout_seconds" {
-  description = "Timeout for the global backend service used by the external HTTPS load balancer."
-  type        = number
-  default     = 30
 }
 
 variable "lb_managed_certificate_domains" {

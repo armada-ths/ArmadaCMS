@@ -27,7 +27,6 @@ locals {
     var.enable_vpc_egress && var.cloud_run_vpc_egress_mode == "CONNECTOR" ? [
       "vpcaccess.googleapis.com",
     ] : [],
-    var.additional_project_services,
   ))
 
   secret_env_vars = {
@@ -47,22 +46,20 @@ locals {
 
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
-  plain_env_vars = merge(
-    {
-      DB_PORT                       = "5432"
-      DB_USER                       = "postgres"
-      DB_NAME                       = "armadacms"
-      DB_SSLMODE                    = "require"
-      S3_BUCKET                     = "armada-cms-files-e48105192c52"
-      AWS_REGION                    = "eu-north-1"
-      DB_MAX_OPEN_CONNS             = "10"
-      DB_MAX_IDLE_CONNS             = "5"
-      DB_CONN_MAX_LIFETIME_MINUTES  = "30"
-      DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
-      AUDIT_LOG_RETENTION_DAYS      = "7"
-    },
-    var.additional_plain_env_vars,
-  )
+  plain_env_vars = {
+    DB_HOST                       = nonsensitive(data.tfe_outputs.aws_prod.values["rds_host"])
+    DB_PORT                       = "5432"
+    DB_USER                       = "postgres"
+    DB_NAME                       = "armadacms"
+    DB_SSLMODE                    = "require"
+    S3_BUCKET                     = "armada-cms-files-e48105192c52"
+    AWS_REGION                    = "eu-north-1"
+    DB_MAX_OPEN_CONNS             = "10"
+    DB_MAX_IDLE_CONNS             = "5"
+    DB_CONN_MAX_LIFETIME_MINUTES  = "30"
+    DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
+    AUDIT_LOG_RETENTION_DAYS      = "7"
+  }
 
   cloud_build_service_account_email     = trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
   default_compute_service_account_email = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
@@ -71,4 +68,34 @@ locals {
 
   artifact_registry_host = "${var.region}-docker.pkg.dev"
   container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${local.artifact_registry_host}/${var.project_id}/${var.artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"
+
+  # ── Derived resource names ──────────────────────────────────────────────────────
+  # All names are derived from var.name_prefix so a single rename propagates
+  # everywhere. Matches the resources already deployed in production.
+
+  nat_router_name    = "${var.name_prefix}-router"
+  nat_name           = "${var.name_prefix}-nat"
+  nat_ip_name        = "${var.name_prefix}-nat-ip"
+  vpc_subnet_cidr    = "10.8.0.0/24"
+  vpc_connector_name = "${var.name_prefix}-serverless"
+  vpc_connector_cidr = "10.8.0.0/28"
+  vpc_egress         = "ALL_TRAFFIC"
+
+  lb_neg_name                   = "${var.name_prefix}-neg"
+  lb_backend_name               = "${var.name_prefix}-backend"
+  lb_url_map_name               = "${var.name_prefix}-lb"
+  lb_redirect_url_map_name      = "${var.name_prefix}-https-redirect"
+  lb_target_https_proxy_name    = "${var.name_prefix}-lb-target-proxy"
+  lb_target_http_proxy_name     = "${var.name_prefix}-https-target-proxy"
+  lb_https_forwarding_rule_name = "${var.name_prefix}-https"
+  lb_http_forwarding_rule_name  = "${var.name_prefix}-https-forwarding-rule"
+  lb_global_address_name        = "${var.name_prefix}-lb-ip"
+  lb_certificate_name           = "cms-armada-nu-cert"
+
+  cloud_build_main_trigger_name        = "${var.name_prefix}-main-deploy"
+  cloud_build_main_trigger_description = "Build and deploy to Cloud Run service ${var.service_name} on push to \"^main$\""
+  cloud_build_main_trigger_id          = "${var.name_prefix}-main"
+  cloud_build_pr_trigger_name          = "${var.name_prefix}-pr-build"
+  cloud_build_pr_trigger_description   = "Build and push ${var.service_name} PR image tagged pr-<PR number>"
+  cloud_build_pr_trigger_id            = "${var.name_prefix}-pr"
 }

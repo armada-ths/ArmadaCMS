@@ -10,10 +10,10 @@ variable "environment" {
   default     = "production"
 }
 
-variable "cloud_run_nat_ip" {
-  description = "Static outbound IP of the Cloud Run NAT gateway. Used to allowlist PostgreSQL (port 5432) on the RDS security group and restrict S3 PutObject access via IAM policy."
+variable "cloud_run_nat_ip_override" {
+  description = "Override for the Cloud Run NAT outbound IP. Leave null (default) to read it automatically from the armadacms-gcp-prod HCP Terraform workspace output 'static_egress_ip'."
   type        = string
-  default     = "34.51.249.94"
+  default     = null
 }
 
 variable "db_password" {

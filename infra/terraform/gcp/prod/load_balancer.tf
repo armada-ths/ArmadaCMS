@@ -2,7 +2,7 @@ resource "google_compute_region_network_endpoint_group" "cloud_run_lb_neg" {
   count = var.enable_https_load_balancer ? 1 : 0
 
   project               = var.project_id
-  name                  = var.lb_serverless_neg_name
+  name                  = local.lb_neg_name
   region                = var.region
   network_endpoint_type = "SERVERLESS"
 
@@ -15,10 +15,10 @@ resource "google_compute_backend_service" "cloud_run_lb" {
   count = var.enable_https_load_balancer ? 1 : 0
 
   project                         = var.project_id
-  name                            = var.lb_backend_service_name
+  name                            = local.lb_backend_name
   protocol                        = "HTTPS"
   port_name                       = "http"
-  timeout_sec                     = var.lb_backend_timeout_seconds
+  timeout_sec                     = 30
   load_balancing_scheme           = "EXTERNAL_MANAGED"
   connection_draining_timeout_sec = 0
 
@@ -37,7 +37,7 @@ resource "google_compute_url_map" "cloud_run_lb" {
   count = var.enable_https_load_balancer ? 1 : 0
 
   project         = var.project_id
-  name            = var.lb_url_map_name
+  name            = local.lb_url_map_name
   default_service = google_compute_backend_service.cloud_run_lb[0].id
 }
 
@@ -45,7 +45,7 @@ resource "google_compute_managed_ssl_certificate" "cloud_run_lb" {
   count = var.enable_https_load_balancer && length(var.lb_managed_certificate_domains) > 0 ? 1 : 0
 
   project = var.project_id
-  name    = var.lb_managed_certificate_name
+  name    = local.lb_certificate_name
 
   managed {
     domains = var.lb_managed_certificate_domains
@@ -60,7 +60,7 @@ resource "google_compute_target_https_proxy" "cloud_run_lb" {
   count = var.enable_https_load_balancer ? 1 : 0
 
   project = var.project_id
-  name    = var.lb_target_https_proxy_name
+  name    = local.lb_target_https_proxy_name
   url_map = google_compute_url_map.cloud_run_lb[0].id
 
   ssl_certificates = concat(
@@ -80,14 +80,14 @@ resource "google_compute_global_address" "cloud_run_lb" {
   count = var.enable_https_load_balancer && var.lb_reserve_global_ip ? 1 : 0
 
   project = var.project_id
-  name    = var.lb_global_address_name
+  name    = local.lb_global_address_name
 }
 
 resource "google_compute_global_forwarding_rule" "cloud_run_lb_https" {
   count = var.enable_https_load_balancer ? 1 : 0
 
   project               = var.project_id
-  name                  = var.lb_https_forwarding_rule_name
+  name                  = local.lb_https_forwarding_rule_name
   target                = google_compute_target_https_proxy.cloud_run_lb[0].id
   port_range            = "443-443"
   ip_address            = var.lb_reserve_global_ip ? google_compute_global_address.cloud_run_lb[0].address : null
@@ -98,12 +98,16 @@ resource "google_compute_url_map" "cloud_run_lb_redirect" {
   count = var.enable_https_load_balancer && var.lb_enable_http_redirect ? 1 : 0
 
   project = var.project_id
-  name    = var.lb_redirect_url_map_name
+  name    = local.lb_redirect_url_map_name
 
   default_url_redirect {
     https_redirect         = true
     redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
     strip_query            = false
+  }
+
+  lifecycle {
+    ignore_changes = [description]
   }
 }
 
@@ -111,7 +115,7 @@ resource "google_compute_target_http_proxy" "cloud_run_lb_redirect" {
   count = var.enable_https_load_balancer && var.lb_enable_http_redirect ? 1 : 0
 
   project = var.project_id
-  name    = var.lb_target_http_proxy_name
+  name    = local.lb_target_http_proxy_name
   url_map = google_compute_url_map.cloud_run_lb_redirect[0].id
 }
 
@@ -119,7 +123,7 @@ resource "google_compute_global_forwarding_rule" "cloud_run_lb_http" {
   count = var.enable_https_load_balancer && var.lb_enable_http_redirect ? 1 : 0
 
   project               = var.project_id
-  name                  = var.lb_http_forwarding_rule_name
+  name                  = local.lb_http_forwarding_rule_name
   target                = google_compute_target_http_proxy.cloud_run_lb_redirect[0].id
   port_range            = "80-80"
   ip_address            = var.lb_reserve_global_ip ? google_compute_global_address.cloud_run_lb[0].address : null
