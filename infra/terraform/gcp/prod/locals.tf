@@ -50,10 +50,10 @@ locals {
     DB_HOST                       = nonsensitive(data.tfe_outputs.aws_prod.values["rds_host"])
     DB_PORT                       = "5432"
     DB_USER                       = "postgres"
-    DB_NAME                       = "armadacms"
+    DB_NAME                       = nonsensitive(data.tfe_outputs.aws_prod.values["rds_db_name"])
     DB_SSLMODE                    = "require"
-    S3_BUCKET                     = "armada-cms-files-e48105192c52"
-    AWS_REGION                    = "eu-north-1"
+    S3_BUCKET                     = nonsensitive(data.tfe_outputs.aws_prod.values["s3_bucket_name"])
+    AWS_REGION                    = nonsensitive(data.tfe_outputs.aws_prod.values["s3_bucket_region"])
     DB_MAX_OPEN_CONNS             = "10"
     DB_MAX_IDLE_CONNS             = "5"
     DB_CONN_MAX_LIFETIME_MINUTES  = "30"
