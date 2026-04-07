@@ -1,0 +1,9 @@
+terraform {
+  cloud {
+    organization = "your-hcp-terraform-organization"
+
+    workspaces {
+      name = "armadacms-gcp-prod"
+    }
+  }
+}

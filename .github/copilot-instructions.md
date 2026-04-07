@@ -35,6 +35,8 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 
 **Local data**: `scripts/import-remote-db.ps1` clones a remote Postgres DB into the local container.
 
+**Terraform / HCP Terraform:** for the GCP production root in `infra/terraform/gcp/prod/`, avoid running `terraform plan` locally because the CLI-driven remote plan upload is slow in this repo. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for targeted commands such as `validate`, `import`, or other one-off state operations.
+
 ## Backend patterns
 
 - **Routing** (`main.go`): `publicAPI` (no auth) and `protectedAPI` (Bearer JWT) subrouters under `/api/v1`. Read-only list/get routes are typically public; write routes are protected.
