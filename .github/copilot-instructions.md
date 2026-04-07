@@ -44,11 +44,12 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 - **List endpoints**: use `utils.ParseListParams` (parses react-admin `sort`/`range`/`filter` query params) and set `Content-Range` header for react-admin pagination.
 - **Models** (`models/`): GORM structs with camelCase JSON tags. Many-to-many via GORM `many2many` tag. Not all files in `models/` are DB models — `person.go` and `token.go` are response shapes.
 - **Auto-migration**: every DB model must be registered in `db.DB.AutoMigrate(...)` in `main.go`.
-- **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers.
+- **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`.
 - **File uploads**: controllers accepting files use `multipart/form-data`; files go to AWS S3 via `utils/aws_s3.go` (validates MIME, generates timestamped key).
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
 - **Eventro integration**: `Controllers/EventroController.go` proxies the external Eventro API (exhibitors/events/members/recruitments). Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the `EventroSync` admin page.
 - **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
+- **Blogpost model** (`models/blogpost.go`) exists and is auto-migrated but has no controller, no API routes, and no admin UI — it is legacy and should not be extended without a deliberate decision.
 
 ## Admin frontend patterns
 
@@ -72,6 +73,7 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                         |
 | `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)   |
 | `PORT`                                          | Server port (default: 8080)                       |
+| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`        | Postgres connection pool tuning (optional)        |
 
 ## Adding a new resource (checklist)
 
