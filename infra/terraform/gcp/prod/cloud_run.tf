@@ -53,24 +53,11 @@ resource "google_cloud_run_v2_service" "armadacms" {
       }
 
       startup_probe {
-        initial_delay_seconds = 5
-        timeout_seconds       = 5
-        period_seconds        = 10
-        failure_threshold     = 6
+        timeout_seconds   = 240
+        period_seconds    = 240
+        failure_threshold = 1
 
-        http_get {
-          path = "/health"
-          port = 8080
-        }
-      }
-
-      liveness_probe {
-        timeout_seconds   = 5
-        period_seconds    = 30
-        failure_threshold = 3
-
-        http_get {
-          path = "/health"
+        tcp_socket {
           port = 8080
         }
       }
@@ -105,6 +92,8 @@ resource "google_cloud_run_v2_service" "armadacms" {
 
   lifecycle {
     ignore_changes = [
+      labels,
+      template[0].labels,
       template[0].containers[0].image,
     ]
   }

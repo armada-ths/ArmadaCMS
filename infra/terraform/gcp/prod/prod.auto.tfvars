@@ -15,6 +15,7 @@ deletion_protection      = true
 manage_runtime_service_account    = false
 cloud_run_service_account_email   = "475154911163-compute@developer.gserviceaccount.com"
 cloud_build_service_account_email = "475154911163-compute@developer.gserviceaccount.com"
+manage_cloud_build_triggers       = true
 
 cloud_run_cpu             = "1"
 cloud_run_memory          = "1Gi"

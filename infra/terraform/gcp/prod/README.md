@@ -44,6 +44,7 @@ A deliberate quirk: Terraform ignores the Cloud Run container image field after 
 - `secrets.tf` — Secret Manager secrets and IAM bindings
 - `networking.tf` — optional direct-VPC or connector-based Cloud Run egress, Cloud Router, Cloud NAT, and static egress IP
 - `load_balancer.tf` — optional external HTTPS load balancer, serverless NEG, proxies, forwarding rules, and certificate wiring
+- `cloud_build.tf` — optional management of the existing GitHub-backed Cloud Build triggers
 - `cloud_run.tf` — optional Cloud Run service and public invoker binding
 - `outputs.tf` — useful outputs after apply
 - `terraform.tfvars.example` — example configuration for ArmadaCMS
@@ -118,6 +119,7 @@ Common candidates are:
 - the GitHub App secret if it already exists in Secret Manager
 - the HTTPS load balancer resources if they already exist in GCP
 - the Cloud Router, Cloud NAT, and static egress IP if they already exist in GCP
+- the Cloud Build triggers if you enable Terraform management for them
 
 Typical import IDs look like this:
 
@@ -136,6 +138,7 @@ Typical import IDs look like this:
 - Target HTTP proxy: `projects/<project>/global/targetHttpProxies/<name>`
 - Global forwarding rule: `projects/<project>/global/forwardingRules/<name>`
 - Managed SSL certificate: `projects/<project>/global/sslCertificates/<name>`
+- Cloud Build trigger: `projects/<project>/locations/<location>/triggers/<trigger-id>`
 
 ## Remote state with HCP Terraform (recommended)
 
@@ -204,5 +207,7 @@ If you have already created local state and want to move it into HCP Terraform, 
 
 - The defaults mirror the current `cloudbuild.yaml` values: project path shape, region, service name, and GitHub App secret name.
 - The example Cloud Run settings now mirror the live production networking shape more closely, including direct VPC egress on the existing `default` network.
+- The Cloud Run startup probe intentionally matches the current live service to reduce rollout drift while Terraform adoption is still in progress.
 - If you do not need a stable egress IP, leave `enable_vpc_egress = false` and keep the setup simpler.
 - The HTTPS load balancer resources are disabled by default so you can inspect/import the existing production setup before Terraform starts managing it.
+- Cloud Build trigger management is also disabled by default; enable it only after importing the existing triggers.

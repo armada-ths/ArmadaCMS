@@ -164,6 +164,84 @@ variable "cloud_build_service_account_email" {
   default     = ""
 }
 
+variable "manage_cloud_build_triggers" {
+  description = "Whether Terraform should manage the existing Cloud Build triggers for ArmadaCMS."
+  type        = bool
+  default     = false
+}
+
+variable "cloud_build_trigger_location" {
+  description = "Location of the Cloud Build triggers. Existing ArmadaCMS triggers live in the global location."
+  type        = string
+  default     = "global"
+}
+
+variable "cloud_build_config_filename" {
+  description = "Path to the Cloud Build configuration file used by the triggers."
+  type        = string
+  default     = "cloudbuild.yaml"
+}
+
+variable "cloud_build_repo_owner" {
+  description = "GitHub owner for the ArmadaCMS repository watched by Cloud Build triggers."
+  type        = string
+  default     = "armada-ths"
+}
+
+variable "cloud_build_repo_name" {
+  description = "GitHub repository name watched by Cloud Build triggers."
+  type        = string
+  default     = "ArmadaCMS"
+}
+
+variable "cloud_build_main_branch_regex" {
+  description = "Regex for the main-branch deploy trigger."
+  type        = string
+  default     = "^main$"
+}
+
+variable "cloud_build_main_trigger_name" {
+  description = "Name of the Cloud Build trigger that deploys main to production."
+  type        = string
+  default     = "armadacms-main-deploy"
+}
+
+variable "cloud_build_main_trigger_description" {
+  description = "Description of the production Cloud Build trigger."
+  type        = string
+  default     = "Build and deploy to Cloud Run service armadacms on push to \"^main$\""
+}
+
+variable "cloud_build_main_trigger_id_substitution" {
+  description = "_TRIGGER_ID substitution value used by the production deploy trigger."
+  type        = string
+  default     = "armadacms-main"
+}
+
+variable "cloud_build_pr_trigger_name" {
+  description = "Name of the Cloud Build trigger that builds PR images."
+  type        = string
+  default     = "armadacms-pr-build"
+}
+
+variable "cloud_build_pr_trigger_description" {
+  description = "Description of the PR Cloud Build trigger."
+  type        = string
+  default     = "Build and push ArmadaCMS PR image tagged pr-<PR number>"
+}
+
+variable "cloud_build_pr_trigger_id_substitution" {
+  description = "_TRIGGER_ID substitution value used by the PR build trigger."
+  type        = string
+  default     = "armadacms-pr"
+}
+
+variable "cloud_build_include_logs" {
+  description = "How Cloud Build should include build logs in trigger status reporting."
+  type        = string
+  default     = "INCLUDE_BUILD_LOGS_WITH_STATUS"
+}
+
 variable "manage_secret_accessor_bindings" {
   description = "Whether Terraform should create per-secret Secret Manager accessor IAM bindings for the runtime and Cloud Build service accounts. Leave false to rely on broader project-level Secret Manager access if that already exists in the project."
   type        = bool
