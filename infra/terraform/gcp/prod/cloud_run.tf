@@ -46,8 +46,9 @@ resource "google_cloud_run_v2_service" "armadacms" {
 
       resources {
         limits = {
-          cpu    = var.cloud_run_cpu
-          memory = var.cloud_run_memory
+          cpu      = var.cloud_run_cpu
+          memory   = var.cloud_run_memory
+          cpu_idle = true
         }
         startup_cpu_boost = var.enable_startup_cpu_boost
       }
