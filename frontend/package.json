@@ -46,5 +46,6 @@
     "typescript-eslint": "^8.57.2",
     "vite": "^8.0.3"
   },
-  "name": "armadacms"
+  "name": "armadacms",
+  "packageManager": "npm@11.9.0"
 }
