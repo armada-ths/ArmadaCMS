@@ -13,6 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetPrograms returns a paginated list of programs.
+// @Summary List programs
+// @Tags programs
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"name\":\"Computer Science\"}"
+// @Success 200 {array} models.Program
+// @Header 200 {string} Content-Range "programs 0-24/50"
+// @Router /programs [get]
 func GetPrograms(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -40,6 +50,14 @@ func GetPrograms(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GetProgramByID returns a single program by ID.
+// @Summary Get program by ID
+// @Tags programs
+// @Produce json
+// @Param id path int true "Program ID"
+// @Success 200 {object} models.Program
+// @Failure 404 {string} string "program not found"
+// @Router /programs/{id} [get]
 func GetProgramByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -52,6 +70,17 @@ func GetProgramByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// CreateProgram creates a new program.
+// @Summary Create program
+// @Tags programs
+// @Accept json
+// @Produce json
+// @Param body body models.Program true "Program data"
+// @Success 201 {object} models.Program
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /programs [post]
 func CreateProgram(w http.ResponseWriter, r *http.Request) {
 	var item models.Program
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -68,6 +97,19 @@ func CreateProgram(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, item)
 }
 
+// UpdateProgram updates a program by ID.
+// @Summary Update program
+// @Tags programs
+// @Accept json
+// @Produce json
+// @Param id path int true "Program ID"
+// @Param body body models.Program true "Updated program data"
+// @Success 200 {object} models.Program
+// @Failure 400 {string} string "Invalid data"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /programs/{id} [put]
 func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -97,6 +139,15 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// DeleteProgram deletes a program by ID.
+// @Summary Delete program
+// @Tags programs
+// @Produce json
+// @Param id path int true "Program ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "program not found"
+// @Security BearerAuth
+// @Router /programs/{id} [delete]
 func DeleteProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil)

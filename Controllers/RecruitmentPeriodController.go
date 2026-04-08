@@ -23,6 +23,17 @@ type recruitmentPeriodPayload struct {
 	EndDate   *string `json:"endDate"`
 }
 
+// GetRecruitmentPeriods returns a paginated list of recruitment periods.
+// @Summary List recruitment periods
+// @Tags recruitment
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter"
+// @Success 200 {array} models.RecruitmentPeriod
+// @Header 200 {string} Content-Range "recruitmentperiods 0-24/10"
+// @Security BearerAuth
+// @Router /recruitmentperiods [get]
 func GetRecruitmentPeriods(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -51,6 +62,15 @@ func GetRecruitmentPeriods(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GetRecruitmentPeriodByID returns a single recruitment period by ID.
+// @Summary Get recruitment period by ID
+// @Tags recruitment
+// @Produce json
+// @Param id path int true "RecruitmentPeriod ID"
+// @Success 200 {object} models.RecruitmentPeriod
+// @Failure 404 {string} string "recruitment period not found"
+// @Security BearerAuth
+// @Router /recruitmentperiods/{id} [get]
 func GetRecruitmentPeriodByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -64,6 +84,17 @@ func GetRecruitmentPeriodByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// CreateRecruitmentPeriod creates a new recruitment period.
+// @Summary Create recruitment period
+// @Tags recruitment
+// @Accept json
+// @Produce json
+// @Param body body controllers.recruitmentPeriodPayload true "Recruitment period data"
+// @Success 201 {object} models.RecruitmentPeriod
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /recruitmentperiods [post]
 func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	var payload recruitmentPeriodPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -104,6 +135,19 @@ func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, item)
 }
 
+// UpdateRecruitmentPeriod updates a recruitment period by ID.
+// @Summary Update recruitment period
+// @Tags recruitment
+// @Accept json
+// @Produce json
+// @Param id path int true "RecruitmentPeriod ID"
+// @Param body body controllers.recruitmentPeriodPayload true "Updated recruitment period"
+// @Success 200 {object} models.RecruitmentPeriod
+// @Failure 400 {string} string "Invalid body"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /recruitmentperiods/{id} [put]
 func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -153,6 +197,15 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// DeleteRecruitmentPeriod deletes a recruitment period by ID.
+// @Summary Delete recruitment period
+// @Tags recruitment
+// @Produce json
+// @Param id path int true "RecruitmentPeriod ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "recruitment period not found"
+// @Security BearerAuth
+// @Router /recruitmentperiods/{id} [delete]
 func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.RecruitmentPeriod](w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {

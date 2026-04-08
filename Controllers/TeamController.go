@@ -12,6 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetTeams returns a paginated list of teams.
+// @Summary List teams
+// @Tags teams
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"team_name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"team_name\":\"core\"}"
+// @Success 200 {array} models.Team
+// @Header 200 {string} Content-Range "teams 0-24/10"
+// @Router /teams [get]
 func GetTeams(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -40,6 +50,15 @@ func GetTeams(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(teams)
 }
+
+// GetTeamByID returns a single team by ID.
+// @Summary Get team by ID
+// @Tags teams
+// @Produce json
+// @Param id path int true "Team ID"
+// @Success 200 {object} models.Team
+// @Failure 404 {string} string "team not found"
+// @Router /teams/{id} [get]
 func GetTeamByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -54,6 +73,17 @@ func GetTeamByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(team)
 }
 
+// CreateTeam creates a new team.
+// @Summary Create team
+// @Tags teams
+// @Accept json
+// @Produce json
+// @Param body body models.Team true "Team data"
+// @Success 201 {object} models.Team
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /teams [post]
 func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	var team models.Team
 	if err := json.NewDecoder(r.Body).Decode(&team); err != nil {
@@ -69,6 +99,20 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 
 	writeCreatedJSONResponse(w, team)
 }
+
+// UpdateTeam updates a team by ID.
+// @Summary Update team
+// @Tags teams
+// @Accept json
+// @Produce json
+// @Param id path int true "Team ID"
+// @Param body body models.Team true "Updated team data"
+// @Success 200 {object} models.Team
+// @Failure 400 {string} string "Invalid data"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /teams/{id} [put]
 func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -98,6 +142,16 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(team)
 }
+
+// DeleteTeam deletes a team by ID.
+// @Summary Delete team
+// @Tags teams
+// @Produce json
+// @Param id path int true "Team ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "team not found"
+// @Security BearerAuth
+// @Router /teams/{id} [delete]
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil)

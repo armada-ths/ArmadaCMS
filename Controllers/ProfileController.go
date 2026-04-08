@@ -16,6 +16,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetProfiles returns a paginated list of profiles.
+// @Summary List profiles
+// @Tags profiles
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"team_id\":1}"
+// @Success 200 {array} models.Profile
+// @Header 200 {string} Content-Range "profiles 0-24/100"
+// @Router /profiles [get]
 func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -44,6 +54,15 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
 }
+
+// GetProfileByID returns a single profile by ID.
+// @Summary Get profile by ID
+// @Tags profiles
+// @Produce json
+// @Param id path int true "Profile ID"
+// @Success 200 {object} models.Profile
+// @Failure 404 {string} string "profile not found"
+// @Router /profiles/{id} [get]
 func GetProfileByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -58,6 +77,24 @@ func GetProfileByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profile)
 }
 
+// CreateProfile creates a new profile. Accepts multipart/form-data.
+// @Summary Create profile
+// @Tags profiles
+// @Accept mpfd
+// @Produce json
+// @Param name formData string true "Full name"
+// @Param title formData string false "Job title"
+// @Param rank formData string false "Rank within team"
+// @Param email formData string false "Email address"
+// @Param linkedin formData string false "LinkedIn URL"
+// @Param team_id formData int false "Team ID"
+// @Param file formData file false "Profile photo (JPG/PNG/WEBP/GIF)"
+// @Param photoUrl formData string false "Photo URL (alternative to file upload)"
+// @Success 201 {object} models.Profile
+// @Failure 400 {string} string "Bad request"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /profiles [post]
 func CreateProfile(w http.ResponseWriter, r *http.Request) {
 	var profile models.Profile
 	// if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
@@ -125,6 +162,27 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 
 	writeCreatedJSONResponse(w, profile)
 }
+
+// UpdateProfile updates a profile by ID. Accepts multipart/form-data.
+// @Summary Update profile
+// @Tags profiles
+// @Accept mpfd
+// @Produce json
+// @Param id path int true "Profile ID"
+// @Param name formData string false "Full name"
+// @Param title formData string false "Job title"
+// @Param rank formData string false "Rank within team"
+// @Param email formData string false "Email address"
+// @Param linkedin formData string false "LinkedIn URL"
+// @Param team_id formData int false "Team ID"
+// @Param file formData file false "Profile photo (JPG/PNG/WEBP/GIF)"
+// @Param photoUrl formData string false "Photo URL (alternative to file upload)"
+// @Success 200 {object} models.Profile
+// @Failure 400 {string} string "Bad request"
+// @Failure 404 {string} string "Profile not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /profiles/{id} [put]
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	var updates models.Profile
 	var profile models.Profile
@@ -220,28 +278,15 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updates)
 }
 
-// TODO change to formdata multipart yadda yadda
-// func UpdateProfile(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	id := vars["id"]
-
-// 	var profile models.Profile
-// 	if err := db.DB.First(&profile, id).Error; err != nil {
-// 		http.Error(w, "Not found", http.StatusNotFound)
-// 		return
-// 	}
-
-// 	var updates models.Profile
-// 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-// 		http.Error(w, "Invalid data", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	db.DB.Model(&profile).Updates(updates)
-
-//		w.Header().Set("Content-Type", "application/json")
-//		json.NewEncoder(w).Encode(profile)
-//	}
+// DeleteProfile deletes a profile by ID.
+// @Summary Delete profile
+// @Tags profiles
+// @Produce json
+// @Param id path int true "Profile ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "profile not found"
+// @Security BearerAuth
+// @Router /profiles/{id} [delete]
 func DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Profile](w, r, "profiles", id, "profile not found", func(tx *gorm.DB) *gorm.DB {

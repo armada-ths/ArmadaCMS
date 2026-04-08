@@ -9,6 +9,11 @@ import (
 )
 
 // GetOrganizationEndpoint returns the organization structure with its members
+// @Summary Get organization structure
+// @Tags public
+// @Produce json
+// @Success 200 {array} models.OrganizationGroup
+// @Router /organization [get]
 func GetOrganizationEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Create a sample organization (in production, you would fetch from database)
 	// orgGroups := models.GetOrganizationGroups()

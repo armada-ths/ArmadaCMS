@@ -48,10 +48,27 @@ import { EventroSync } from "./components/EventroSync/EventroSync";
 import { Icon } from "@mui/material";
 import { usePermissions } from "react-admin";
 import { ReactNode } from "react";
-import { Route } from "react-router";
+import { Route, Navigate } from "react-router";
 
 const hasPerm = (perms: string[], required: string) =>
   perms.some((p) => p === "*" || p === required);
+
+const RequirePermission = ({
+  permission,
+  children,
+}: {
+  permission: string;
+  children: ReactNode;
+}) => {
+  const { permissions, isPending } = usePermissions();
+  if (isPending) return null;
+  const perms: string[] = Array.isArray(permissions) ? permissions : [];
+  return hasPerm(perms, permission) ? (
+    <>{children}</>
+  ) : (
+    <Navigate to="/" replace />
+  );
+};
 
 export const MyMenu = () => {
   const { permissions } = usePermissions();
@@ -179,7 +196,14 @@ export const App = () => (
     />
 
     <CustomRoutes>
-      <Route path="/eventrosync" element={<EventroSync />} />
+      <Route
+        path="/eventrosync"
+        element={
+          <RequirePermission permission="eventrosync.access">
+            <EventroSync />
+          </RequirePermission>
+        }
+      />
     </CustomRoutes>
   </Admin>
 );

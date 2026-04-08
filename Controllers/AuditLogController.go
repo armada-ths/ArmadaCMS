@@ -11,6 +11,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// GetAuditLogs returns a paginated list of audit log entries.
+// @Summary List audit logs
+// @Tags audit-logs
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"created_at\",\"DESC\"]"
+// @Param filter query string false "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, q (full-text)"
+// @Success 200 {array} models.AuditLog
+// @Header 200 {string} Content-Range "auditlogs 0-24/1000"
+// @Security BearerAuth
+// @Router /auditlogs [get]
 func GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -50,6 +61,15 @@ func GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, logs)
 }
 
+// GetAuditLogByID returns a single audit log entry by ID.
+// @Summary Get audit log by ID
+// @Tags audit-logs
+// @Produce json
+// @Param id path int true "AuditLog ID"
+// @Success 200 {object} models.AuditLog
+// @Failure 404 {string} string "Audit log entry not found"
+// @Security BearerAuth
+// @Router /auditlogs/{id} [get]
 func GetAuditLogByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var entry models.AuditLog

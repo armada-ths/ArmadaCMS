@@ -13,6 +13,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetFairDateConfigs returns a paginated list of fair date configurations.
+// @Summary List fair date configs
+// @Tags fair-dates
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"description\",\"ASC\"]"
+// @Param filter query string false "Filter"
+// @Success 200 {array} models.FairDateConfig
+// @Header 200 {string} Content-Range "fairdates 0-24/5"
+// @Security BearerAuth
+// @Router /fairdates [get]
 func GetFairDateConfigs(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -40,6 +51,15 @@ func GetFairDateConfigs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GetFairDateConfigByID returns a single fair date config by ID.
+// @Summary Get fair date config by ID
+// @Tags fair-dates
+// @Produce json
+// @Param id path int true "FairDateConfig ID"
+// @Success 200 {object} models.FairDateConfig
+// @Failure 404 {string} string "fair date config not found"
+// @Security BearerAuth
+// @Router /fairdates/{id} [get]
 func GetFairDateConfigByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -52,6 +72,17 @@ func GetFairDateConfigByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// CreateFairDateConfig creates a new fair date configuration.
+// @Summary Create fair date config
+// @Tags fair-dates
+// @Accept json
+// @Produce json
+// @Param body body models.FairDateConfig true "Fair date config data"
+// @Success 201 {object} models.FairDateConfig
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /fairdates [post]
 func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	var item models.FairDateConfig
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -68,6 +99,19 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, item)
 }
 
+// UpdateFairDateConfig updates a fair date configuration by ID.
+// @Summary Update fair date config
+// @Tags fair-dates
+// @Accept json
+// @Produce json
+// @Param id path int true "FairDateConfig ID"
+// @Param body body models.FairDateConfig true "Updated fair date config"
+// @Success 200 {object} models.FairDateConfig
+// @Failure 400 {string} string "Invalid data"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /fairdates/{id} [put]
 func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -97,6 +141,15 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// DeleteFairDateConfig deletes a fair date configuration by ID.
+// @Summary Delete fair date config
+// @Tags fair-dates
+// @Produce json
+// @Param id path int true "FairDateConfig ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "fair date config not found"
+// @Security BearerAuth
+// @Router /fairdates/{id} [delete]
 func DeleteFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.FairDateConfig](w, r, "fairdates", id, "fair date config not found", nil)

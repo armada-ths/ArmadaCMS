@@ -12,6 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetFeatureFlags returns all feature flags (paginated when react-admin params are present).
+// @Summary List feature flags
+// @Tags feature-flags
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"key\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"enabled\":true}"
+// @Success 200 {array} models.FeatureFlag
+// @Header 200 {string} Content-Range "featureflags 0-4/5"
+// @Router /featureflags [get]
 func GetFeatureFlags(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.FeatureFlag{})
 	params, _ := utils.ParseListParams(r.URL.Query())
@@ -52,6 +62,14 @@ func GetFeatureFlags(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GetFeatureFlagByID returns a single feature flag by ID.
+// @Summary Get feature flag by ID
+// @Tags feature-flags
+// @Produce json
+// @Param id path int true "FeatureFlag ID"
+// @Success 200 {object} models.FeatureFlag
+// @Failure 404 {string} string "feature flag not found"
+// @Router /featureflags/{id} [get]
 func GetFeatureFlagByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -64,6 +82,17 @@ func GetFeatureFlagByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// CreateFeatureFlag creates a new feature flag.
+// @Summary Create feature flag
+// @Tags feature-flags
+// @Accept json
+// @Produce json
+// @Param body body models.FeatureFlag true "Feature flag data"
+// @Success 201 {object} models.FeatureFlag
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /featureflags [post]
 func CreateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	var item models.FeatureFlag
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -79,6 +108,19 @@ func CreateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, item)
 }
 
+// UpdateFeatureFlag updates a feature flag by ID.
+// @Summary Update feature flag
+// @Tags feature-flags
+// @Accept json
+// @Produce json
+// @Param id path int true "FeatureFlag ID"
+// @Param body body models.FeatureFlag true "Updated feature flag"
+// @Success 200 {object} models.FeatureFlag
+// @Failure 400 {string} string "Invalid body"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /featureflags/{id} [put]
 func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -113,6 +155,15 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// DeleteFeatureFlag deletes a feature flag by ID.
+// @Summary Delete feature flag
+// @Tags feature-flags
+// @Produce json
+// @Param id path int true "FeatureFlag ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "feature flag not found"
+// @Security BearerAuth
+// @Router /featureflags/{id} [delete]
 func DeleteFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil)

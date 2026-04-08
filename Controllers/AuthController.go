@@ -8,6 +8,23 @@ import (
 	"net/http"
 )
 
+// loginRequest is the body for the Login endpoint.
+type loginRequest struct {
+	Username string `json:"username" example:"admin"`
+	Password string `json:"password" example:"s3cr3t"`
+}
+
+// Login authenticates a user and returns access and refresh tokens.
+// @Summary Login
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body controllers.loginRequest true "Credentials"
+// @Success 200 {object} models.Tokens
+// @Failure 400 {string} string "Invalid JSON"
+// @Failure 401 {string} string "Wrong username or password"
+// @Failure 500 {string} string "Login failed"
+// @Router /login [post]
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

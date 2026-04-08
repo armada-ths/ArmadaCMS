@@ -51,6 +51,14 @@ type recruitmentResponse struct {
 	Groups    map[string][]recruitmentRoleResponse `json:"groups"`
 }
 
+// FetchRecruitmentsEventro syncs recruitment data from the Eventro API.
+// @Summary Sync recruitment data from Eventro
+// @Tags eventro
+// @Produce json
+// @Success 200 {string} string "Sync complete"
+// @Failure 500 {string} string "Failed to fetch from Eventro"
+// @Security BearerAuth
+// @Router /eventrorecruitments [get]
 func FetchRecruitmentsEventro(w http.ResponseWriter, r *http.Request) {
 	inserted, updated, err := syncRecruitmentsFromEventro()
 	if err != nil {
@@ -65,6 +73,13 @@ func FetchRecruitmentsEventro(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(message))
 }
 
+// GetRecruitment returns all active recruitment periods with their roles,
+// filtered to only include open periods.
+// @Summary Get active recruitment
+// @Tags public
+// @Produce json
+// @Success 200 {array} models.RecruitmentPeriod
+// @Router /recruitment [get]
 func GetRecruitment(w http.ResponseWriter, r *http.Request) {
 	var periods []models.RecruitmentPeriod
 	if err := db.DB.

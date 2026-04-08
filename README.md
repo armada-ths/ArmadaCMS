@@ -9,6 +9,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
 - [API](#api)
+- [Swagger docs](#swagger-docs)
 - [Operations notes](#operations-notes)
 - [Infrastructure as code](#infrastructure-as-code)
 - [Adding a New Resource](#adding-a-new-resource)
@@ -242,6 +243,31 @@ All endpoints are under `/api/v1`. Routes are split into:
 | `DELETE` | `/api/v1/exhibitors/{id}` | Required | Delete exhibitor    |
 | `GET`    | `/api/v1/dates`           | No       | Get fair dates      |
 | `GET`    | `/health`                 | No       | Health check        |
+
+## Swagger docs
+
+The API is documented with [Swagger / OpenAPI 2.0](https://swagger.io/) using [swaggo/swag](https://github.com/swaggo/swag).
+
+**Swagger UI** is served at `/swagger/index.html`:
+
+| Environment | URL                                        |
+| ----------- | ------------------------------------------ |
+| Local dev   | <http://localhost:8080/swagger/index.html> |
+| Production  | <https://cms.armada.nu/swagger/index.html> |
+
+Click **Authorize** in the UI and enter `Bearer <token>` (token obtained from `POST /api/v1/login`) to test protected endpoints.
+
+### Regenerating the spec
+
+Run this command from the repo root whenever you add or change routes or annotations:
+
+```bash
+swag init --generalInfo main.go --output docs --parseInternal
+```
+
+This overwrites `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Commit these generated files alongside your code changes.
+
+> **Prerequisites:** install the `swag` CLI once with `go install github.com/swaggo/swag/cmd/swag@latest`.
 
 ## Operations notes
 
