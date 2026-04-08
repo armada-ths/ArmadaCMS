@@ -13,6 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetEmployments returns a paginated list of employment types.
+// @Summary List employment types
+// @Tags employments
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"name\":\"Full-time\"}"
+// @Success 200 {array} models.Employment
+// @Header 200 {string} Content-Range "employments 0-24/10"
+// @Router /employments [get]
 func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -40,6 +50,14 @@ func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// GetEmploymentByID returns a single employment type by ID.
+// @Summary Get employment by ID
+// @Tags employments
+// @Produce json
+// @Param id path int true "Employment ID"
+// @Success 200 {object} models.Employment
+// @Failure 404 {string} string "employment not found"
+// @Router /employments/{id} [get]
 func GetEmploymentByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -52,6 +70,17 @@ func GetEmploymentByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// CreateEmployment creates a new employment type.
+// @Summary Create employment
+// @Tags employments
+// @Accept json
+// @Produce json
+// @Param body body models.Employment true "Employment data"
+// @Success 201 {object} models.Employment
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /employments [post]
 func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 	var item models.Employment
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -71,6 +100,19 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, item)
 }
 
+// UpdateEmployment updates an employment type by ID.
+// @Summary Update employment
+// @Tags employments
+// @Accept json
+// @Produce json
+// @Param id path int true "Employment ID"
+// @Param body body models.Employment true "Updated employment data"
+// @Success 200 {object} models.Employment
+// @Failure 400 {string} string "Invalid data"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /employments/{id} [put]
 func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -100,6 +142,15 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// DeleteEmployment deletes an employment type by ID.
+// @Summary Delete employment
+// @Tags employments
+// @Produce json
+// @Param id path int true "Employment ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "employment not found"
+// @Security BearerAuth
+// @Router /employments/{id} [delete]
 func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Employment](w, r, "employments", id, "employment not found", func(tx *gorm.DB) *gorm.DB {

@@ -38,6 +38,14 @@ type eventroEventResponse struct {
 
 // ---------- Controller ----------
 
+// FetchEventsEventro syncs events from the Eventro API into the local database and returns the current list.
+// @Summary Sync & list events from Eventro
+// @Tags eventro
+// @Produce json
+// @Success 200 {array} models.Event
+// @Failure 500 {string} string "Failed to fetch from Eventro"
+// @Security BearerAuth
+// @Router /eventroevents [get]
 func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	fairID := os.Getenv("EVENTRO_FAIR_ID")

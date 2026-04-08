@@ -30,6 +30,14 @@ type eventroMember struct {
 	Image     string `json:"image"`
 }
 
+// FetchMembersEventro syncs member profiles from the Eventro API into the local database and returns the current list.
+// @Summary Sync & list member profiles from Eventro
+// @Tags eventro
+// @Produce json
+// @Success 200 {array} models.Profile
+// @Failure 500 {string} string "Failed to fetch from Eventro"
+// @Security BearerAuth
+// @Router /eventromembers [get]
 func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 	endpoint := "https://app.eventro.se/api/v1/members/export"
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)

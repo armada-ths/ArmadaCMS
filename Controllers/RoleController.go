@@ -13,6 +13,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetRoles returns a paginated list of roles.
+// @Summary List roles
+// @Tags roles
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"name\":\"admin\"}"
+// @Success 200 {array} models.Role
+// @Header 200 {string} Content-Range "roles 0-24/10"
+// @Security BearerAuth
+// @Router /roles [get]
 func GetRoles(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -43,6 +54,15 @@ func GetRoles(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(roles)
 }
 
+// GetRoleByID returns a single role by ID.
+// @Summary Get role by ID
+// @Tags roles
+// @Produce json
+// @Param id path int true "Role ID"
+// @Success 200 {object} models.Role
+// @Failure 404 {string} string "Role not found"
+// @Security BearerAuth
+// @Router /roles/{id} [get]
 func GetRoleByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var role models.Role
@@ -54,6 +74,17 @@ func GetRoleByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(role)
 }
 
+// CreateRole creates a new role.
+// @Summary Create role
+// @Tags roles
+// @Accept json
+// @Produce json
+// @Param body body models.Role true "Role data"
+// @Success 201 {object} models.Role
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /roles [post]
 func CreateRole(w http.ResponseWriter, r *http.Request) {
 	var role models.Role
 	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
@@ -70,6 +101,19 @@ func CreateRole(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, role)
 }
 
+// UpdateRole updates a role by ID.
+// @Summary Update role
+// @Tags roles
+// @Accept json
+// @Produce json
+// @Param id path int true "Role ID"
+// @Param body body models.Role true "Updated role data"
+// @Success 200 {object} models.Role
+// @Failure 400 {string} string "Invalid body"
+// @Failure 404 {string} string "Role not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /roles/{id} [put]
 func UpdateRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var role models.Role
@@ -101,6 +145,15 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(role)
 }
 
+// DeleteRole deletes a role by ID.
+// @Summary Delete role
+// @Tags roles
+// @Produce json
+// @Param id path int true "Role ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "Role not found"
+// @Security BearerAuth
+// @Router /roles/{id} [delete]
 func DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Role](w, r, "roles", id, "role not found", nil)

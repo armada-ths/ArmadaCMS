@@ -1,9 +1,24 @@
+// Package main is the entry point for ArmadaCMS.
+//
+// @title ArmadaCMS API
+// @version 1.0
+// @description REST API powering the THS Armada career fair website (armada.nu) and its admin panel.
+// @contact.name THS Armada Development
+// @contact.url https://github.com/armada-ths
+//
+// @BasePath /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer <token>"
 package main
 
 import (
 	controllers "ArmadaCMS/main/Controllers"
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
+	_ "ArmadaCMS/main/docs"
 	"ArmadaCMS/main/models"
 	"fmt"
 	"log"
@@ -14,6 +29,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 var adminClientRouteSegments = map[string]struct{}{
@@ -173,6 +189,9 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+
+	// Swagger UI — served at /swagger/index.html
+	mux.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	//refactor in future this is quity messy. // WD
 	publicAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
@@ -259,10 +278,10 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 
-	publicAPI.HandleFunc("/eventroexhibitors", controllers.FetchExhibitorsEventro).Methods("GET")
-	publicAPI.HandleFunc("/eventroevents", controllers.FetchEventsEventro).Methods("GET")
-	publicAPI.HandleFunc("/eventromembers", controllers.FetchMembersEventro).Methods("GET")
-	publicAPI.HandleFunc("/eventrorecruitments", controllers.FetchRecruitmentsEventro).Methods("GET")
+	protectedAPI.HandleFunc("/eventroexhibitors", auth.RequirePermission("eventrosync.access", controllers.FetchExhibitorsEventro)).Methods("GET")
+	protectedAPI.HandleFunc("/eventroevents", auth.RequirePermission("eventrosync.access", controllers.FetchEventsEventro)).Methods("GET")
+	protectedAPI.HandleFunc("/eventromembers", auth.RequirePermission("eventrosync.access", controllers.FetchMembersEventro)).Methods("GET")
+	protectedAPI.HandleFunc("/eventrorecruitments", auth.RequirePermission("eventrosync.access", controllers.FetchRecruitmentsEventro)).Methods("GET")
 	publicAPI.HandleFunc("/recruitment", controllers.GetRecruitment).Methods("GET")
 
 	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.list", controllers.GetRecruitmentPeriods)).Methods("GET")

@@ -14,6 +14,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetEvents returns a paginated list of events.
+// @Summary List events
+// @Tags events
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"eventStart\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"show\":true}"
+// @Param public query bool false "If true, only return events with show=true"
+// @Success 200 {array} models.Event
+// @Header 200 {string} Content-Range "events 0-24/100"
+// @Router /events [get]
 func GetEvents(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -66,6 +77,14 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(events)
 }
 
+// GetEventByID returns a single event by ID.
+// @Summary Get event by ID
+// @Tags events
+// @Produce json
+// @Param id path int true "Event ID"
+// @Success 200 {object} models.Event
+// @Failure 404 {string} string "Event not found"
+// @Router /events/{id} [get]
 func GetEventByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var event models.Event
@@ -77,6 +96,29 @@ func GetEventByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(event)
 }
 
+// CreateEvent creates a new event. Accepts multipart/form-data.
+// @Summary Create event
+// @Tags events
+// @Accept mpfd
+// @Produce json
+// @Param name formData string true "Event name"
+// @Param location formData string true "Location"
+// @Param eventStart formData string true "Start time (RFC3339)"
+// @Param eventEnd formData string true "End time (RFC3339)"
+// @Param description formData string false "Description"
+// @Param food formData string false "Food information"
+// @Param registrationRequired formData bool false "Registration required"
+// @Param fee formData string false "Fee information"
+// @Param signupLink formData string false "Signup link URL"
+// @Param eventMaxCapacity formData int false "Max capacity"
+// @Param registrationEnd formData string false "Registration end time (RFC3339)"
+// @Param show formData bool false "Whether to show the event publicly"
+// @Param file formData file false "Event image"
+// @Success 201 {object} models.Event
+// @Failure 400 {string} string "Bad request"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /events [post]
 func CreateEvent(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	var event models.Event
@@ -150,6 +192,24 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, event)
 }
 
+// UpdateEvent updates an event by ID. Accepts multipart/form-data.
+// @Summary Update event
+// @Tags events
+// @Accept mpfd
+// @Produce json
+// @Param id path int true "Event ID"
+// @Param name formData string false "Event name"
+// @Param location formData string false "Location"
+// @Param eventStart formData string false "Start time (RFC3339)"
+// @Param eventEnd formData string false "End time (RFC3339)"
+// @Param show formData bool false "Whether to show the event publicly"
+// @Param file formData file false "Event image"
+// @Success 200 {object} models.Event
+// @Failure 400 {string} string "Bad request"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /events/{id} [put]
 func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var event models.Event
@@ -232,6 +292,15 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updates)
 }
 
+// DeleteEvent deletes an event by ID.
+// @Summary Delete event
+// @Tags events
+// @Produce json
+// @Param id path int true "Event ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "Event not found"
+// @Security BearerAuth
+// @Router /events/{id} [delete]
 func DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil)

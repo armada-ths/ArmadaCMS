@@ -39,6 +39,18 @@ func GetUserEndpoint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// GetUsers returns a paginated list of admin users.
+// @Summary List users
+// @Tags users
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"username\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"name\":\"test\"}"
+// @Success 200 {array} models.User
+// @Header 200 {string} Content-Range "users 0-24/100"
+// @Failure 500 {string} string "Internal server error"
+// @Security BearerAuth
+// @Router /customusers [get]
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
@@ -68,6 +80,16 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(users)
 }
+
+// GetUserByID returns a single admin user by ID.
+// @Summary Get user by ID
+// @Tags users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} models.User
+// @Failure 404 {string} string "User not found"
+// @Security BearerAuth
+// @Router /customusers/{id} [get]
 func GetUserByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -82,6 +104,17 @@ func GetUserByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// CreateUser creates a new admin user.
+// @Summary Create user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body controllers.userBody true "User data"
+// @Success 201 {object} models.User
+// @Failure 400 {string} string "Invalid body"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /customusers [post]
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	var userBody userBody
 	if err := json.NewDecoder(r.Body).Decode(&userBody); err != nil {
@@ -111,6 +144,20 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	writeCreatedJSONResponse(w, user)
 }
+
+// UpdateUser updates an existing admin user.
+// @Summary Update user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param body body controllers.userBody true "Updated user data"
+// @Success 200 {object} models.User
+// @Failure 400 {string} string "Invalid data"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /customusers/{id} [put]
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -153,6 +200,16 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
+
+// DeleteUser deletes an admin user by ID.
+// @Summary Delete user
+// @Tags users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "Not found"
+// @Security BearerAuth
+// @Router /customusers/{id} [delete]
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.User](w, r, "customusers", id, "user not found", func(tx *gorm.DB) *gorm.DB {
@@ -161,7 +218,14 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMe returns the current authenticated user's info including role/permissions.
-// Used by the frontend to resolve identity and permissions after login.
+// @Summary Get current user
+// @Tags auth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 404 {string} string "User not found"
+// @Security BearerAuth
+// @Router /me [get]
 func GetMe(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserIDFromContext(r)
 	if !ok {

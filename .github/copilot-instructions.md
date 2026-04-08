@@ -33,6 +33,14 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 
 **Tests**: none. Verify manually — `curl http://localhost:8080/health` and affected `/api/v1` endpoints.
 
+**Swagger UI**: browsable API docs are served at `http://localhost:8080/swagger/index.html` while the server is running. After adding or changing routes, regenerate the spec with:
+
+```bash
+swag init --generalInfo main.go --output docs --parseInternal
+```
+
+Commit the generated `docs/` files alongside your code. Install the CLI once with `go install github.com/swaggo/swag/cmd/swag@latest`.
+
 **Local data**: `scripts/import-remote-db.ps1` clones a remote Postgres DB into the local container.
 
 **Terraform / HCP Terraform:** for the GCP production root in `infra/terraform/gcp/prod/`, avoid running `terraform plan` locally because the CLI-driven remote plan upload is slow in this repo. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for targeted commands such as `validate`, `import`, or other one-off state operations.

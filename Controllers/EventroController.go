@@ -52,6 +52,14 @@ type eventroProduct struct {
 
 // ---------- Controller ----------
 
+// FetchExhibitorsEventro syncs exhibitors from the Eventro API into the local database and returns the current list.
+// @Summary Sync & list exhibitors from Eventro
+// @Tags eventro
+// @Produce json
+// @Success 200 {array} models.Exhibitor
+// @Failure 500 {string} string "Failed to fetch from Eventro"
+// @Security BearerAuth
+// @Router /eventroexhibitors [get]
 func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	fairID := os.Getenv("EVENTRO_FAIR_ID")

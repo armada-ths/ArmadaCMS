@@ -14,6 +14,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetExhibitors returns a paginated (or full) list of exhibitors.
+// @Summary List exhibitors
+// @Tags exhibitors
+// @Produce json
+// @Param range query string false "Pagination range, e.g. [0,24]"
+// @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
+// @Param filter query string false "Filter, e.g. {\"tier\":\"Gold\"}"
+// @Param all query bool false "Return all exhibitors without pagination, sorted by tier"
+// @Success 200 {array} models.Exhibitor
+// @Header 200 {string} Content-Range "exhibitors 0-24/100"
+// @Router /exhibitors [get]
 func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 	log.Print(params)
@@ -64,6 +75,14 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(exhibitors)
 }
 
+// GetExhibitorByID returns a single exhibitor by ID.
+// @Summary Get exhibitor by ID
+// @Tags exhibitors
+// @Produce json
+// @Param id path int true "Exhibitor ID"
+// @Success 200 {object} models.Exhibitor
+// @Failure 404 {string} string "Exhibitor not found"
+// @Router /exhibitors/{id} [get]
 func GetExhibitorByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var exhibitor models.Exhibitor
@@ -75,6 +94,29 @@ func GetExhibitorByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(exhibitor)
 }
 
+// CreateExhibitor creates a new exhibitor. Accepts multipart/form-data.
+// @Summary Create exhibitor
+// @Tags exhibitors
+// @Accept mpfd
+// @Produce json
+// @Param name formData string true "Company name"
+// @Param type formData string true "Company type"
+// @Param fairLocation formData string true "Fair location"
+// @Param tier formData string false "Tier (Standard/Bronze/Silver/Gold)"
+// @Param about formData string false "About the company"
+// @Param purpose formData string false "Purpose/mission"
+// @Param companyWebsite formData string false "Company website URL"
+// @Param climateCompensation formData bool false "Climate compensation"
+// @Param cities formData string false "City/cities"
+// @Param file formData file false "Logo image (JPG/PNG/WEBP/GIF)"
+// @Param programs formData string false "JSON array of program IDs, e.g. [1,2,3]"
+// @Param industries formData string false "JSON array of industry IDs"
+// @Param employments formData string false "JSON array of employment IDs"
+// @Success 201 {object} models.Exhibitor
+// @Failure 400 {string} string "Bad request"
+// @Failure 500 {string} string "Create failed"
+// @Security BearerAuth
+// @Router /exhibitors [post]
 func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
@@ -140,6 +182,25 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	writeCreatedJSONResponse(w, exhibitor)
 }
 
+// UpdateExhibitor updates an exhibitor by ID. Accepts multipart/form-data.
+// @Summary Update exhibitor
+// @Tags exhibitors
+// @Accept mpfd
+// @Produce json
+// @Param id path int true "Exhibitor ID"
+// @Param name formData string false "Company name"
+// @Param type formData string false "Company type"
+// @Param tier formData string false "Tier (Standard/Bronze/Silver/Gold)"
+// @Param file formData file false "Logo image (JPG/PNG/WEBP/GIF)"
+// @Param programs formData string false "JSON array of program IDs"
+// @Param industries formData string false "JSON array of industry IDs"
+// @Param employments formData string false "JSON array of employment IDs"
+// @Success 200 {object} models.Exhibitor
+// @Failure 400 {string} string "Bad request"
+// @Failure 404 {string} string "Not found"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /exhibitors/{id} [put]
 func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -247,6 +308,15 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(exhibitor)
 }
 
+// DeleteExhibitor deletes an exhibitor by ID.
+// @Summary Delete exhibitor
+// @Tags exhibitors
+// @Produce json
+// @Param id path int true "Exhibitor ID"
+// @Success 200 {string} string "Deleted"
+// @Failure 404 {string} string "Exhibitor not found"
+// @Security BearerAuth
+// @Router /exhibitors/{id} [delete]
 func DeleteExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Exhibitor](w, r, "exhibitors", id, "exhibitor not found", func(tx *gorm.DB) *gorm.DB {
