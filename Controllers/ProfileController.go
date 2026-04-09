@@ -144,6 +144,10 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 					return
 				}
+				if errors.Is(err, utils.ErrFileTooLarge) {
+					http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
+					return
+				}
 				http.Error(w, "Error uploading file", http.StatusInternalServerError)
 				return
 			}
@@ -241,6 +245,10 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 				log.Println("Error uploading the file:", err)
 				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+					return
+				}
+				if errors.Is(err, utils.ErrFileTooLarge) {
+					http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
 					return
 				}
 				http.Error(w, "Error uploading file", http.StatusInternalServerError)

@@ -152,6 +152,10 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 				return
 			}
+			if errors.Is(err, utils.ErrFileTooLarge) {
+				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 			return
 		}
@@ -247,6 +251,10 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+				return
+			}
+			if errors.Is(err, utils.ErrFileTooLarge) {
+				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
 				return
 			}
 			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
