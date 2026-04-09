@@ -18,6 +18,9 @@ import (
 )
 
 var ErrUnsupportedImageFormat = errors.New("unsupported image format")
+var ErrFileTooLarge = errors.New("uploaded file exceeds maximum allowed size")
+
+const maxImageUploadBytes = 15 * 1024 * 1024 // 15 MB
 
 var allowedImageContentTypes = map[string]struct{}{
 	"image/jpeg": {},
@@ -55,6 +58,10 @@ func detectAndValidateImageContentType(file multipart.File) (string, error) {
 }
 
 func UploadToS3(file multipart.File, header *multipart.FileHeader) (string, error) {
+	if header.Size > maxImageUploadBytes {
+		return "", fmt.Errorf("%w: %d bytes (max %d)", ErrFileTooLarge, header.Size, maxImageUploadBytes)
+	}
+
 	filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), header.Filename)
 	contentType, err := detectAndValidateImageContentType(file)
 	if err != nil {

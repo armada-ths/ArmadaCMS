@@ -18,6 +18,10 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
 const UNSUPPORTED_IMAGE_ERROR =
   "Unsupported file format. Please upload a JPG, PNG, WEBP, or GIF image.";
 
+const MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+const FILE_TOO_LARGE_ERROR =
+  "File is too large. Maximum allowed size is 15 MB.";
+
 const getExtension = (fileName: string) => {
   const dotIndex = fileName.lastIndexOf(".");
   return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
@@ -57,6 +61,10 @@ const getRawFileFromValue = (value: unknown): File | null => {
 export const validateImageUpload = (value: unknown) => {
   const file = getRawFileFromValue(value);
   if (!file) return undefined;
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    return FILE_TOO_LARGE_ERROR;
+  }
 
   const mimeType = file.type.toLowerCase();
   if (mimeType && ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
