@@ -12,8 +12,8 @@ manage_cloud_build_triggers       = true
 
 cloud_run_cpu    = "1000m"
 cloud_run_memory = "1Gi"
-min_instances    = 1
-max_instances    = 3
+min_instances    = 0
+max_instances    = 2
 
 enable_vpc_egress   = true
 vpc_network_name    = "default"
