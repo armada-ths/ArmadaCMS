@@ -1,0 +1,42 @@
+project_id   = "just-sunrise-491718-m9"
+region       = "europe-north1"
+environment  = "staging"
+service_name = "armadacms-staging"
+name_prefix  = "armadacms-staging"
+
+# Set deploy_cloud_run_service = true only after:
+#   1. aws/staging has been applied (S3 bucket outputs available), AND
+#   2. An initial image exists in Artifact Registry.
+#
+# On first apply, set bootstrap_image to a valid image so Cloud Run can start:
+#   bootstrap_image = "gcr.io/cloudrun/hello"
+# Cloud Build will overwrite the image on the first staging branch push.
+deploy_cloud_run_service = false
+deletion_protection      = false
+
+cloud_run_ingress = "INGRESS_TRAFFIC_ALL"
+
+manage_runtime_service_account    = false
+cloud_run_service_account_email   = "475154911163-compute@developer.gserviceaccount.com"
+cloud_build_service_account_email = "475154911163-compute@developer.gserviceaccount.com"
+manage_cloud_build_triggers       = true
+
+cloud_run_cpu    = "1000m"
+cloud_run_memory = "512Mi"
+min_instances    = 0
+max_instances    = 1
+
+enable_vpc_egress = false
+
+enable_domain_mapping   = true
+domain_mapping_hostname = "staging.cms.armada.nu"
+
+db_host = "db.yfybmnqzclpmpncyfmdc.supabase.co"
+db_user = "postgres"
+db_name = "postgres"
+
+# The github-app-private-key secret already exists from the production
+# workspace — set manage_github_app_secret = false to reuse it.
+manage_github_app_secret = false
+
+enable_https_load_balancer = false

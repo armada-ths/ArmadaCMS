@@ -1,0 +1,9 @@
+terraform {
+  cloud {
+    organization = "THS-Armada"
+
+    workspaces {
+      name = "armadacms-gcp-staging"
+    }
+  }
+}

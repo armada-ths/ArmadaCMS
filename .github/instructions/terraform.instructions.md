@@ -9,10 +9,12 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 
 ## Root layout
 
-| Root        | HCP Terraform workspace  | What it manages                                             |
-|-------------|--------------------------|-------------------------------------------------------------|
-| `gcp/prod/` | `armadacms-gcp-prod`     | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager |
-| `aws/prod/` | `armadacms-aws-prod`     | RDS PostgreSQL, S3 bucket, IAM upload user                  |
+| Root          | HCP Terraform workspace    | What it manages                                                       |
+|---------------|----------------------------|-----------------------------------------------------------------------|
+| `gcp/prod/`   | `armadacms-gcp-prod`       | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager          |
+| `aws/prod/`   | `armadacms-aws-prod`       | RDS PostgreSQL, S3 bucket, IAM upload user                            |
+| `gcp/staging/`| `armadacms-gcp-staging`    | Cloud Run (staging), VPC egress, domain mapping, Cloud Build, Secrets |
+| `aws/staging/`| `armadacms-aws-staging`    | Staging S3 bucket, IAM upload user (no RDS — uses Supabase)          |
 
 Workspace naming pattern: `armadacms-<provider>-<environment>`.
 
