@@ -9,8 +9,8 @@ output "runtime_service_account_email" {
 }
 
 output "artifact_registry_repository" {
-  description = "Artifact Registry repository path used for ArmadaCMS staging images."
-  value       = "${local.artifact_registry_host}/${var.project_id}/${google_artifact_registry_repository.docker.repository_id}"
+  description = "Shared production Artifact Registry repository path where ArmadaCMS staging images are pushed."
+  value       = "${var.prod_artifact_registry_host}/${var.project_id}/${var.prod_artifact_registry_repository_id}"
 }
 
 output "default_image_uri" {

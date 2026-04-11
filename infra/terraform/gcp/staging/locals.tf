@@ -71,7 +71,7 @@ locals {
   runtime_service_account_id = substr(lower(replace("${var.name_prefix}-runtime", "_", "-")), 0, 30)
 
   artifact_registry_host = "${var.region}-docker.pkg.dev"
-  container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${local.artifact_registry_host}/${var.project_id}/${var.artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"
+  container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${var.prod_artifact_registry_host}/${var.project_id}/${var.prod_artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"
 
   # ── Derived resource names ──────────────────────────────────────────────────
   nat_router_name    = "${var.name_prefix}-router"
@@ -94,7 +94,10 @@ locals {
   lb_global_address_name        = "${var.name_prefix}-lb-ip"
   lb_certificate_name           = "${var.name_prefix}-cert"
 
-  cloud_build_staging_trigger_name        = "${var.name_prefix}-staging-deploy"
-  cloud_build_staging_trigger_description = "Build and deploy to Cloud Run service ${var.service_name} on push to \"^staging$\""
-  cloud_build_staging_trigger_id          = "${var.name_prefix}-staging"
+  cloud_build_staging_trigger_name           = "${var.name_prefix}-staging-deploy"
+  cloud_build_staging_trigger_description    = "Build and deploy to Cloud Run service ${var.service_name} on push to \"^staging$\""
+  cloud_build_staging_trigger_id             = "${var.name_prefix}-staging"
+  cloud_build_staging_pr_trigger_name        = "${var.name_prefix}-staging-pr-build"
+  cloud_build_staging_pr_trigger_description = "Build and push ${var.service_name} PR image tagged pr-<PR number> for PRs targeting \"^staging$\""
+  cloud_build_staging_pr_trigger_id          = "${var.name_prefix}-staging-pr"
 }

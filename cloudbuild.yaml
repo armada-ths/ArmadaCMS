@@ -123,6 +123,18 @@ steps:
           echo "GitHub token unavailable for commit-to-PR lookup; will build on main as fallback."
         fi
 
+        # If no prebuilt PR image was found, check whether this exact commit SHA
+        # was already built and pushed — e.g. by a prior staging trigger run.
+        # This avoids rebuilding when a commit promoted from the staging branch
+        # to main is already present in Artifact Registry.
+        if [[ "$${BUILD_REQUIRED}" == "true" ]]; then
+          echo "Checking Artifact Registry for existing image tag ${COMMIT_SHA}."
+          if gcloud artifacts docker tags list "$${IMAGE_REPOSITORY}" --format='value(tag)' | grep -Fxq "${COMMIT_SHA}"; then
+            BUILD_REQUIRED="false"
+            echo "Image for commit ${COMMIT_SHA} already exists in Artifact Registry; skipping build."
+          fi
+        fi
+
         echo "$${IMAGE_TAG}" > /workspace/image_tag
         echo "$${IMAGE_REPOSITORY}:$${IMAGE_TAG}" > /workspace/image_uri
         echo "$${BUILD_REQUIRED}" > /workspace/build_required

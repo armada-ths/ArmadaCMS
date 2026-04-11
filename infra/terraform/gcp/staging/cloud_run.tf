@@ -104,7 +104,6 @@ resource "google_cloud_run_v2_service" "armadacms" {
   }
 
   depends_on = [
-    google_artifact_registry_repository.docker,
     google_secret_manager_secret_iam_member.runtime_secret_access,
     google_secret_manager_secret_version.app,
     google_compute_router_nat.serverless,

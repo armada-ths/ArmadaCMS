@@ -9,9 +9,9 @@ name_prefix  = "armadacms-staging"
 #   2. An initial image exists in Artifact Registry.
 #
 # On first apply, set bootstrap_image to a valid image so Cloud Run can start:
-#   bootstrap_image = "gcr.io/cloudrun/hello"
+bootstrap_image = "gcr.io/cloudrun/hello"
 # Cloud Build will overwrite the image on the first staging branch push.
-deploy_cloud_run_service = false
+deploy_cloud_run_service = true
 deletion_protection      = false
 
 cloud_run_ingress = "INGRESS_TRAFFIC_ALL"

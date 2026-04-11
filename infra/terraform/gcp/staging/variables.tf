@@ -33,10 +33,16 @@ variable "labels" {
   default     = {}
 }
 
-variable "artifact_registry_repository_id" {
-  description = "Artifact Registry repository that stores ArmadaCMS staging container images."
+variable "prod_artifact_registry_host" {
+  description = "Hostname of the production Artifact Registry repository that Cloud Build writes images to. Staging and prod share this repo so a commit built on staging is reused by the prod trigger."
   type        = string
-  default     = "armadacms-staging"
+  default     = "europe-north2-docker.pkg.dev"
+}
+
+variable "prod_artifact_registry_repository_id" {
+  description = "Repository ID of the shared production Artifact Registry that both staging and prod Cloud Build triggers push images to."
+  type        = string
+  default     = "cloud-run-source-deploy"
 }
 
 variable "container_image_path" {
