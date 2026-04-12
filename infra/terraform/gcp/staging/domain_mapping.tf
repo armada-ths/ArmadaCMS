@@ -13,7 +13,7 @@
 # Console or via the Google Domains verification flow for the GCP project.
 
 import {
-  id = "locations/europe-north1/namespaces/just-sunrise-491718-m9/domainmappings/staging.cms.armada.nu"
+  id = "locations/europe-north1/namespaces/475154911163/domainmappings/staging.cms.armada.nu"
   to = google_cloud_run_domain_mapping.staging[0]
 }
 
