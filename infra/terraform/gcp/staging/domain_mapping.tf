@@ -12,11 +12,6 @@
 # PREREQUISITE: The domain staging.cms.armada.nu must be verified in Search
 # Console or via the Google Domains verification flow for the GCP project.
 
-import {
-  id = "locations/europe-north1/namespaces/475154911163/domainmappings/staging.cms.armada.nu"
-  to = google_cloud_run_domain_mapping.staging[0]
-}
-
 resource "google_cloud_run_domain_mapping" "staging" {
   count = var.enable_domain_mapping && var.deploy_cloud_run_service ? 1 : 0
 
@@ -25,10 +20,7 @@ resource "google_cloud_run_domain_mapping" "staging" {
   name     = var.domain_mapping_hostname
 
   metadata {
-    # Use the project number (not the project ID) to match what the Cloud Run
-    # API stores internally. Using the project ID here causes a namespace
-    # mismatch on import which triggers a force-replace.
-    namespace = data.google_project.current.number
+    namespace = var.project_id
   }
 
   spec {
