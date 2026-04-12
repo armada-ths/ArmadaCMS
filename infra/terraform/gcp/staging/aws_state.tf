@@ -5,10 +5,6 @@
 # this workspace — no extra credentials needed.
 # The AWS staging workspace must grant read access to this workspace under
 # Settings → Remote state sharing (or "Share with all workspaces").
-#
-# BOOTSTRAPPING ORDER: Apply aws/staging first (it has no dependency on this
-# workspace), then apply gcp/staging with deploy_cloud_run_service = true once
-# the S3 outputs are available.
 
 data "tfe_outputs" "aws_staging" {
   organization = "THS-Armada"

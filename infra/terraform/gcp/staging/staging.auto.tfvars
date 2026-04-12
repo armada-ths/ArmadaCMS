@@ -4,13 +4,6 @@ environment  = "staging"
 service_name = "armadacms-staging"
 name_prefix  = "armadacms-staging"
 
-# Set deploy_cloud_run_service = true only after:
-#   1. aws/staging has been applied (S3 bucket outputs available), AND
-#   2. An initial image exists in Artifact Registry.
-#
-# On first apply, set bootstrap_image to a valid image so Cloud Run can start:
-#   bootstrap_image = "gcr.io/cloudrun/hello"
-# Cloud Build will overwrite the image on the first staging branch push.
 deploy_cloud_run_service = true
 deletion_protection      = false
 
