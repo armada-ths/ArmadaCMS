@@ -87,6 +87,10 @@ func main() {
 		log.Printf("failed to seed feature flags: %v", err)
 	}
 
+	if err := controllers.SeedInitialAdminUser(db.DB); err != nil {
+		log.Printf("failed to seed initial admin user: %v", err)
+	}
+
 	wrappedMux := CreateMuxClient()
 	listenAddr := getListenAddr()
 	fmt.Println("Server running on http://localhost" + listenAddr)
@@ -197,6 +201,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
 	publicAPI.HandleFunc("/login", controllers.Login)
+	publicAPI.HandleFunc("/refreshAccessToken", controllers.RefreshAccessToken)
 
 	// Current user info (for frontend permissions)
 	protectedAPI.HandleFunc("/me", controllers.GetMe).Methods("GET")

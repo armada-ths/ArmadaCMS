@@ -255,6 +255,12 @@ variable "db_name" {
   default     = "postgres"
 }
 
+variable "initial_admin_username" {
+  description = "Username for the initial admin user seeded on first startup when the DB has no users. Leave empty to skip seeding."
+  type        = string
+  default     = ""
+}
+
 # ── Load balancer (disabled for staging — kept for future parity) ─────────────
 
 variable "enable_https_load_balancer" {

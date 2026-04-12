@@ -35,6 +35,11 @@ db_host = "db.yfybmnqzclpmpncyfmdc.supabase.co"
 db_user = "postgres"
 db_name = "postgres"
 
+# Initial admin user seeded on first startup when the DB is empty.
+# Set secret_values["INITIAL_ADMIN_PASSWORD"] in HCP Terraform to activate.
+# Once the account is created the env vars have no further effect.
+initial_admin_username = "admin"
+
 # The github-app-private-key secret already exists from the production
 # workspace — set manage_github_app_secret = false to reuse it.
 manage_github_app_secret = false
