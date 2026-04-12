@@ -30,7 +30,7 @@ export const refreshTokens = async (): Promise<Tokens | null> => {
   if (!refreshToken) return null;
   try {
     const response = await axios.get<Tokens>(
-      `${globalApi()}refreshAccessToken`,
+      `${globalApi()}/refreshAccessToken`,
       { headers: { "X-RefreshAuthorization": `Bearer ${refreshToken}` } },
     );
     return response.data;
