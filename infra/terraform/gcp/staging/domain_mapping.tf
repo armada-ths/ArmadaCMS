@@ -25,7 +25,10 @@ resource "google_cloud_run_domain_mapping" "staging" {
   name     = var.domain_mapping_hostname
 
   metadata {
-    namespace = var.project_id
+    # Use the project number (not the project ID) to match what the Cloud Run
+    # API stores internally. Using the project ID here causes a namespace
+    # mismatch on import which triggers a force-replace.
+    namespace = data.google_project.current.number
   }
 
   spec {
