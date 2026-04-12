@@ -1,5 +1,6 @@
 import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
+import { refreshTokens } from "./axiosInstance";
 
 /**
  * Decode a JWT payload without verification (browser-side).
@@ -57,13 +58,16 @@ export const authProvider: AuthProvider = {
       throw new Error("Not authenticated");
     }
 
-    // Check if the access token has expired
     const claims = decodeJwtPayload(access);
     const exp = claims.exp as number | undefined;
     if (exp && exp * 1000 < Date.now()) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      throw new Error("Session expired");
+      // Access token expired — attempt silent refresh before forcing logout
+      const tokens = await refreshTokens();
+      if (!tokens) {
+        throw new Error("Session expired");
+      }
+      localStorage.setItem("accessToken", tokens.accessToken);
+      localStorage.setItem("refreshToken", tokens.refreshToken);
     }
 
     return Promise.resolve();

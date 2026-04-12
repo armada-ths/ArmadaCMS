@@ -1,0 +1,32 @@
+# Prevents the Supabase free-tier staging database from being paused.
+# Supabase pauses projects after 7 days of inactivity; a weekly ping is enough
+# to keep it alive.
+#
+# The request hits the Cloud Run /health endpoint, which causes GORM to open a
+# connection to Supabase — that resets the inactivity timer.
+#
+# If the staging service is scaled to zero, Cloud Run will cold-start it before
+# responding. The 30-second timeout is generous enough to cover that.
+
+name: Keep staging alive
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # Every Monday at 08:00 UTC
+  workflow_dispatch: # Allow manual trigger from the Actions tab
+
+jobs:
+  ping:
+    name: Ping staging health endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
+            https://staging.cms.armada.nu/health
+          echo "Staging is alive."

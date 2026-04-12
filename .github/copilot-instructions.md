@@ -14,7 +14,11 @@ Go REST API (Gorilla Mux, GORM, Postgres) + React-Admin SPA in one repo. The Go 
 - `/admin/` — serves the built React-Admin SPA from `frontend/dist`.
 - `/health` — healthcheck.
 
-Deployed to **Google Cloud Run** (containerised). DB: AWS RDS Postgres. File storage: AWS S3. See [docs/cloud-run-migration-plan.md](../docs/cloud-run-migration-plan.md) for infra context.
+Deployed to **Google Cloud Run** (containerised). File storage: AWS S3.
+- **Production**: DB is AWS RDS PostgreSQL.
+- **Staging** (`staging.cms.armada.nu`): DB is Supabase PostgreSQL (no RDS).
+
+See [docs/cloud-run-migration-plan.md](../docs/cloud-run-migration-plan.md) for infra context.
 
 ## Developer workflows
 
@@ -43,7 +47,7 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 
 **Local data**: `scripts/import-remote-db.ps1` clones a remote Postgres DB into the local container.
 
-**Terraform / HCP Terraform:** for the GCP production root in `infra/terraform/gcp/prod/`, avoid running `terraform plan` locally because the CLI-driven remote plan upload is slow in this repo. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for targeted commands such as `validate`, `import`, or other one-off state operations.
+**Terraform / HCP Terraform:** there are four roots (`gcp/prod`, `gcp/staging`, `aws/prod`, `aws/staging`). Avoid running `terraform plan` locally — the CLI-driven remote plan upload is slow. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for `validate`, `import`, or other targeted state operations. See [`infra/terraform/README.md`](../infra/terraform/README.md) and the per-root READMEs for workspace details.
 
 ## Backend patterns
 
@@ -55,6 +59,8 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`.
 - **File uploads**: controllers accepting files use `multipart/form-data`; files go to AWS S3 via `utils/aws_s3.go` (validates MIME, generates timestamped key).
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
+- **Session tokens**: access tokens expire in 15 minutes; the admin frontend holds a 7-day rotating refresh token in `localStorage`. `POST /api/v1/login` returns both. `GET /api/v1/refreshAccessToken` (public route, `X-RefreshAuthorization: Bearer <token>` header) rotates the refresh token and issues a new access token. Ensure `jwtsecret_laganda` differs between staging and production.
+- **Initial admin seeding**: on startup `SeedInitialAdminUser` runs once — it creates a user from `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` env vars only if no users exist yet. Remove or leave empty once real accounts are created.
 - **Eventro integration**: `Controllers/EventroController.go` proxies the external Eventro API (exhibitors/events/members/recruitments). Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the `EventroSync` admin page.
 - **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
 - **Blogpost model** (`models/blogpost.go`) exists and is auto-migrated but has no controller, no API routes, and no admin UI — it is legacy and should not be extended without a deliberate decision.
@@ -82,6 +88,8 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)   |
 | `PORT`                                          | Server port (default: 8080)                       |
 | `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`        | Postgres connection pool tuning (optional)        |
+| `INITIAL_ADMIN_USERNAME`                        | Username seeded on first startup (if DB empty)    |
+| `INITIAL_ADMIN_PASSWORD`                        | Password for the seeded admin user (sensitive)    |
 
 ## Adding a new resource (checklist)
 

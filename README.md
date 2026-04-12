@@ -250,10 +250,11 @@ The API is documented with [Swagger / OpenAPI 2.0](https://swagger.io/) using [s
 
 **Swagger UI** is served at `/swagger/index.html`:
 
-| Environment | URL                                        |
-| ----------- | ------------------------------------------ |
-| Local dev   | <http://localhost:8080/swagger/index.html> |
-| Production  | <https://cms.armada.nu/swagger/index.html> |
+| Environment | URL                                                |
+| ----------- | -------------------------------------------------- |
+| Local dev   | <http://localhost:8080/swagger/index.html>         |
+| Staging     | <https://staging.cms.armada.nu/swagger/index.html> |
+| Production  | <https://cms.armada.nu/swagger/index.html>         |
 
 Click **Authorize** in the UI and enter `Bearer <token>` (token obtained from `POST /api/v1/login`) to test protected endpoints.
 
@@ -282,7 +283,9 @@ Terraform documentation is split by scope:
 
 - [`infra/terraform/README.md`](infra/terraform/README.md) — shared layout, conventions, workspace naming, and cross-workspace wiring
 - [`infra/terraform/gcp/prod/README.md`](infra/terraform/gcp/prod/README.md) — GCP production root details and workspace setup
+- [`infra/terraform/gcp/staging/README.md`](infra/terraform/gcp/staging/README.md) — GCP staging root details and workspace setup
 - [`infra/terraform/aws/prod/README.md`](infra/terraform/aws/prod/README.md) — AWS production root details and workspace setup
+- [`infra/terraform/aws/staging/README.md`](infra/terraform/aws/staging/README.md) — AWS staging root details and workspace setup
 
 Use those documents as the canonical source for infrastructure specifics rather than duplicating them here.
 
