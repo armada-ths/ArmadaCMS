@@ -78,17 +78,6 @@ steps:
           echo "$${IMAGE_REPOSITORY}:$${IMAGE_TAG}" > /workspace/image_uri
           echo "false" > /workspace/deploy_enabled
 
-          # If the PR's head branch is "staging", the staging push trigger fires
-          # for the same commit and pushes an image tagged with the commit SHA to
-          # this same Artifact Registry repo. Building a separate PR image here
-          # would be redundant. Skip it — on merge to main the "Determine Image
-          # Strategy" step will find the pre-existing SHA tag and reuse it.
-          if [[ "${BRANCH_NAME}" == "staging" ]]; then
-            echo "PR head branch is staging; staging push trigger will build commit ${COMMIT_SHA}. Skipping duplicate PR image build."
-            echo "false" > /workspace/build_required
-            exit 0
-          fi
-
           echo "true" > /workspace/build_required
           echo "PR build detected; will build and push image tag $${IMAGE_TAG}."
           exit 0
