@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "golang.go",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "ms-azuretools.vscode-containers",
+    "hashicorp.terraform",
+    "redhat.vscode-yaml"
+  ],
+  "unwantedRecommendations": []
+}
