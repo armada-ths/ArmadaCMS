@@ -175,18 +175,18 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
-	var updateUser = models.User{
-		Username: userUpdateBody.Username,
-		Password: userUpdateBody.Password,
-		Name:     userUpdateBody.Name,
-		Avatar:   userUpdateBody.Avatar,
-		RoleID:   userUpdateBody.RoleID,
-		ID:       uint(userUpdateBody.ID),
+
+	newPassword := user.Password
+	if len(userUpdateBody.Password) > 0 {
+		newPassword = utils.HashPassword(userUpdateBody.Password)
 	}
-	if len(updateUser.Password) > 0 {
-		updateUser.Password = utils.HashPassword(updateUser.Password)
-	} else {
-		updateUser.Password = user.Password
+
+	updateUser := map[string]any{
+		"username": userUpdateBody.Username,
+		"password": newPassword,
+		"name":     userUpdateBody.Name,
+		"avatar":   userUpdateBody.Avatar,
+		"role_id":  userUpdateBody.RoleID,
 	}
 
 	before := user
