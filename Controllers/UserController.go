@@ -179,8 +179,6 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	newPassword := user.Password
 	if len(userUpdateBody.Password) > 0 {
 		newPassword = utils.HashPassword(userUpdateBody.Password)
-	} else {
-		newPassword = user.Password
 	}
 
 	updateUser := map[string]any{
