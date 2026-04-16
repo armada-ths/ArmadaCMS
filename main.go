@@ -48,6 +48,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"recruitmentroles":   {},
 	"auditlogs":          {},
 	"eventrosync":        {},
+	"highlightcards":     {},
 	"login":              {},
 }
 
@@ -76,6 +77,7 @@ func main() {
 		models.RecruitmentRole{},
 		models.FairDateConfig{},
 		models.FeatureFlag{},
+		models.HighlightCard{},
 		// Enter your models here
 	)
 
@@ -279,6 +281,13 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/featureflags", auth.RequirePermission("featureflags.create", controllers.CreateFeatureFlag)).Methods("POST")
 	protectedAPI.HandleFunc("/featureflags/{id}", auth.RequirePermission("featureflags.edit", controllers.UpdateFeatureFlag)).Methods("PUT")
 	protectedAPI.HandleFunc("/featureflags/{id}", auth.RequirePermission("featureflags.delete", controllers.DeleteFeatureFlag)).Methods("DELETE")
+
+	// highlight cards
+	publicAPI.HandleFunc("/highlightcards", controllers.GetHighlightCards).Methods("GET")
+	publicAPI.HandleFunc("/highlightcards/{id}", controllers.GetHighlightCardByID).Methods("GET")
+	protectedAPI.HandleFunc("/highlightcards", auth.RequirePermission("highlightcards.create", controllers.CreateHighlightCard)).Methods("POST")
+	protectedAPI.HandleFunc("/highlightcards/{id}", auth.RequirePermission("highlightcards.edit", controllers.UpdateHighlightCard)).Methods("PUT")
+	protectedAPI.HandleFunc("/highlightcards/{id}", auth.RequirePermission("highlightcards.delete", controllers.DeleteHighlightCard)).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")

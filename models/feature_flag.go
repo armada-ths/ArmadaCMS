@@ -10,27 +10,32 @@ type FeatureFlag struct {
 var DefaultFeatureFlags = []FeatureFlag{
 	{
 		Key:         "EVENT_PAGE",
-		Description: "Access to Event Page",
+		Description: "Show the student events page",
 		Enabled:     true,
 	},
 	{
 		Key:         "MAP_PAGE",
-		Description: "Access to Map Page",
+		Description: "Show the fair map page",
 		Enabled:     false,
 	},
 	{
 		Key:         "AT_FAIR_PAGE",
-		Description: "Access to At the Fair Page",
+		Description: "Show the at-the-fair student page",
 		Enabled:     true,
 	},
 	{
 		Key:         "EXHIBITOR_PACKAGES",
-		Description: "Exhibitor packages page content",
+		Description: "Show the exhibitor packages page",
 		Enabled:     false,
 	},
 	{
 		Key:         "EXHIBITOR_EVENTS",
-		Description: "Exhibitor events page content",
+		Description: "Show the exhibitor events page",
 		Enabled:     false,
+	},
+	{
+		Key:         "EXHIBITOR_PAGE",
+		Description: "Show the student exhibitors/companies page",
+		Enabled:     true,
 	},
 }

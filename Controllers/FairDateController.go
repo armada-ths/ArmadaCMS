@@ -90,6 +90,9 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+
+	NormalizeOptionalStringPointers(&item.TicketEnd)
+
 	if err := createWithAudit(r, "fairdates", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil); err != nil {
@@ -121,15 +124,25 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updates models.FairDateConfig
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	var rawUpdates map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&rawUpdates); err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := BuildNormalizedSnakeCaseUpdateMap(
+		rawUpdates,
+		map[string]struct{}{
+			"ticketEnd": {},
+		},
+		map[string]struct{}{
+			"id": {},
+		},
+	)
+
 	before := item
 	if err := updateWithAudit(r, "fairdates", id, before, &item, func(tx *gorm.DB) error {
-		return tx.Model(&item).Updates(updates).Error
+		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
 	}); err != nil {

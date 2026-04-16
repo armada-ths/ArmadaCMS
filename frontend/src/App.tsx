@@ -29,8 +29,10 @@ import { FairDateList } from "./components/FairDate/FairDateList";
 import { FairDateCreate } from "./components/FairDate/FairDateCreate";
 import { FairDateEdit } from "./components/FairDate/FairDateEdit";
 import { FeatureFlagList } from "./components/FeatureFlag/FeatureFlagList";
-import { FeatureFlagCreate } from "./components/FeatureFlag/FeatureFlagCreate";
 import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
+import { HighlightCardList } from "./components/HighlightCard/HighlightCardList";
+import { HighlightCardCreate } from "./components/HighlightCard/HighlightCardCreate";
+import { HighlightCardEdit } from "./components/HighlightCard/HighlightCardEdit";
 import { RoleList } from "./components/Role/RoleList";
 import { RoleCreate } from "./components/Role/RoleCreate";
 import { RoleEdit } from "./components/Role/RoleEdit";
@@ -161,8 +163,15 @@ export const App = () => (
       name="featureflags"
       options={{ label: "Feature flags" }}
       list={FeatureFlagList}
-      create={FeatureFlagCreate}
       edit={FeatureFlagEdit}
+    />
+
+    <Resource
+      name="highlightcards"
+      options={{ label: "Highlight cards" }}
+      list={HighlightCardList}
+      create={HighlightCardCreate}
+      edit={HighlightCardEdit}
     />
 
     <Resource
