@@ -1,0 +1,82 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docker dev up",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "-f", "docker-compose.dev.yml", "up"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(__never_match_this__)$",
+          "kind": "file",
+          "file": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".+",
+          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "docker dev up --build",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "-f", "docker-compose.dev.yml", "up", "--build"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(__never_match_this__)$",
+          "kind": "file",
+          "file": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".+",
+          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+        }
+      },
+      "group": "build"
+    },
+    {
+      "label": "docker dev stop",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "-f", "docker-compose.dev.yml", "stop"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "docker dev down",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "-f", "docker-compose.dev.yml", "down"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

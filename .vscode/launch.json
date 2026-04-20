@@ -3,22 +3,11 @@
   "configurations": [
     {
       "name": "Docker",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "docker compose -f docker-compose.dev.yml up",
-      "cwd": "${workspaceFolder}",
-      "serverReadyAction": {
-        "action": "startDebugging",
-        "name": "Admin Browser",
-        "pattern": "Local:\\s+(https?://[^\\s]+)"
-      }
-    },
-    {
-      "name": "Admin Browser",
       "type": "editor-browser",
       "request": "launch",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}"
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "docker dev up"
     },
     {
       "name": "MinIO Console",
