@@ -7,6 +7,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
+- [VS Code workspace and launches](#vs-code-workspace-and-launches)
 - [Project Structure](#project-structure)
 - [API](#api)
 - [Swagger docs](#swagger-docs)
@@ -198,6 +199,19 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173)
    - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(production-style local verification only)_
    - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+
+## VS Code workspace and launches
+
+This repo includes shared VS Code configuration in `.vscode/`:
+
+- `tasks.json` — shared Docker tasks for `docker dev up`, `docker dev up --build`, `docker dev stop`, and `docker dev down`
+- `launch.json` — a `Docker` launch that starts the dev stack via the shared task and opens the admin UI
+
+If you work across both repos, use the shared workspace file committed in `armada.nu`:
+
+- `../armada.nu/Armada.code-workspace`
+
+That workspace opens both repositories with portable relative paths and includes multi-repo compound launches.
 
 ## Project Structure
 
