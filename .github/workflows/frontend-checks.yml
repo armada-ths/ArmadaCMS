@@ -1,4 +1,4 @@
-name: checks
+name: frontend checks
 
 on:
   push:
