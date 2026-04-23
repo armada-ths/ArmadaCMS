@@ -11,6 +11,10 @@ on:
       - ".github/workflows/go-checks.yml"
   pull_request:
 
+permissions:
+  pull-requests: read
+  contents: read
+
 jobs:
   changes:
     runs-on: ubuntu-latest

@@ -9,6 +9,10 @@ on:
       - ".github/workflows/frontend-checks.yml"
   pull_request:
 
+permissions:
+  pull-requests: read
+  contents: read
+
 jobs:
   changes:
     runs-on: ubuntu-latest
