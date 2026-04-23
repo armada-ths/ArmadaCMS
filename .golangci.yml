@@ -1,0 +1,17 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Ignore errors from HTTP response writers — if the connection is already
+      # broken there is nothing useful to do with the error.
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+        # Deferred Close errors are not actionable — standard Go idiom.
+        - (io.Closer).Close
+  exclusions:
+    rules:
+      # Ignore errcheck on fmt.Fprintf/fmt.Fprintln to ResponseWriter (same rationale).
+      - linters: [errcheck]
+        text: "fmt\\.Fprint"

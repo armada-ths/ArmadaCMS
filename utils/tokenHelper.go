@@ -62,7 +62,7 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 func GetUserIdFromAccessToken(tokenString string) *int {
 	claims := jwt.MapClaims{}
 
-	new(jwt.Parser).ParseUnverified(tokenString, claims) // Ignores expiration check
+	new(jwt.Parser).ParseUnverified(tokenString, claims) //nolint:errcheck // intentionally ignores expiration
 
 	UserIDFloat, ok := claims["user_id"].(float64)
 	if !ok {

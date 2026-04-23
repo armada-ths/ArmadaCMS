@@ -1,4 +1,4 @@
-name: checks
+name: frontend checks
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-checks.yml"
   pull_request:
+
+permissions:
+  pull-requests: read
+  contents: read
 
 jobs:
   changes:

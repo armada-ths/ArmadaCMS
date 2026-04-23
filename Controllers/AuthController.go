@@ -35,10 +35,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var data struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	var data loginRequest
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
