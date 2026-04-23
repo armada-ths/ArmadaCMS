@@ -1,13 +1,20 @@
 name: Developer Task
 description: Create a new developer task
-title: "[Task] "
-labels: ["task", "development"]
+type: Task
 body:
   - type: markdown
     attributes:
       value: |
         ## Developer Task Details
         Please provide the details for this development task.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have searched the existing issues to avoid creating a duplicate.
+          required: true
 
   - type: input
     id: related-user-story
@@ -62,19 +69,6 @@ body:
         - Manual testing steps...
     validations:
       required: false
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      description: Select the priority level for this task
-      options:
-        - Low
-        - Medium
-        - High
-        - Critical
-    validations:
-      required: true
 
   - type: textarea
     id: additional-context
