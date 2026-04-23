@@ -106,7 +106,7 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("✅ Event sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Sync completed — inserted: %d, updated: %d", inserted, updated)))
+	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", inserted, updated)
 }
 
 // ---------- Mapper ----------

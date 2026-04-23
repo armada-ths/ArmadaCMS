@@ -164,13 +164,22 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 
 	// Decode M2M arrays
 	if val := r.FormValue("programs"); val != "" {
-		json.Unmarshal([]byte(val), &exhibitor.Programs)
+		if err := json.Unmarshal([]byte(val), &exhibitor.Programs); err != nil {
+			http.Error(w, "invalid programs value", http.StatusBadRequest)
+			return
+		}
 	}
 	if val := r.FormValue("industries"); val != "" {
-		json.Unmarshal([]byte(val), &exhibitor.Industries)
+		if err := json.Unmarshal([]byte(val), &exhibitor.Industries); err != nil {
+			http.Error(w, "invalid industries value", http.StatusBadRequest)
+			return
+		}
 	}
 	if val := r.FormValue("employments"); val != "" {
-		json.Unmarshal([]byte(val), &exhibitor.Employments)
+		if err := json.Unmarshal([]byte(val), &exhibitor.Employments); err != nil {
+			http.Error(w, "invalid employments value", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Create

@@ -158,14 +158,20 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Now link
-		db.DB.Model(&ex).Association("Industries").Replace(ex.Industries)
-		db.DB.Model(&ex).Association("Employments").Replace(ex.Employments)
-		db.DB.Model(&ex).Association("Programs").Replace(ex.Programs)
+		if err := db.DB.Model(&ex).Association("Industries").Replace(ex.Industries); err != nil {
+			log.Printf("❌ Failed to update Industries for exhibitor %s: %v", e.ID, err)
+		}
+		if err := db.DB.Model(&ex).Association("Employments").Replace(ex.Employments); err != nil {
+			log.Printf("❌ Failed to update Employments for exhibitor %s: %v", e.ID, err)
+		}
+		if err := db.DB.Model(&ex).Association("Programs").Replace(ex.Programs); err != nil {
+			log.Printf("❌ Failed to update Programs for exhibitor %s: %v", e.ID, err)
+		}
 	}
 
 	log.Printf("✅ Sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Sync completed — inserted: %d, updated: %d", inserted, updated)))
+	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", inserted, updated)
 }
 
 // ---------- Mapping Helpers ----------

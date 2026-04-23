@@ -60,7 +60,7 @@ func main() {
 
 	db.ConnectDB()
 
-	db.DB.AutoMigrate(
+	if err := db.DB.AutoMigrate(
 		models.AuditLog{},
 		models.Role{},
 		models.User{},
@@ -79,7 +79,9 @@ func main() {
 		models.FeatureFlag{},
 		models.HighlightCard{},
 		// Enter your models here
-	)
+	); err != nil {
+		log.Fatalf("failed to run database migrations: %v", err)
+	}
 
 	if err := controllers.SeedRoles(db.DB); err != nil {
 		log.Printf("failed to seed roles: %v", err)
