@@ -1,0 +1,13 @@
+name: "ArmadaCMS CodeQL config"
+
+# Keep all default security queries.
+disable-default-queries: false
+
+# Exclude generated, vendored, and non-application paths.
+paths-ignore:
+  - frontend/node_modules
+  - frontend/dist
+  - docs
+  - legacy
+  - tmp
+  - "**/*.min.js"
