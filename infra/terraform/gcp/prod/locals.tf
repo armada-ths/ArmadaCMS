@@ -17,6 +17,7 @@ locals {
       "artifactregistry.googleapis.com",
       "cloudbuild.googleapis.com",
       "iam.googleapis.com",
+      "recaptchaenterprise.googleapis.com",
       "run.googleapis.com",
       "secretmanager.googleapis.com",
       "serviceusage.googleapis.com",

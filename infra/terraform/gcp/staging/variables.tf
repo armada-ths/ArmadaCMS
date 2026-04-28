@@ -288,3 +288,17 @@ variable "lb_existing_ssl_certificate_ids" {
   type    = list(string)
   default = []
 }
+
+# ── reCAPTCHA Enterprise ───────────────────────────────────────────────────────
+
+variable "enable_recaptcha" {
+  description = "Whether to create a reCAPTCHA Enterprise site key for the armada.nu website."
+  type        = bool
+  default     = false
+}
+
+variable "recaptcha_allowed_domains" {
+  description = "Domains authorised to use the reCAPTCHA Enterprise site key."
+  type        = list(string)
+  default     = ["armada.nu"]
+}
