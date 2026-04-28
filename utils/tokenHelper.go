@@ -14,6 +14,8 @@ import (
 
 var jwtSecret = mustLoadJWTSecret()
 
+// mustLoadJWTSecret loads the JWT signing secret from the jwtsecret_laganda
+// environment variable and terminates the application if it is missing or empty.
 func mustLoadJWTSecret() []byte {
 	secret := strings.TrimSpace(os.Getenv("jwtsecret_laganda"))
 	if secret == "" {
@@ -31,6 +33,8 @@ func GenerateRefreshToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// accessClaims represents the custom JWT claims embedded in access tokens,
+// combining application-specific fields with standard registered claims.
 type accessClaims struct {
 	UserID      int      `json:"user_id"`
 	Role        string   `json:"role"`
