@@ -75,5 +75,5 @@ output "load_balancer_serverless_neg" {
 
 output "recaptcha_site_key_id" {
   description = "reCAPTCHA Enterprise site key ID for the armada.nu website, or null when disabled."
-  value       = var.enable_recaptcha ? google_recaptcha_enterprise_key.website[0].name : null
+  value       = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : null
 }

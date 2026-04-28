@@ -17,11 +17,13 @@ locals {
       "artifactregistry.googleapis.com",
       "cloudbuild.googleapis.com",
       "iam.googleapis.com",
-      "recaptchaenterprise.googleapis.com",
       "run.googleapis.com",
       "secretmanager.googleapis.com",
       "serviceusage.googleapis.com",
     ],
+    var.enable_recaptcha ? [
+      "recaptchaenterprise.googleapis.com",
+    ] : [],
     var.enable_vpc_egress ? [
       "compute.googleapis.com",
     ] : [],
