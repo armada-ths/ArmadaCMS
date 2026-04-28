@@ -11,12 +11,14 @@ import { assertValidImageUpload } from "./utils/imageUploadValidation";
 
 const endpoint = globalApi();
 
+const getAccessToken = (): string | null => localStorage.getItem("accessToken");
+
 /** Fetch wrapper with Authorization header */
 export const httpClient: (
   url: string,
   options?: fetchUtils.Options,
 ) => Promise<FetchJsonResponse> = (url, options = {}) => {
-  const token = localStorage.getItem("accessToken");
+  const token = getAccessToken();
 
   const headers = new Headers(
     options.headers || { Accept: "application/json" },
@@ -115,7 +117,7 @@ const uploadFormData = (
   method: "POST" | "PUT",
   formData: FormData,
 ) => {
-  const token = localStorage.getItem("accessToken") || "";
+  const token = getAccessToken() || "";
   return fetchUtils
     .fetchJson(url, {
       method,
