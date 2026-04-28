@@ -12,16 +12,20 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = mustLoadJWTSecret()
-
-// mustLoadJWTSecret loads the JWT signing secret from the jwtsecret_laganda
-// environment variable and terminates the application if it is missing or empty.
-func mustLoadJWTSecret() []byte {
+// loadJWTSecret loads the JWT signing secret from the jwtsecret_laganda
+// environment variable.
+func loadJWTSecret() ([]byte, error) {
 	secret := strings.TrimSpace(os.Getenv("jwtsecret_laganda"))
 	if secret == "" {
-		log.Fatal("missing required environment variable jwtsecret_laganda: JWT secret must be non-empty")
+		return nil, fmt.Errorf("missing required environment variable jwtsecret_laganda: JWT secret must be non-empty")
 	}
-	return []byte(secret)
+	return []byte(secret), nil
+}
+
+// ValidateJWTSecret verifies that the JWT signing secret is configured.
+func ValidateJWTSecret() error {
+	_, err := loadJWTSecret()
+	return err
 }
 
 func GenerateRefreshToken() (string, error) {
@@ -43,6 +47,11 @@ type accessClaims struct {
 }
 
 func GenerateAccessToken(userID int, role string, permissions []string) (string, error) {
+	jwtSecret, err := loadJWTSecret()
+	if err != nil {
+		return "", err
+	}
+
 	claims := accessClaims{
 		UserID:      userID,
 		Role:        role,
@@ -57,6 +66,12 @@ func GenerateAccessToken(userID int, role string, permissions []string) (string,
 }
 
 func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
+	jwtSecret, err := loadJWTSecret()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
 	claims := &accessClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -86,9 +101,15 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 }
 
 func GetUserIdFromAccessToken(tokenString string) *int {
+	jwtSecret, err := loadJWTSecret()
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
 	claims := jwt.MapClaims{}
 
-	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err = jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
