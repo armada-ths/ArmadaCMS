@@ -72,3 +72,8 @@ output "load_balancer_serverless_neg" {
   description = "Serverless NEG name for the Cloud Run-backed load balancer, or null when disabled."
   value       = var.enable_https_load_balancer ? google_compute_region_network_endpoint_group.cloud_run_lb_neg[0].name : null
 }
+
+output "recaptcha_site_key_id" {
+  description = "reCAPTCHA Enterprise site key ID for the armada.nu website, or null when disabled."
+  value       = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : null
+}

@@ -57,3 +57,8 @@ output "domain_mapping_resource_records" {
   description = "DNS records that must be added for staging.cms.armada.nu to complete the Cloud Run domain mapping. Add these to your DNS provider, then wait for Google to provision the managed certificate."
   value       = var.enable_domain_mapping && var.deploy_cloud_run_service ? try(google_cloud_run_domain_mapping.staging[0].status[0].resource_records, []) : []
 }
+
+output "recaptcha_site_key_id" {
+  description = "reCAPTCHA Enterprise site key ID for the armada.nu website, or null when disabled."
+  value       = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : null
+}

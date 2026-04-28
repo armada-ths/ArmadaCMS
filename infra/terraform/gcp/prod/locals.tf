@@ -21,6 +21,9 @@ locals {
       "secretmanager.googleapis.com",
       "serviceusage.googleapis.com",
     ],
+    var.enable_recaptcha ? [
+      "recaptchaenterprise.googleapis.com",
+    ] : [],
     var.enable_vpc_egress ? [
       "compute.googleapis.com",
     ] : [],
