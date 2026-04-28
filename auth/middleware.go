@@ -35,14 +35,14 @@ func Middleware(next http.Handler) http.Handler {
 		}
 
 		// extract user_id
-		uid, ok := (*claims)["user_id"].(float64)
+		uid, ok := (*claims)["user_id"].(int)
 		if !ok {
 			http.Error(w, "invalid user_id in token", http.StatusUnauthorized)
 			return
 		}
 
 		// add user_id to request context
-		ctx := context.WithValue(r.Context(), userIDKey, int(uid))
+		ctx := context.WithValue(r.Context(), userIDKey, uid)
 
 		// Extract role
 		if role, ok := (*claims)["role"].(string); ok {
@@ -50,14 +50,10 @@ func Middleware(next http.Handler) http.Handler {
 		}
 
 		// Extract permissions
-		if permsRaw, ok := (*claims)["permissions"].([]interface{}); ok {
-			perms := make([]string, 0, len(permsRaw))
-			for _, p := range permsRaw {
-				if s, ok := p.(string); ok {
-					perms = append(perms, s)
-				}
+		if permsRaw, ok := (*claims)["permissions"]; ok {
+			if perms, ok := permsRaw.([]string); ok {
+				ctx = context.WithValue(ctx, permissionsKey, perms)
 			}
-			ctx = context.WithValue(ctx, permissionsKey, perms)
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
