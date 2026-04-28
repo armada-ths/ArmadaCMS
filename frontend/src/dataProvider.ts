@@ -128,40 +128,44 @@ const uploadFormData = (
     .then(({ json }) => ({ data: json }));
 };
 
+const buildMultipartFormDataOrHttpError = (params: CreateParams | UpdateParams) => {
+  try {
+    return createMultipartFormData(params);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unsupported file format.";
+    throw new HttpError(message, 400);
+  }
+};
+
 /** Main data provider */
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
   create: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      let formData: FormData;
       try {
-        formData = createMultipartFormData(params);
+        const formData = buildMultipartFormDataOrHttpError(params);
+        return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unsupported file format.";
-        return Promise.reject(new HttpError(message, 400));
+        return Promise.reject(error);
       }
-      return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
     }
     return baseDataProvider.create(resource, params);
   },
 
   update: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      let formData: FormData;
       try {
-        formData = createMultipartFormData(params);
+        const formData = buildMultipartFormDataOrHttpError(params);
+        return uploadFormData(
+          `${endpoint}/${resource}/${params.id}`,
+          "PUT",
+          formData,
+        );
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unsupported file format.";
-        return Promise.reject(new HttpError(message, 400));
+        return Promise.reject(error);
       }
-      return uploadFormData(
-        `${endpoint}/${resource}/${params.id}`,
-        "PUT",
-        formData,
-      );
     }
     return baseDataProvider.update(resource, params);
   },
