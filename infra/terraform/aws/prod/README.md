@@ -6,7 +6,7 @@ This Terraform root manages the **AWS production resources** for `ArmadaCMS`: th
 
 | File     | Resources                                                                              |
 | -------- | -------------------------------------------------------------------------------------- |
-| `rds.tf` | `aws_security_group.rds` — PostgreSQL SG (port 5432, ingress from Cloud Run NAT only) |
+| `rds.tf` | `aws_security_group.rds` — PostgreSQL SG (port 5432, ingress from Cloud Run NAT only)  |
 |          | `aws_db_instance.main` — PostgreSQL 17.5, db.t4g.micro, 20 GB gp2, publicly accessible |
 | `s3.tf`  | `aws_s3_bucket.cms_files` — public-read file bucket                                    |
 |          | `aws_s3_bucket_public_access_block.cms_files`                                          |

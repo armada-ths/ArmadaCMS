@@ -15,6 +15,7 @@ Go REST API (Gorilla Mux, GORM, Postgres) + React-Admin SPA in one repo. The Go 
 - `/health` — healthcheck.
 
 Deployed to **Google Cloud Run** (containerised). File storage: AWS S3.
+
 - **Production**: DB is AWS RDS PostgreSQL.
 - **Staging** (`staging.cms.armada.nu`): DB is Supabase PostgreSQL (no RDS).
 

@@ -1,9 +1,7 @@
 {
   "family": "armadacms",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": [
-    "FARGATE"
-  ],
+  "requiresCompatibilities": ["FARGATE"],
   "cpu": "1024",
   "memory": "3072",
   "executionRoleArn": "arn:aws:iam::593054043164:role/ecsTaskExecutionRole",
