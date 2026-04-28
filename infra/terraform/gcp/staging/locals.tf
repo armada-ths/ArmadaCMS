@@ -22,6 +22,7 @@ locals {
       "serviceusage.googleapis.com",
     ],
     var.enable_recaptcha ? [
+      "apikeys.googleapis.com",
       "recaptchaenterprise.googleapis.com",
     ] : [],
     var.enable_vpc_egress ? [

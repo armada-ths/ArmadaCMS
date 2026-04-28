@@ -62,3 +62,9 @@ output "recaptcha_site_key_id" {
   description = "reCAPTCHA Enterprise site key ID for the armada.nu website, or null when disabled."
   value       = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : null
 }
+
+output "recaptcha_assessment_api_key" {
+  description = "GCP API key for server-side reCAPTCHA Enterprise assessment calls (set as RECAPTCHA_SECRET_KEY in Vercel), or null when disabled."
+  value       = var.enable_recaptcha ? google_apikeys_key.recaptcha_assessment[0].key_string : null
+  sensitive   = true
+}

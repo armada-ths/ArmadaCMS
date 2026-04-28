@@ -15,3 +15,21 @@ resource "google_recaptcha_enterprise_key" "website" {
     google_project_service.enabled["recaptchaenterprise.googleapis.com"],
   ]
 }
+
+resource "google_apikeys_key" "recaptcha_assessment" {
+  count = var.enable_recaptcha ? 1 : 0
+
+  project      = var.project_id
+  name         = "${var.name_prefix}-recaptcha-assessment"
+  display_name = "${var.name_prefix} reCAPTCHA Enterprise assessment key"
+
+  restrictions {
+    api_targets {
+      service = "recaptchaenterprise.googleapis.com"
+    }
+  }
+
+  depends_on = [
+    google_project_service.enabled["recaptchaenterprise.googleapis.com"],
+  ]
+}
