@@ -6,12 +6,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(os.Getenv("jwtsecret_laganda"))
+var jwtSecret = mustLoadJWTSecret()
+
+func mustLoadJWTSecret() []byte {
+	secret := strings.TrimSpace(os.Getenv("jwtsecret_laganda"))
+	if secret == "" {
+		log.Fatal("missing required environment variable jwtsecret_laganda: JWT secret must be non-empty")
+	}
+	return []byte(secret)
+}
 
 func GenerateRefreshToken() (string, error) {
 	bytes := make([]byte, 64)
@@ -22,12 +31,21 @@ func GenerateRefreshToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+type accessClaims struct {
+	UserID      int      `json:"user_id"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+	jwt.RegisteredClaims
+}
+
 func GenerateAccessToken(userID int, role string, permissions []string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":     userID,
-		"role":        role,
-		"permissions": permissions,
-		"exp":         time.Now().Add(15 * time.Minute).Unix(),
+	claims := accessClaims{
+		UserID:      userID,
+		Role:        role,
+		Permissions: permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -35,7 +53,8 @@ func GenerateAccessToken(userID int, role string, permissions []string) (string,
 }
 
 func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	claims := &accessClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -44,16 +63,19 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 
 	if err != nil {
 		log.Println(err)
-		return nil, err //!!invalid token!!
+		return nil, err
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				return nil, fmt.Errorf("token expired")
-			}
+	if token.Valid {
+		result := jwt.MapClaims{
+			"user_id":     claims.UserID,
+			"role":        claims.Role,
+			"permissions": claims.Permissions,
 		}
-		return &claims, nil
+		if claims.ExpiresAt != nil {
+			result["exp"] = claims.ExpiresAt.Unix()
+		}
+		return &result, nil
 	}
 
 	return nil, fmt.Errorf("invalid token claims")
@@ -62,7 +84,16 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 func GetUserIdFromAccessToken(tokenString string) *int {
 	claims := jwt.MapClaims{}
 
-	new(jwt.Parser).ParseUnverified(tokenString, claims) //nolint:errcheck // intentionally ignores expiration
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	}, jwt.WithoutClaimsValidation()) // intentionally ignores expiration/claims validation, but still verifies signature
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
 
 	UserIDFloat, ok := claims["user_id"].(float64)
 	if !ok {
