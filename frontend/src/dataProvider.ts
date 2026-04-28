@@ -69,7 +69,7 @@ const createMultipartFormData = (
 
     if (
       typeof value === "object" &&
-      value !== null &&
+      value &&
       "rawFile" in value &&
       (value as { rawFile?: File }).rawFile instanceof File
     ) {
