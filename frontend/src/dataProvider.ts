@@ -13,6 +13,13 @@ const endpoint = globalApi();
 
 const getAccessToken = (): string | null => localStorage.getItem("accessToken");
 
+export type FetchJsonResponse = {
+  status: number;
+  headers: Headers;
+  body: string;
+  json: unknown;
+};
+
 /** Fetch wrapper with Authorization header */
 export const httpClient: (
   url: string,
@@ -32,13 +39,6 @@ export const httpClient: (
 };
 
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
-
-export type FetchJsonResponse = {
-  status: number;
-  headers: Headers;
-  body: string;
-  json: unknown;
-};
 
 /** Build FormData for multipart upload (profiles, events, etc.) */
 const createMultipartFormData = (
@@ -130,7 +130,9 @@ const uploadFormData = (
     .then(({ json }) => ({ data: json }));
 };
 
-const buildMultipartFormDataOrHttpError = (params: CreateParams | UpdateParams) => {
+const buildMultipartFormDataOrHttpError = (
+  params: CreateParams | UpdateParams,
+) => {
   try {
     return createMultipartFormData(params);
   } catch (error) {
