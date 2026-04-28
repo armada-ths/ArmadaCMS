@@ -11,12 +11,21 @@ import { assertValidImageUpload } from "./utils/imageUploadValidation";
 
 const endpoint = globalApi();
 
+const getAccessToken = (): string | null => localStorage.getItem("accessToken");
+
+export type FetchJsonResponse = {
+  status: number;
+  headers: Headers;
+  body: string;
+  json: unknown;
+};
+
 /** Fetch wrapper with Authorization header */
 export const httpClient: (
   url: string,
   options?: fetchUtils.Options,
 ) => Promise<FetchJsonResponse> = (url, options = {}) => {
-  const token = localStorage.getItem("accessToken");
+  const token = getAccessToken();
 
   const headers = new Headers(
     options.headers || { Accept: "application/json" },
@@ -30,13 +39,6 @@ export const httpClient: (
 };
 
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
-
-export type FetchJsonResponse = {
-  status: number;
-  headers: Headers;
-  body: string;
-  json: unknown;
-};
 
 /** Build FormData for multipart upload (profiles, events, etc.) */
 const createMultipartFormData = (
@@ -115,7 +117,7 @@ const uploadFormData = (
   method: "POST" | "PUT",
   formData: FormData,
 ) => {
-  const token = localStorage.getItem("accessToken") || "";
+  const token = getAccessToken() || "";
   return fetchUtils
     .fetchJson(url, {
       method,
@@ -128,40 +130,46 @@ const uploadFormData = (
     .then(({ json }) => ({ data: json }));
 };
 
+const buildMultipartFormDataOrHttpError = (
+  params: CreateParams | UpdateParams,
+) => {
+  try {
+    return createMultipartFormData(params);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unsupported file format.";
+    throw new HttpError(message, 400);
+  }
+};
+
 /** Main data provider */
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
   create: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      let formData: FormData;
       try {
-        formData = createMultipartFormData(params);
+        const formData = buildMultipartFormDataOrHttpError(params);
+        return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unsupported file format.";
-        return Promise.reject(new HttpError(message, 400));
+        return Promise.reject(error);
       }
-      return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
     }
     return baseDataProvider.create(resource, params);
   },
 
   update: (resource, params) => {
     if (["profiles", "events", "exhibitors"].includes(resource)) {
-      let formData: FormData;
       try {
-        formData = createMultipartFormData(params);
+        const formData = buildMultipartFormDataOrHttpError(params);
+        return uploadFormData(
+          `${endpoint}/${resource}/${params.id}`,
+          "PUT",
+          formData,
+        );
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unsupported file format.";
-        return Promise.reject(new HttpError(message, 400));
+        return Promise.reject(error);
       }
-      return uploadFormData(
-        `${endpoint}/${resource}/${params.id}`,
-        "PUT",
-        formData,
-      );
     }
     return baseDataProvider.update(resource, params);
   },

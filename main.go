@@ -20,6 +20,7 @@ import (
 	"ArmadaCMS/main/db"
 	_ "ArmadaCMS/main/docs"
 	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
 	"fmt"
 	"log"
 	"net/http"
@@ -56,6 +57,10 @@ func main() {
 	fmt.Println("Hello, world.")
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables directly")
+	}
+
+	if err := utils.ValidateJWTSecret(); err != nil {
+		log.Fatal(err)
 	}
 
 	db.ConnectDB()
