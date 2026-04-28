@@ -38,3 +38,6 @@ initial_admin_username = "admin"
 manage_github_app_secret = false
 
 enable_https_load_balancer = false
+
+enable_recaptcha          = true
+recaptcha_allowed_domains = ["armada.nu"]
