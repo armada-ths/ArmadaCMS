@@ -1,0 +1,40 @@
+# Go build/debug artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+__debug_bin.exe*
+
+# local/runtime files
+.env
+tmp
+./tmp
+tmpclaude-*-cwd
+
+# frontend artifacts
+frontend/node_modules
+frontend/dist
+frontend/coverage
+frontend/*.tsbuildinfo
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
+frontend/bun.lock
+frontend/bun.lockb
+
+# Terraform state and caches
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars
+terraform.tfvars.json
+infra/terraform/**/backend.tf
+infra/terraform/**/backend.hcl
