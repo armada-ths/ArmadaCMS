@@ -14,6 +14,7 @@ import {
   IMAGE_INPUT_ACCEPT,
   validateImageUpload,
 } from "@/utils/imageUploadValidation";
+import { toLocalInputValue, toUTCISOString } from "@/utils/dateTimeHelpers";
 
 export const EventEdit = (props: EditProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -32,9 +33,24 @@ export const EventEdit = (props: EditProps) => {
         <TextInput source="location" />
         <TextInput source="description" />
         <TextInput source="food" />
-        <DateTimeInput source="eventStart" />
-        <DateTimeInput source="eventEnd" />
-        <DateTimeInput source="registrationEnd" />
+        <DateTimeInput
+          source="eventStart"
+          label="Event Start (Stockholm time)"
+          parse={toUTCISOString}
+          format={toLocalInputValue}
+        />
+        <DateTimeInput
+          source="eventEnd"
+          label="Event End (Stockholm time)"
+          parse={toUTCISOString}
+          format={toLocalInputValue}
+        />
+        <DateTimeInput
+          source="registrationEnd"
+          label="Registration End (Stockholm time)"
+          parse={toUTCISOString}
+          format={toLocalInputValue}
+        />
         <TextInput source="fee" />
         <BooleanInput source="registrationRequired" />
         <TextInput source="signupLink" />

@@ -134,20 +134,31 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		parseTime := func(key string) time.Time {
+		parseTime := func(key string) (time.Time, error) {
 			val := r.FormValue(key)
 			t, err := time.Parse(time.RFC3339, val)
 			if err != nil {
-				return time.Now().UTC()
+				return time.Time{}, err
 			}
-			return t
+			return t, nil
 		}
 
 		event.Name = r.FormValue("name")
 		event.EventroID = r.FormValue("eventroId")
 		event.Location = r.FormValue("location")
-		event.EventStart = parseTime("eventStart")
-		event.EventEnd = parseTime("eventEnd")
+		eventStart, err := parseTime("eventStart")
+		if err != nil {
+			http.Error(w, "Invalid eventStart: expected RFC3339 datetime", http.StatusBadRequest)
+			return
+		}
+		event.EventStart = eventStart
+
+		eventEnd, err := parseTime("eventEnd")
+		if err != nil {
+			http.Error(w, "Invalid eventEnd: expected RFC3339 datetime", http.StatusBadRequest)
+			return
+		}
+		event.EventEnd = eventEnd
 
 		if val := r.FormValue("registrationEnd"); val != "" {
 			if t, err := time.Parse(time.RFC3339, val); err == nil {
@@ -227,21 +238,45 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parseTime := func(key string) time.Time {
+	parseTime := func(key string) (*time.Time, error) {
 		val := r.FormValue(key)
+		if val == "" {
+			return nil, nil
+		}
+
 		t, err := time.Parse(time.RFC3339, val)
 		if err != nil {
-			return time.Now().UTC()
+			return nil, err
 		}
-		return t
+
+		return &t, nil
 	}
 
 	var updates models.Event
 	updates.Name = r.FormValue("name")
 	updates.Description = utils.StringPtr(r.FormValue("description"))
 	updates.Location = r.FormValue("location")
-	updates.EventStart = parseTime("eventStart")
-	updates.EventEnd = parseTime("eventEnd")
+	eventStart, err := parseTime("eventStart")
+	if err != nil {
+		http.Error(w, "Invalid eventStart: expected RFC3339 datetime", http.StatusBadRequest)
+		return
+	}
+	if eventStart != nil {
+		updates.EventStart = *eventStart
+	} else {
+		updates.EventStart = event.EventStart
+	}
+
+	eventEnd, err := parseTime("eventEnd")
+	if err != nil {
+		http.Error(w, "Invalid eventEnd: expected RFC3339 datetime", http.StatusBadRequest)
+		return
+	}
+	if eventEnd != nil {
+		updates.EventEnd = *eventEnd
+	} else {
+		updates.EventEnd = event.EventEnd
+	}
 	updates.Food = utils.StringPtr(r.FormValue("food"))
 	updates.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
 	updates.RegistrationRequired = r.FormValue("registrationRequired") == "true"
