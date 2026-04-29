@@ -46,6 +46,9 @@ import { AuditLogList } from "./components/AuditLog/AuditLogList";
 import { AuditLogShow } from "./components/AuditLog/AuditLogShow";
 import { CustomLoginPage } from "./components/CustomLoginPage";
 import { EventroSync } from "./components/EventroSync/EventroSync";
+import { BlogpostList } from "./components/Blogpost/BlogpostList";
+import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
+import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
 
 import { Icon } from "@mui/material";
 import { usePermissions } from "react-admin";
@@ -202,6 +205,14 @@ export const App = () => (
       options={{ label: "Audit logs" }}
       list={AuditLogList}
       show={AuditLogShow}
+    />
+
+    <Resource
+      name="blogposts"
+      options={{ label: "Blog posts" }}
+      list={BlogpostList}
+      create={BlogpostCreate}
+      edit={BlogpostEdit}
     />
 
     <CustomRoutes>
