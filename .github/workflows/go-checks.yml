@@ -73,15 +73,33 @@ jobs:
       - name: Run golangci-lint
         run: golangci-lint run
 
+  test:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run go test
+        run: go test -race -count=1 ./...
+
   go-checks:
     runs-on: ubuntu-latest
-    needs: [vet, lint]
+    needs: [vet, lint, test]
     if: always()
     steps:
       - name: All checks passed or skipped
         run: |
           if [[ "${{ needs.vet.result }}" == "failure" || \
-                "${{ needs.lint.result }}" == "failure" ]]; then
+                "${{ needs.lint.result }}" == "failure" || \
+                "${{ needs.test.result }}" == "failure" ]]; then
             echo "One or more Go checks failed."
             exit 1
           fi

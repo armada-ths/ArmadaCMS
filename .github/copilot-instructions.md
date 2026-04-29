@@ -36,7 +36,9 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 
 `npm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
-**Tests**: none. Verify manually — `curl http://localhost:8080/health` and affected `/api/v1` endpoints.
+**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). Run `go test -race -count=1 ./...` locally for backend changes. There is no end-to-end/integration test suite yet, so still verify relevant API behavior manually (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
+
+**CI checks**: `.github/workflows/go-checks.yml` runs `go vet`, `golangci-lint`, and `go test -race -count=1 ./...` when Go files change (push to `main`/`staging` and pull requests).
 
 **Swagger UI**: browsable API docs are served at `http://localhost:8080/swagger/index.html` while the server is running. After adding or changing routes, regenerate the spec with:
 
