@@ -9,6 +9,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - [Getting Started](#getting-started)
 - [VS Code workspace and launches](#vs-code-workspace-and-launches)
 - [Project Structure](#project-structure)
+- [Testing](#testing)
 - [API](#api)
 - [Swagger docs](#swagger-docs)
 - [Operations notes](#operations-notes)
@@ -238,6 +239,22 @@ ArmadaCMS/
 ├── docker-compose.yml     # Docker Compose (production-style)
 └── docker-compose.dev.yml # Docker Compose (hot-reload dev)
 ```
+
+## Testing
+
+ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`).
+
+- Run all tests locally:
+
+  ```bash
+  go test -race -count=1 ./...
+  ```
+
+- Run tests for specific packages:
+
+  ```bash
+  go test ./auth/... ./utils/...
+  ```
 
 ## API
 
