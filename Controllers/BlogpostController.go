@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
@@ -8,10 +9,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
+
+// allowedBlogpostColumns maps client-supplied field names to safe column names.
+var allowedBlogpostColumns = map[string]string{
+	"id":         "id",
+	"title":      "title",
+	"author":     "author",
+	"createdat":  "created_at",
+	"created_at": "created_at",
+}
 
 // GetBlogposts returns a paginated list of blog posts.
 // @Summary List blog posts
@@ -30,20 +41,34 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.Blogpost{})
 
 	for k, v := range params.Filter {
-		query = query.Where(utils.ToSnakeCase(k)+" = ?", v)
+		col, ok := allowedBlogpostColumns[strings.ToLower(k)]
+		if !ok {
+			continue
+		}
+		query = query.Where(col+" = ?", v)
 	}
 
 	if len(params.Sort) == 2 {
-		query = query.Order(utils.ToSnakeCase(params.Sort[0]) + " " + params.Sort[1])
+		col, ok := allowedBlogpostColumns[strings.ToLower(params.Sort[0])]
+		dir := strings.ToUpper(params.Sort[1])
+		if ok && (dir == "ASC" || dir == "DESC") {
+			query = query.Order(col + " " + dir)
+		}
 	}
 
 	start, end := params.Range[0], params.Range[1]
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Blogpost{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "Failed to count blogposts", http.StatusInternalServerError)
+		return
+	}
 
-	query.Offset(start).Limit(limit).Find(&items)
+	if err := query.Offset(start).Limit(limit).Find(&items).Error; err != nil {
+		http.Error(w, "Failed to fetch blogposts", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
 	w.Header().Set("Content-Range", fmt.Sprintf("blogposts %d-%d/%d", start, end, total))
@@ -91,6 +116,12 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var item models.Blogpost
+	userID, ok := auth.GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	item.UserID = int64(userID)
 	item.Title = r.FormValue("title")
 	item.Text = r.FormValue("text")
 	item.Author = r.FormValue("author")
