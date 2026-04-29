@@ -197,27 +197,28 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		"show_cover_in_post": r.FormValue("showCoverInPost") != "false",
 	}
 
-	imageUrl := r.FormValue("imageUrl")
-	if imageUrl != "" {
-		updateMap["image_url"] = imageUrl
-	} else {
-		file, header, err := r.FormFile("file")
-		if err == nil {
-			defer file.Close()
-			fileURL, err := utils.UploadToS3(file, header)
-			if err != nil {
-				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
-					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
-					return
-				}
-				if errors.Is(err, utils.ErrFileTooLarge) {
-					http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
-					return
-				}
-				http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+	// A newly uploaded file takes priority over imageUrl.
+	file, header, err := r.FormFile("file")
+	if err == nil {
+		defer file.Close()
+		fileURL, err := utils.UploadToS3(file, header)
+		if err != nil {
+			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 				return
 			}
-			updateMap["image_url"] = fileURL
+			if errors.Is(err, utils.ErrFileTooLarge) {
+				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+			return
+		}
+		updateMap["image_url"] = fileURL
+	} else {
+		// No new file — use the imageUrl field only if it was explicitly provided.
+		if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
+			updateMap["image_url"] = imageUrl
 		}
 	}
 
