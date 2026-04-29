@@ -20,7 +20,5 @@ export const toLocalInputValue = (value?: string): string => {
  */
 export const toUTCISOString = (value?: string | null): string | null => {
   if (!value) return null;
-  const localDate = new Date(value);
-  const tzOffset = localDate.getTimezoneOffset() * 60000;
-  return new Date(localDate.getTime() - tzOffset).toISOString();
+  return new Date(value).toISOString();
 };
