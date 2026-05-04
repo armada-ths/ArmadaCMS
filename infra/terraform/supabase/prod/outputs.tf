@@ -40,6 +40,6 @@ output "pooler_urls" {
 }
 
 output "managed_api_settings" {
-  description = "Subset of Supabase API settings managed by Terraform in this root."
+  description = "Desired Supabase API settings for future Terraform management. Currently informational only because this root does not actively manage supabase_settings."
   value       = local.managed_api_settings
 }

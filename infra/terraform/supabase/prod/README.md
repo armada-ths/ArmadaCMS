@@ -7,10 +7,6 @@ small, explicit subset of platform settings in Git.
 Today this root imports and manages:
 
 - the Supabase project record itself via `supabase_project.production`
-- a safe subset of project settings via `supabase_settings.production`
-  - `api.db_schema`
-  - `api.db_extra_search_path`
-  - `api.max_rows`
 - exported connection metadata for future cross-workspace use
 
 It intentionally does **not** yet manage preview branches, Edge Functions, custom API
@@ -18,31 +14,29 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## What it manages
 
-| File                 | Resources / purpose                                                   |
-| -------------------- | --------------------------------------------------------------------- |
-| `versions.tf`        | Terraform version and `supabase/supabase` provider                    |
-| `variables.tf`       | Required org/password inputs plus non-secret project defaults         |
-| `locals.tf`          | Derived project URL, DB host, and managed API settings payload        |
-| `project.tf`         | Imports and manages `supabase_project.production`                     |
-| `settings.tf`        | Imports and manages `supabase_settings.production`; reads pooler URLs |
-| `outputs.tf`         | Exports project metadata and DB connection details                    |
-| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project      |
-| `backend.tf.example` | HCP Terraform backend template                                        |
+| File                 | Resources / purpose                                              |
+| -------------------- | ---------------------------------------------------------------- |
+| `versions.tf`        | Terraform version and `supabase/supabase` provider               |
+| `variables.tf`       | Required org/password inputs plus non-secret project defaults    |
+| `locals.tf`          | Derived project URL, DB host, and managed API settings payload   |
+| `project.tf`         | Imports and manages `supabase_project.production`                |
+| `settings.tf`        | Reads pooler URLs for the imported production project            |
+| `outputs.tf`         | Exports project metadata and DB connection details               |
+| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project |
+| `backend.tf.example` | HCP Terraform backend template                                   |
 
 ## Architecture notes
 
 - This root is the Supabase equivalent of the old production database infrastructure root.
 - `prevent_destroy = true` is enabled on the imported production project resource.
-- The Supabase provider performs **partial updates** for `supabase_settings`, so only the
-  settings declared here are managed; everything else remains unchanged.
 - ArmadaCMS currently talks to Postgres through its Go API and direct database connections,
-  not through Supabase REST or GraphQL endpoints. This root therefore leaves
-  `api.db_schema` **unset by default**, which means Terraform does not try to change
-  the project's existing exposed-schema setting unless you opt in explicitly.
+  not through Supabase REST or GraphQL endpoints.
 - The current `supabase/supabase` provider performs a REST-service health precheck before
   updating `supabase_settings`. On this project that probe can false-fail even while the
-  dashboard shows the project as healthy, so `api` changes are temporarily ignored in this
-  root until the provider behavior is improved or we intentionally revisit API management.
+  dashboard shows the project as healthy, so this root does **not** currently manage the
+  `supabase_settings` resource at all.
+- `local.managed_api_settings` and the corresponding output remain in the root as a future
+  reference for the desired API posture, but they are not applied today.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
@@ -95,7 +89,7 @@ Everything else has committed non-secret defaults in `prod.auto.tfvars`.
 3. Open **Project Settings → General** and confirm the project ref is `rsdjnixgxqauonaofrwr`.
 4. Confirm the project name is `ArmadaCMS` and the region is `eu-north-1`.
 5. Obtain the current database password. If you no longer know it, reset it in the dashboard first, then use the new value for Terraform.
-6. Optionally review the current API settings (`db_schema`, search path, max rows) so the first Terraform run does not surprise you. The checked-in posture intentionally leaves `db_schema` unset because ArmadaCMS does not currently use the Data API.
+6. Optionally review the current API settings (`db_schema`, search path, max rows) so future Terraform changes do not surprise you. This root currently observes but does not manage those settings.
 
 ### In HCP Terraform
 
@@ -128,8 +122,8 @@ Supabase Data API / GraphQL surface.
 Do **not** expose the `storage` schema just because Storage is in use; the Storage service works
 through its own API and treats the underlying schema as implementation detail / read-only metadata.
 
-When you intentionally want Terraform to start managing `api` settings again, remove the
-`lifecycle.ignore_changes = [api]` workaround from `settings.tf`, then apply in a reviewed run.
+When you intentionally want Terraform to start managing project settings again, reintroduce a
+`supabase_settings` resource in `settings.tf`, import it, and apply in a reviewed run.
 
 ### Rotating the database password
 
