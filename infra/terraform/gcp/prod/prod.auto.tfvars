@@ -1,6 +1,8 @@
 project_id = "just-sunrise-491718-m9"
 region     = "europe-north2"
 
+storage_provider = "s3"
+
 deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"

@@ -4,6 +4,8 @@ environment  = "staging"
 service_name = "armadacms-staging"
 name_prefix  = "armadacms-staging"
 
+storage_provider = "s3"
+
 deploy_cloud_run_service = true
 deletion_protection      = false
 

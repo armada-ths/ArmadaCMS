@@ -7,6 +7,8 @@
 # Settings → Remote state sharing (or "Share with all workspaces").
 
 data "tfe_outputs" "aws_staging" {
+  count = var.storage_provider == "s3" ? 1 : 0
+
   organization = "THS-Armada"
   workspace    = "armadacms-aws-staging"
 }

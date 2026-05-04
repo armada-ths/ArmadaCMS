@@ -137,7 +137,7 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		if err == nil {
 			defer photoFile.Close()
-			fileURL, err := utils.UploadToS3(photoFile, header)
+			fileURL, err := utils.UploadImage(photoFile, header)
 			if err != nil {
 				log.Println("Error uploading the file:", err)
 				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
@@ -240,7 +240,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if err == nil {
 			defer photoFile.Close()
-			fileURL, err := utils.UploadToS3(photoFile, header)
+			fileURL, err := utils.UploadImage(photoFile, header)
 			if err != nil {
 				log.Println("Error uploading the file:", err)
 				if errors.Is(err, utils.ErrUnsupportedImageFormat) {

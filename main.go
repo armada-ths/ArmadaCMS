@@ -66,27 +66,32 @@ func main() {
 
 	db.ConnectDB()
 
-	if err := db.DB.AutoMigrate(
-		models.AuditLog{},
-		models.Role{},
-		models.User{},
-		models.Blogpost{},
-		models.Profile{},
-		models.Team{},
-		models.RefreshToken{},
-		models.Industry{},
-		models.Program{},
-		models.Employment{},
-		models.Exhibitor{},
-		models.Event{},
-		models.RecruitmentPeriod{},
-		models.RecruitmentRole{},
-		models.FairDateConfig{},
-		models.FeatureFlag{},
-		models.HighlightCard{},
-		// Enter your models here
-	); err != nil {
-		log.Fatalf("failed to run database migrations: %v", err)
+	if shouldRunAutoMigrate() {
+		log.Println("DB_ENABLE_AUTOMIGRATE is enabled; running GORM AutoMigrate")
+		if err := db.DB.AutoMigrate(
+			models.AuditLog{},
+			models.Role{},
+			models.User{},
+			models.Blogpost{},
+			models.Profile{},
+			models.Team{},
+			models.RefreshToken{},
+			models.Industry{},
+			models.Program{},
+			models.Employment{},
+			models.Exhibitor{},
+			models.Event{},
+			models.RecruitmentPeriod{},
+			models.RecruitmentRole{},
+			models.FairDateConfig{},
+			models.FeatureFlag{},
+			models.HighlightCard{},
+			// Enter your models here
+		); err != nil {
+			log.Fatalf("failed to run database migrations: %v", err)
+		}
+	} else {
+		log.Println("DB_ENABLE_AUTOMIGRATE is disabled; expecting checked-in SQL migrations to own schema state")
 	}
 
 	if err := controllers.SeedRoles(db.DB); err != nil {
@@ -116,6 +121,23 @@ func getListenAddr() string {
 	}
 
 	return fmt.Sprintf(":%s", port)
+}
+
+func shouldRunAutoMigrate() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("DB_ENABLE_AUTOMIGRATE")))
+	if value == "" {
+		return true
+	}
+
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		log.Printf("invalid DB_ENABLE_AUTOMIGRATE=%q, defaulting to enabled", value)
+		return true
+	}
 }
 
 func CreateMuxClient() http.Handler {

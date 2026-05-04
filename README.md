@@ -24,7 +24,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
 - **ORM**: [GORM](https://gorm.io/) (Postgres)
 - **Auth**: JWT (Bearer tokens)
-- **File storage**: MinIO (local dev), AWS S3 (staging/production)
+- **File storage**: provider-neutral upload service backed by MinIO/AWS S3 today, with Supabase Storage support via the S3-compatible endpoint
 - **Hot reload**: [Air](https://github.com/air-verse/air) (in Docker dev mode)
 
 ### Admin Frontend
@@ -171,11 +171,12 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    S3_PUBLIC_URL=http://localhost:9000
    ```
 
-6. **Set up file uploads (MinIO or AWS S3)**
+6. **Set up file uploads (MinIO, AWS S3, or Supabase Storage)**
 
-   File uploads (profile photos, exhibitor logos, event images) require an S3-compatible store. **For local development, MinIO is the recommended default.**
+   File uploads (profile photos, exhibitor logos, event images) now go through a provider-neutral storage service. **For local development, MinIO remains the recommended default.**
    - The Docker development stack already starts MinIO automatically and uses the `.env.example` default `S3_ENDPOINT=http://minio:9000`.
    - The production-style local verification flow also needs container-reachable endpoints such as `host.docker.internal` if you want to use locally started services.
+   - Supabase Storage is also supported for backend uploads through its S3-compatible endpoint once you generate storage access keys and configure the `SUPABASE_STORAGE_*` variables.
 
    MinIO listens on port `9000`, and the console is available at [http://localhost:9001](http://localhost:9001) with login `minioadmin` / `minioadmin`.
 
@@ -191,7 +192,20 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    `S3_ENDPOINT` is the address the Go server uses to reach MinIO. `S3_PUBLIC_URL` is the address the browser uses to load uploaded files. In Docker-based development, those values differ because the backend reaches MinIO at `minio:9000` while the browser uses `localhost:9000`.
 
-   If you want to use AWS S3 instead, comment out the MinIO block in `.env` and enable the AWS S3 settings from `.env.example`.
+   If you want to use AWS S3 instead, keep `STORAGE_PROVIDER=s3`, comment out the MinIO block in `.env`, and enable the AWS S3 settings from `.env.example`.
+
+   If you want to use Supabase Storage for backend uploads, set `STORAGE_PROVIDER=supabase` and configure:
+
+   ```env
+   SUPABASE_URL=https://<project-ref>.supabase.co
+   SUPABASE_STORAGE_S3_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+   SUPABASE_STORAGE_BUCKET=armadacms-files
+   SUPABASE_STORAGE_REGION=eu-north-1
+   SUPABASE_STORAGE_ACCESS_KEY_ID=
+   SUPABASE_STORAGE_SECRET_ACCESS_KEY=
+   ```
+
+   The backend will then upload through the S3-compatible endpoint (prefer the direct `*.storage.supabase.co` hostname for performance) and build public URLs using `https://<project-ref>.supabase.co/storage/v1/object/public/...`.
 
 7. **Verify the app is running**
 
@@ -200,6 +214,48 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173)
    - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(production-style local verification only)_
    - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+
+## Supabase migration groundwork
+
+The repository now includes an initial `supabase/` scaffold for the AWS → Supabase migration.
+
+- `supabase/config.toml` establishes the local Supabase CLI project configuration.
+- `supabase/seed.sql` now bootstraps deterministic roles and feature flags for local resets.
+- `supabase/migrations/` is where checked-in SQL migrations will live.
+- `docs/supabase-migration-inventory.md` is the operator checklist for the early migration phases.
+- `docs/supabase-app-schema-inventory.md` captures the ArmadaCMS application tables and bootstrap data that still need checked-in SQL migrations.
+
+### What is intentionally deferred
+
+- Hosted Supabase branching (including a persistent hosted `staging` branch)
+- Supabase PR preview branches
+- Per-PR GCP preview services
+
+Those features will be introduced later, after billing is configured, as one coordinated preview-environment rollout.
+
+### Local Supabase workflow
+
+You can now prepare the repo for migration-driven local database work with the Supabase CLI:
+
+1. Start the local Supabase stack:
+   - `pnpx supabase start`
+2. Reset and seed the local database from checked-in migrations and `supabase/seed.sql`:
+   - `pnpx supabase db reset`
+3. When ready to baseline the existing hosted schema into migrations:
+   - `pnpx supabase link --project-ref <project-ref>`
+   - `pnpx supabase db pull <migration-name>`
+
+The repository already includes an initial baseline migration generated from the newly created hosted Supabase production project. The next schema milestone is to represent the ArmadaCMS application schema itself in checked-in SQL migrations.
+
+That next milestone has now started: the repository also contains a first generated application schema snapshot in `supabase/migrations/20260504085048_armadacms_application_schema_snapshot.sql`, validated locally with reset/diff/lint. It should still be treated as a generated first cut and reviewed manually before we rely on it as the final long-term schema source of truth.
+
+`DB_ENABLE_AUTOMIGRATE` is now the transition switch for GORM runtime schema management. It currently defaults to enabled for backward compatibility, but Supabase-managed environments should move toward `DB_ENABLE_AUTOMIGRATE=false` once checked-in migration parity is trusted.
+
+The initial local validation succeeded with `pnpx supabase start` followed by `pnpx supabase db reset --local`. Do not combine `--local` with `--linked=false`; the CLI treats those flag groups as mutually exclusive.
+
+At this stage, ArmadaCMS still defaults to the current MinIO/AWS-compatible upload path, but the backend upload layer is now provider-neutral and can also target Supabase Storage through its S3-compatible endpoint. Bootstrap responsibilities are now split intentionally: deterministic roles and feature flags are seeded from `supabase/seed.sql`, while the optional initial admin user remains in Go startup because it depends on environment variables.
+
+The repository also now includes an initial storage bucket migration so local resets and future hosted environments can converge on the same default public bucket name and upload limits.
 
 ## VS Code workspace and launches
 
@@ -307,6 +363,7 @@ This overwrites `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Co
 - The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
 - Production database connections should use `DB_SSLMODE=require`.
 - Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
+- During the early Supabase migration phases, the hosted staging environment still uses the standalone staging Supabase project rather than a hosted Supabase branch.
 
 ## Infrastructure as code
 

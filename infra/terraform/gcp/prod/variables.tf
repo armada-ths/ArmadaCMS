@@ -252,3 +252,40 @@ variable "recaptcha_allowed_domains" {
   type        = list(string)
   default     = ["armada.nu"]
 }
+
+# ── Storage provider selection ────────────────────────────────────────────────
+
+variable "storage_provider" {
+  description = "File storage backend for ArmadaCMS. Use s3 for the current AWS S3 path or supabase for Supabase Storage via its S3-compatible endpoint."
+  type        = string
+  default     = "s3"
+
+  validation {
+    condition     = contains(["s3", "supabase"], var.storage_provider)
+    error_message = "storage_provider must be either s3 or supabase."
+  }
+}
+
+variable "supabase_url" {
+  description = "Base URL of the Supabase project used for storage when storage_provider = supabase."
+  type        = string
+  default     = "https://rsdjnixgxqauonaofrwr.supabase.co"
+}
+
+variable "supabase_storage_s3_endpoint" {
+  description = "Direct S3-compatible Supabase Storage endpoint used for uploads when storage_provider = supabase."
+  type        = string
+  default     = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
+}
+
+variable "supabase_storage_bucket" {
+  description = "Supabase Storage bucket name used by ArmadaCMS when storage_provider = supabase."
+  type        = string
+  default     = "armadacms-files"
+}
+
+variable "supabase_storage_region" {
+  description = "Region reported to the S3-compatible client when storage_provider = supabase."
+  type        = string
+  default     = "eu-north-1"
+}

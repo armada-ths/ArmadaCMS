@@ -35,16 +35,24 @@ locals {
 
   # Secret IDs are prefixed with name_prefix to avoid colliding with production
   # secrets in the same GCP project.
-  secret_env_vars = {
-    DB_PASSWORD            = "${var.name_prefix}-DB_PASSWORD"
-    jwtsecret_laganda      = "${var.name_prefix}-jwtsecret_laganda"
-    EVENTRO_API            = "${var.name_prefix}-EVENTRO_API"
-    EVENTRO_FAIR_ID        = "${var.name_prefix}-EVENTRO_FAIR_ID"
-    EVENTRO_ORG            = "${var.name_prefix}-EVENTRO_ORG"
-    AWS_ACCESS_KEY_ID      = "${var.name_prefix}-AWS_ACCESS_KEY_ID"
-    AWS_SECRET_ACCESS_KEY  = "${var.name_prefix}-AWS_SECRET_ACCESS_KEY"
-    INITIAL_ADMIN_PASSWORD = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
-  }
+  secret_env_vars = merge(
+    {
+      DB_PASSWORD            = "${var.name_prefix}-DB_PASSWORD"
+      jwtsecret_laganda      = "${var.name_prefix}-jwtsecret_laganda"
+      EVENTRO_API            = "${var.name_prefix}-EVENTRO_API"
+      EVENTRO_FAIR_ID        = "${var.name_prefix}-EVENTRO_FAIR_ID"
+      EVENTRO_ORG            = "${var.name_prefix}-EVENTRO_ORG"
+      INITIAL_ADMIN_PASSWORD = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
+    },
+    var.storage_provider == "s3" ? {
+      AWS_ACCESS_KEY_ID     = "${var.name_prefix}-AWS_ACCESS_KEY_ID"
+      AWS_SECRET_ACCESS_KEY = "${var.name_prefix}-AWS_SECRET_ACCESS_KEY"
+    } : {},
+    var.storage_provider == "supabase" ? {
+      SUPABASE_STORAGE_ACCESS_KEY_ID     = "${var.name_prefix}-SUPABASE_STORAGE_ACCESS_KEY_ID"
+      SUPABASE_STORAGE_SECRET_ACCESS_KEY = "${var.name_prefix}-SUPABASE_STORAGE_SECRET_ACCESS_KEY"
+    } : {},
+  )
 
   secret_value_keys = toset([
     for key in keys(nonsensitive(var.secret_values)) : key
@@ -53,23 +61,35 @@ locals {
 
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
-  # DB values come directly from Supabase variables; S3 values come from the
-  # armadacms-aws-staging HCP Terraform workspace.
-  plain_env_vars = {
-    DB_HOST                       = var.db_host
-    DB_PORT                       = "5432"
-    DB_USER                       = var.db_user
-    DB_NAME                       = var.db_name
-    DB_SSLMODE                    = "require"
-    S3_BUCKET                     = nonsensitive(data.tfe_outputs.aws_staging.values["s3_bucket_name"])
-    AWS_REGION                    = nonsensitive(data.tfe_outputs.aws_staging.values["s3_bucket_region"])
-    DB_MAX_OPEN_CONNS             = "5"
-    DB_MAX_IDLE_CONNS             = "2"
-    DB_CONN_MAX_LIFETIME_MINUTES  = "30"
-    DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
-    AUDIT_LOG_RETENTION_DAYS      = "7"
-    INITIAL_ADMIN_USERNAME        = var.initial_admin_username
-  }
+  # DB values come directly from Supabase variables. Storage values are selected
+  # by storage_provider so staging can be switched from AWS S3 to Supabase
+  # Storage without changing application code.
+  plain_env_vars = merge(
+    {
+      DB_HOST                       = var.db_host
+      DB_PORT                       = "5432"
+      DB_USER                       = var.db_user
+      DB_NAME                       = var.db_name
+      DB_SSLMODE                    = "require"
+      STORAGE_PROVIDER              = var.storage_provider
+      DB_MAX_OPEN_CONNS             = "5"
+      DB_MAX_IDLE_CONNS             = "2"
+      DB_CONN_MAX_LIFETIME_MINUTES  = "30"
+      DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
+      AUDIT_LOG_RETENTION_DAYS      = "7"
+      INITIAL_ADMIN_USERNAME        = var.initial_admin_username
+    },
+    var.storage_provider == "s3" ? {
+      S3_BUCKET  = nonsensitive(data.tfe_outputs.aws_staging[0].values["s3_bucket_name"])
+      AWS_REGION = nonsensitive(data.tfe_outputs.aws_staging[0].values["s3_bucket_region"])
+    } : {},
+    var.storage_provider == "supabase" ? {
+      SUPABASE_URL                 = var.supabase_url
+      SUPABASE_STORAGE_S3_ENDPOINT = var.supabase_storage_s3_endpoint
+      SUPABASE_STORAGE_BUCKET      = var.supabase_storage_bucket
+      SUPABASE_STORAGE_REGION      = var.supabase_storage_region
+    } : {},
+  )
 
   cloud_build_service_account_email     = trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
   default_compute_service_account_email = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
