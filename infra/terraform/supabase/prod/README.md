@@ -35,6 +35,10 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 - `prevent_destroy = true` is enabled on the imported production project resource.
 - The Supabase provider performs **partial updates** for `supabase_settings`, so only the
   settings declared here are managed; everything else remains unchanged.
+- ArmadaCMS currently talks to Postgres through its Go API and direct database connections,
+  not through Supabase REST or GraphQL endpoints. This root therefore keeps
+  `api.db_schema` empty on purpose instead of exposing `public`, `storage`, or
+  `graphql_public` by default.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
@@ -87,7 +91,7 @@ Everything else has committed non-secret defaults in `prod.auto.tfvars`.
 3. Open **Project Settings → General** and confirm the project ref is `rsdjnixgxqauonaofrwr`.
 4. Confirm the project name is `ArmadaCMS` and the region is `eu-north-1`.
 5. Obtain the current database password. If you no longer know it, reset it in the dashboard first, then use the new value for Terraform.
-6. Optionally review the current API settings (`db_schema`, search path, max rows) so the first Terraform run does not surprise you.
+6. Optionally review the current API settings (`db_schema`, search path, max rows) so the first Terraform run does not surprise you. The checked-in posture intentionally leaves `db_schema` empty because ArmadaCMS does not currently use the Data API.
 
 ### In HCP Terraform
 
@@ -107,6 +111,18 @@ A safe follow-up pattern is:
 2. Start by managing only a small subset of settings in Terraform.
 3. Apply and verify no unexpected drift.
 4. Expand the managed surface gradually.
+
+### If you later want REST or GraphQL access
+
+Only opt schemas into `api.db_schema` when you intentionally want to expose them through the
+Supabase Data API / GraphQL surface.
+
+- Add the schema explicitly (for example `public` or `public,graphql_public`).
+- Add explicit `GRANT`s for the roles that should reach those objects.
+- Keep RLS enabled and add table-specific policies.
+
+Do **not** expose the `storage` schema just because Storage is in use; the Storage service works
+through its own API and treats the underlying schema as implementation detail / read-only metadata.
 
 ### Rotating the database password
 

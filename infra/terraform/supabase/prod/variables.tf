@@ -40,9 +40,9 @@ variable "database_user" {
 }
 
 variable "api_db_schema" {
-  description = "Comma-separated list of schemas exposed through the Supabase Data API / PostgREST configuration."
+  description = "Comma-separated list of schemas exposed through the Supabase Data API / PostgREST configuration. Leave empty when the application does not use Supabase REST or GraphQL APIs."
   type        = string
-  default     = "public,storage,graphql_public"
+  default     = ""
 }
 
 variable "api_db_extra_search_path" {
