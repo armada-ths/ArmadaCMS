@@ -40,7 +40,7 @@ variable "database_user" {
 }
 
 variable "api_db_schema" {
-  description = "Comma-separated list of schemas exposed through the Supabase Data API / PostgREST configuration. Leave empty when the application does not use Supabase REST or GraphQL APIs."
+  description = "Comma-separated list of schemas exposed through the Supabase Data API / PostgREST configuration. Leave empty to keep the existing project setting unmanaged."
   type        = string
   default     = ""
 }
