@@ -77,7 +77,7 @@ func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request,
 
 func getResourceID(entity any) string {
 	value := reflect.ValueOf(entity)
-	if value.Kind() == reflect.Ptr {
+	if value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			return ""
 		}
