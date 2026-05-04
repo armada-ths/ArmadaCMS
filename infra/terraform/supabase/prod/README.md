@@ -39,6 +39,10 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
   not through Supabase REST or GraphQL endpoints. This root therefore leaves
   `api.db_schema` **unset by default**, which means Terraform does not try to change
   the project's existing exposed-schema setting unless you opt in explicitly.
+- The current `supabase/supabase` provider performs a REST-service health precheck before
+  updating `supabase_settings`. On this project that probe can false-fail even while the
+  dashboard shows the project as healthy, so `api` changes are temporarily ignored in this
+  root until the provider behavior is improved or we intentionally revisit API management.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
@@ -123,6 +127,9 @@ Supabase Data API / GraphQL surface.
 
 Do **not** expose the `storage` schema just because Storage is in use; the Storage service works
 through its own API and treats the underlying schema as implementation detail / read-only metadata.
+
+When you intentionally want Terraform to start managing `api` settings again, remove the
+`lifecycle.ignore_changes = [api]` workaround from `settings.tf`, then apply in a reviewed run.
 
 ### Rotating the database password
 
