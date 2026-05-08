@@ -1,25 +1,37 @@
 import {
+  ArrayInput,
   Create,
   CreateProps,
-  SimpleForm,
-  TextInput,
-  ArrayInput,
-  SimpleFormIterator,
-  SelectInput,
   FormDataConsumer,
+  SelectInput,
+  SimpleForm,
+  SimpleFormIterator,
+  TextInput,
 } from "react-admin";
 
+type PermissionInput = {
+  resource?: string;
+  action?: string;
+};
+
+type RoleFormData = {
+  name?: string;
+  permissions?: PermissionInput[];
+};
+
 const resources = [
-  { id: "*", name: "Full permission (*)" },
+  { id: "*", name: "All resources (*)" },
   { id: "profiles", name: "Profiles" },
   { id: "teams", name: "Teams" },
   { id: "exhibitors", name: "Exhibitors" },
   { id: "events", name: "Events" },
   { id: "dates", name: "Dates" },
   { id: "roles", name: "Roles" },
+  { id: "customusers", name: "Custom users" },
 ];
 
 const actions = [
+  { id: "*", name: "All actions (*)" },
   { id: "list", name: "List" },
   { id: "show", name: "Show" },
   { id: "create", name: "Create" },
@@ -27,16 +39,23 @@ const actions = [
   { id: "delete", name: "Delete" },
 ];
 
-const transformRole = (data: any) => ({
+const toPermission = (permission: PermissionInput): string | null => {
+  if (permission.resource === "*" || permission.action === "*") {
+    return "*";
+  }
+
+  if (permission.resource && permission.action) {
+    return `${permission.resource}.${permission.action}`;
+  }
+
+  return null;
+};
+
+const transformRole = (data: RoleFormData) => ({
   ...data,
   permissions: (data.permissions ?? [])
-    .map((p: any) => {
-      if (typeof p === "string") return p;
-      if (p?.resource === "*" || p?.action === "*") return "*";
-      if (p?.resource && p?.action) return `${p.resource}.${p.action}`;
-      return null;
-    })
-    .filter(Boolean),
+    .map(toPermission)
+    .filter((permission): permission is string => Boolean(permission)),
 });
 
 export const RoleCreate = (props: CreateProps) => (
@@ -50,16 +69,13 @@ export const RoleCreate = (props: CreateProps) => (
           <SelectInput source="action" label="Action" choices={actions} />
 
           <FormDataConsumer>
-            {({ scopedFormData }) =>
-              scopedFormData?.resource && scopedFormData?.action ? (
-                <span style={{ marginTop: 28 }}>
-                  {scopedFormData.resource === "*" ||
-                  scopedFormData.action === "*"
-                    ? "*"
-                    : `${scopedFormData.resource}.${scopedFormData.action}`}
-                </span>
-              ) : null
-            }
+            {({ scopedFormData }) => {
+              const permission = scopedFormData
+                ? toPermission(scopedFormData as PermissionInput)
+                : null;
+
+              return permission ? <span>{permission}</span> : null;
+            }}
           </FormDataConsumer>
         </SimpleFormIterator>
       </ArrayInput>
