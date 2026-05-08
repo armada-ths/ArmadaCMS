@@ -50,6 +50,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"auditlogs":          {},
 	"eventrosync":        {},
 	"highlightcards":     {},
+	"blogposts":          {},
 	"login":              {},
 }
 
@@ -295,6 +296,14 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/highlightcards", auth.RequirePermission("highlightcards.create", controllers.CreateHighlightCard)).Methods("POST")
 	protectedAPI.HandleFunc("/highlightcards/{id}", auth.RequirePermission("highlightcards.edit", controllers.UpdateHighlightCard)).Methods("PUT")
 	protectedAPI.HandleFunc("/highlightcards/{id}", auth.RequirePermission("highlightcards.delete", controllers.DeleteHighlightCard)).Methods("DELETE")
+
+	// blogposts
+	publicAPI.HandleFunc("/blogposts", controllers.GetBlogposts).Methods("GET")
+	publicAPI.HandleFunc("/blogposts/{id}", controllers.GetBlogpostByID).Methods("GET")
+	protectedAPI.HandleFunc("/blogposts", auth.RequirePermission("blogposts.create", controllers.CreateBlogpost)).Methods("POST")
+	protectedAPI.HandleFunc("/blogposts/upload", auth.RequirePermission("blogposts.create", controllers.UploadBlogImage)).Methods("POST")
+	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.edit", controllers.UpdateBlogpost)).Methods("PUT")
+	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.delete", controllers.DeleteBlogpost)).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")

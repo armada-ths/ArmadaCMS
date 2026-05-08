@@ -147,7 +147,7 @@ export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
   create: (resource, params) => {
-    if (["profiles", "events", "exhibitors"].includes(resource)) {
+    if (["profiles", "events", "exhibitors", "blogposts"].includes(resource)) {
       try {
         const formData = buildMultipartFormDataOrHttpError(params);
         return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
@@ -159,7 +159,7 @@ export const dataProvider: DataProvider = {
   },
 
   update: (resource, params) => {
-    if (["profiles", "events", "exhibitors"].includes(resource)) {
+    if (["profiles", "events", "exhibitors", "blogposts"].includes(resource)) {
       try {
         const formData = buildMultipartFormDataOrHttpError(params);
         return uploadFormData(

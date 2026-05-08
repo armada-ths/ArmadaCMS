@@ -81,6 +81,25 @@ definitions:
       resource_type:
         type: string
     type: object
+  models.Blogpost:
+    properties:
+      author:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      imageUrl:
+        type: string
+      showCoverInPost:
+        type: boolean
+      text:
+        type: string
+      title:
+        type: string
+      userId:
+        type: integer
+    type: object
   models.Employment:
     properties:
       id:
@@ -133,7 +152,7 @@ definitions:
         type: string
       employments:
         items:
-          $ref: "#/definitions/models.Employment"
+          $ref: '#/definitions/models.Employment'
         type: array
       eventroId:
         type: string
@@ -145,7 +164,7 @@ definitions:
         type: integer
       industries:
         items:
-          $ref: "#/definitions/models.Industry"
+          $ref: '#/definitions/models.Industry'
         type: array
       locationSpecial:
         type: string
@@ -159,12 +178,12 @@ definitions:
         type: string
       programs:
         items:
-          $ref: "#/definitions/models.Program"
+          $ref: '#/definitions/models.Program'
         type: array
       purpose:
         type: string
       tier:
-        $ref: "#/definitions/models.Tier"
+        $ref: '#/definitions/models.Tier'
       type:
         type: string
       vyerPosition:
@@ -248,6 +267,29 @@ definitions:
       key:
         type: string
     type: object
+  models.HighlightCard:
+    properties:
+      brand:
+        description: Nullable with default
+        type: string
+      ctaEventName:
+        description: 'Nullable: event name for tracking'
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      linkText:
+        description: Nullable
+        type: string
+      linkUrl:
+        description: Nullable
+        type: string
+      subtitle:
+        type: string
+      title:
+        type: string
+    type: object
   models.Industry:
     properties:
       id:
@@ -261,7 +303,7 @@ definitions:
         type: string
       people:
         items:
-          $ref: "#/definitions/models.Person"
+          $ref: '#/definitions/models.Person'
         type: array
     type: object
   models.Person:
@@ -298,7 +340,7 @@ definitions:
       rank:
         type: string
       team:
-        $ref: "#/definitions/models.Team"
+        $ref: '#/definitions/models.Team'
       team_id:
         type: integer
       title:
@@ -325,7 +367,7 @@ definitions:
         type: string
       roles:
         items:
-          $ref: "#/definitions/models.RecruitmentRole"
+          $ref: '#/definitions/models.RecruitmentRole'
         type: array
       startDate:
         type: string
@@ -341,11 +383,11 @@ definitions:
       name:
         type: string
       recruitment:
-        $ref: "#/definitions/models.RecruitmentPeriod"
+        $ref: '#/definitions/models.RecruitmentPeriod'
       recruitmentId:
         type: integer
       team:
-        $ref: "#/definitions/models.Team"
+        $ref: '#/definitions/models.Team'
       team_id:
         type: integer
     type: object
@@ -369,16 +411,16 @@ definitions:
     type: object
   models.Tier:
     enum:
-      - Standard
-      - Bronze
-      - Silver
-      - Gold
+    - Standard
+    - Bronze
+    - Silver
+    - Gold
     type: string
     x-enum-varnames:
-      - TierStandard
-      - TierBronze
-      - TierSilver
-      - TierGold
+    - TierStandard
+    - TierBronze
+    - TierSilver
+    - TierGold
   models.Tokens:
     properties:
       accessToken:
@@ -397,7 +439,7 @@ definitions:
       name:
         type: string
       role:
-        $ref: "#/definitions/models.Role"
+        $ref: '#/definitions/models.Role'
       role_id:
         type: integer
       updated_at:
@@ -409,8 +451,7 @@ info:
   contact:
     name: THS Armada Development
     url: https://github.com/armada-ths
-  description:
-    REST API powering the THS Armada career fair website (armada.nu) and
+  description: REST API powering the THS Armada career fair website (armada.nu) and
     its admin panel.
   title: ArmadaCMS API
   version: "1.0"
@@ -418,22 +459,21 @@ paths:
   /auditlogs:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description:
-            "Filter. Supported keys: action, resource_type, resource_id,
-            actor_username, http_method, q (full-text)"
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: 'Filter. Supported keys: action, resource_type, resource_id,
+          actor_username, http_method, q (full-text)'
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -443,54 +483,252 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.AuditLog"
+              $ref: '#/definitions/models.AuditLog'
             type: array
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List audit logs
       tags:
-        - audit-logs
+      - audit-logs
   /auditlogs/{id}:
     get:
       parameters:
-        - description: AuditLog ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: AuditLog ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.AuditLog"
+            $ref: '#/definitions/models.AuditLog'
         "404":
           description: Audit log entry not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get audit log by ID
       tags:
-        - audit-logs
+      - audit-logs
+  /blogposts:
+    get:
+      parameters:
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Range:
+              description: blogposts 0-24/100
+              type: string
+          schema:
+            items:
+              $ref: '#/definitions/models.Blogpost'
+            type: array
+      summary: List blog posts
+      tags:
+      - blogposts
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Markdown content
+        in: formData
+        name: text
+        required: true
+        type: string
+      - description: Author name
+        in: formData
+        name: author
+        required: true
+        type: string
+      - description: Cover image
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Blogpost'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Create failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create blog post
+      tags:
+      - blogposts
+  /blogposts/{id}:
+    delete:
+      parameters:
+      - description: Blogpost ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Blogpost not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete blog post
+      tags:
+      - blogposts
+    get:
+      parameters:
+      - description: Blogpost ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Blogpost'
+        "404":
+          description: Blogpost not found
+          schema:
+            type: string
+      summary: Get blog post by ID
+      tags:
+      - blogposts
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Blogpost ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Title
+        in: formData
+        name: title
+        type: string
+      - description: Markdown content
+        in: formData
+        name: text
+        type: string
+      - description: Author name
+        in: formData
+        name: author
+        type: string
+      - description: Cover image
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Blogpost'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "404":
+          description: Not found
+          schema:
+            type: string
+        "500":
+          description: Update failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update blog post
+      tags:
+      - blogposts
+  /blogposts/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: url
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Upload failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Upload blog inline image
+      tags:
+      - blogposts
   /customusers:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -500,34 +738,34 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.User"
+              $ref: '#/definitions/models.User'
             type: array
         "500":
           description: Internal server error
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List users
       tags:
-        - users
+      - users
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: User data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.userBody"
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.userBody'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.User"
+            $ref: '#/definitions/models.User'
         "400":
           description: Invalid body
           schema:
@@ -537,20 +775,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create user
       tags:
-        - users
+      - users
   /customusers/{id}:
     delete:
       parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -561,55 +799,55 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete user
       tags:
-        - users
+      - users
     get:
       parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.User"
+            $ref: '#/definitions/models.User'
         "404":
           description: User not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get user by ID
       tags:
-        - users
+      - users
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated user data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.userBody"
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated user data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.userBody'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.User"
+            $ref: '#/definitions/models.User'
         "400":
           description: Invalid data
           schema:
@@ -623,39 +861,39 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update user
       tags:
-        - users
+      - users
   /dates:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.FairDate"
+            $ref: '#/definitions/models.FairDate'
       summary: Get public fair dates
       tags:
-        - public
+      - public
   /employments:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -665,28 +903,28 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Employment"
+              $ref: '#/definitions/models.Employment'
             type: array
       summary: List employment types
       tags:
-        - employments
+      - employments
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Employment data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Employment"
+      - description: Employment data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Employment'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Employment"
+            $ref: '#/definitions/models.Employment'
         "400":
           description: Invalid body
           schema:
@@ -696,20 +934,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create employment
       tags:
-        - employments
+      - employments
   /employments/{id}:
     delete:
       parameters:
-        - description: Employment ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Employment ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -720,53 +958,53 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete employment
       tags:
-        - employments
+      - employments
     get:
       parameters:
-        - description: Employment ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Employment ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Employment"
+            $ref: '#/definitions/models.Employment'
         "404":
           description: employment not found
           schema:
             type: string
       summary: Get employment by ID
       tags:
-        - employments
+      - employments
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Employment ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated employment data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Employment"
+      - description: Employment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated employment data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Employment'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Employment"
+            $ref: '#/definitions/models.Employment'
         "400":
           description: Invalid data
           schema:
@@ -780,74 +1018,74 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update employment
       tags:
-        - employments
+      - employments
   /eventroevents:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: "#/definitions/models.Event"
+              $ref: '#/definitions/models.Event'
             type: array
         "500":
           description: Failed to fetch from Eventro
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Sync & list events from Eventro
       tags:
-        - eventro
+      - eventro
   /eventroexhibitors:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: "#/definitions/models.Exhibitor"
+              $ref: '#/definitions/models.Exhibitor'
             type: array
         "500":
           description: Failed to fetch from Eventro
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Sync & list exhibitors from Eventro
       tags:
-        - eventro
+      - eventro
   /eventromembers:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: "#/definitions/models.Profile"
+              $ref: '#/definitions/models.Profile'
             type: array
         "500":
           description: Failed to fetch from Eventro
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Sync & list member profiles from Eventro
       tags:
-        - eventro
+      - eventro
   /eventrorecruitments:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Sync complete
@@ -858,31 +1096,31 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Sync recruitment data from Eventro
       tags:
-        - eventro
+      - eventro
   /events:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
-        - description: If true, only return events with show=true
-          in: query
-          name: public
-          type: boolean
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
+      - description: If true, only return events with show=true
+        in: query
+        name: public
+        type: boolean
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -892,78 +1130,78 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Event"
+              $ref: '#/definitions/models.Event'
             type: array
       summary: List events
       tags:
-        - events
+      - events
     post:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Event name
-          in: formData
-          name: name
-          required: true
-          type: string
-        - description: Location
-          in: formData
-          name: location
-          required: true
-          type: string
-        - description: Start time (RFC3339)
-          in: formData
-          name: eventStart
-          required: true
-          type: string
-        - description: End time (RFC3339)
-          in: formData
-          name: eventEnd
-          required: true
-          type: string
-        - description: Description
-          in: formData
-          name: description
-          type: string
-        - description: Food information
-          in: formData
-          name: food
-          type: string
-        - description: Registration required
-          in: formData
-          name: registrationRequired
-          type: boolean
-        - description: Fee information
-          in: formData
-          name: fee
-          type: string
-        - description: Signup link URL
-          in: formData
-          name: signupLink
-          type: string
-        - description: Max capacity
-          in: formData
-          name: eventMaxCapacity
-          type: integer
-        - description: Registration end time (RFC3339)
-          in: formData
-          name: registrationEnd
-          type: string
-        - description: Whether to show the event publicly
-          in: formData
-          name: show
-          type: boolean
-        - description: Event image
-          in: formData
-          name: file
-          type: file
+      - description: Event name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Location
+        in: formData
+        name: location
+        required: true
+        type: string
+      - description: Start time (RFC3339)
+        in: formData
+        name: eventStart
+        required: true
+        type: string
+      - description: End time (RFC3339)
+        in: formData
+        name: eventEnd
+        required: true
+        type: string
+      - description: Description
+        in: formData
+        name: description
+        type: string
+      - description: Food information
+        in: formData
+        name: food
+        type: string
+      - description: Registration required
+        in: formData
+        name: registrationRequired
+        type: boolean
+      - description: Fee information
+        in: formData
+        name: fee
+        type: string
+      - description: Signup link URL
+        in: formData
+        name: signupLink
+        type: string
+      - description: Max capacity
+        in: formData
+        name: eventMaxCapacity
+        type: integer
+      - description: Registration end time (RFC3339)
+        in: formData
+        name: registrationEnd
+        type: string
+      - description: Whether to show the event publicly
+        in: formData
+        name: show
+        type: boolean
+      - description: Event image
+        in: formData
+        name: file
+        type: file
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Event"
+            $ref: '#/definitions/models.Event'
         "400":
           description: Bad request
           schema:
@@ -973,20 +1211,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create event
       tags:
-        - events
+      - events
   /events/{id}:
     delete:
       parameters:
-        - description: Event ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -997,71 +1235,71 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete event
       tags:
-        - events
+      - events
     get:
       parameters:
-        - description: Event ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Event"
+            $ref: '#/definitions/models.Event'
         "404":
           description: Event not found
           schema:
             type: string
       summary: Get event by ID
       tags:
-        - events
+      - events
     put:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Event ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Event name
-          in: formData
-          name: name
-          type: string
-        - description: Location
-          in: formData
-          name: location
-          type: string
-        - description: Start time (RFC3339)
-          in: formData
-          name: eventStart
-          type: string
-        - description: End time (RFC3339)
-          in: formData
-          name: eventEnd
-          type: string
-        - description: Whether to show the event publicly
-          in: formData
-          name: show
-          type: boolean
-        - description: Event image
-          in: formData
-          name: file
-          type: file
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Event name
+        in: formData
+        name: name
+        type: string
+      - description: Location
+        in: formData
+        name: location
+        type: string
+      - description: Start time (RFC3339)
+        in: formData
+        name: eventStart
+        type: string
+      - description: End time (RFC3339)
+        in: formData
+        name: eventEnd
+        type: string
+      - description: Whether to show the event publicly
+        in: formData
+        name: show
+        type: boolean
+      - description: Event image
+        in: formData
+        name: file
+        type: file
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Event"
+            $ref: '#/definitions/models.Event'
         "400":
           description: Bad request
           schema:
@@ -1075,31 +1313,31 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update event
       tags:
-        - events
+      - events
   /exhibitors:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
-        - description: Return all exhibitors without pagination, sorted by tier
-          in: query
-          name: all
-          type: boolean
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
+      - description: Return all exhibitors without pagination, sorted by tier
+        in: query
+        name: all
+        type: boolean
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -1109,77 +1347,77 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Exhibitor"
+              $ref: '#/definitions/models.Exhibitor'
             type: array
       summary: List exhibitors
       tags:
-        - exhibitors
+      - exhibitors
     post:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Company name
-          in: formData
-          name: name
-          required: true
-          type: string
-        - description: Company type
-          in: formData
-          name: type
-          required: true
-          type: string
-        - description: Fair location
-          in: formData
-          name: fairLocation
-          required: true
-          type: string
-        - description: Tier (Standard/Bronze/Silver/Gold)
-          in: formData
-          name: tier
-          type: string
-        - description: About the company
-          in: formData
-          name: about
-          type: string
-        - description: Purpose/mission
-          in: formData
-          name: purpose
-          type: string
-        - description: Company website URL
-          in: formData
-          name: companyWebsite
-          type: string
-        - description: Climate compensation
-          in: formData
-          name: climateCompensation
-          type: boolean
-        - description: City/cities
-          in: formData
-          name: cities
-          type: string
-        - description: Logo image (JPG/PNG/WEBP/GIF)
-          in: formData
-          name: file
-          type: file
-        - description: JSON array of program IDs, e.g. [1,2,3]
-          in: formData
-          name: programs
-          type: string
-        - description: JSON array of industry IDs
-          in: formData
-          name: industries
-          type: string
-        - description: JSON array of employment IDs
-          in: formData
-          name: employments
-          type: string
+      - description: Company name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Company type
+        in: formData
+        name: type
+        required: true
+        type: string
+      - description: Fair location
+        in: formData
+        name: fairLocation
+        required: true
+        type: string
+      - description: Tier (Standard/Bronze/Silver/Gold)
+        in: formData
+        name: tier
+        type: string
+      - description: About the company
+        in: formData
+        name: about
+        type: string
+      - description: Purpose/mission
+        in: formData
+        name: purpose
+        type: string
+      - description: Company website URL
+        in: formData
+        name: companyWebsite
+        type: string
+      - description: Climate compensation
+        in: formData
+        name: climateCompensation
+        type: boolean
+      - description: City/cities
+        in: formData
+        name: cities
+        type: string
+      - description: Logo image (JPG/PNG/WEBP/GIF)
+        in: formData
+        name: file
+        type: file
+      - description: JSON array of program IDs, e.g. [1,2,3]
+        in: formData
+        name: programs
+        type: string
+      - description: JSON array of industry IDs
+        in: formData
+        name: industries
+        type: string
+      - description: JSON array of employment IDs
+        in: formData
+        name: employments
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Exhibitor"
+            $ref: '#/definitions/models.Exhibitor'
         "400":
           description: Bad request
           schema:
@@ -1189,20 +1427,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create exhibitor
       tags:
-        - exhibitors
+      - exhibitors
   /exhibitors/{id}:
     delete:
       parameters:
-        - description: Exhibitor ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Exhibitor ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -1213,75 +1451,75 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete exhibitor
       tags:
-        - exhibitors
+      - exhibitors
     get:
       parameters:
-        - description: Exhibitor ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Exhibitor ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Exhibitor"
+            $ref: '#/definitions/models.Exhibitor'
         "404":
           description: Exhibitor not found
           schema:
             type: string
       summary: Get exhibitor by ID
       tags:
-        - exhibitors
+      - exhibitors
     put:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Exhibitor ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Company name
-          in: formData
-          name: name
-          type: string
-        - description: Company type
-          in: formData
-          name: type
-          type: string
-        - description: Tier (Standard/Bronze/Silver/Gold)
-          in: formData
-          name: tier
-          type: string
-        - description: Logo image (JPG/PNG/WEBP/GIF)
-          in: formData
-          name: file
-          type: file
-        - description: JSON array of program IDs
-          in: formData
-          name: programs
-          type: string
-        - description: JSON array of industry IDs
-          in: formData
-          name: industries
-          type: string
-        - description: JSON array of employment IDs
-          in: formData
-          name: employments
-          type: string
+      - description: Exhibitor ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Company name
+        in: formData
+        name: name
+        type: string
+      - description: Company type
+        in: formData
+        name: type
+        type: string
+      - description: Tier (Standard/Bronze/Silver/Gold)
+        in: formData
+        name: tier
+        type: string
+      - description: Logo image (JPG/PNG/WEBP/GIF)
+        in: formData
+        name: file
+        type: file
+      - description: JSON array of program IDs
+        in: formData
+        name: programs
+        type: string
+      - description: JSON array of industry IDs
+        in: formData
+        name: industries
+        type: string
+      - description: JSON array of employment IDs
+        in: formData
+        name: employments
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Exhibitor"
+            $ref: '#/definitions/models.Exhibitor'
         "400":
           description: Bad request
           schema:
@@ -1295,27 +1533,27 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update exhibitor
       tags:
-        - exhibitors
+      - exhibitors
   /fairdates:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -1325,30 +1563,30 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.FairDateConfig"
+              $ref: '#/definitions/models.FairDateConfig'
             type: array
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List fair date configs
       tags:
-        - fair-dates
+      - fair-dates
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Fair date config data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.FairDateConfig"
+      - description: Fair date config data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.FairDateConfig'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.FairDateConfig"
+            $ref: '#/definitions/models.FairDateConfig'
         "400":
           description: Invalid body
           schema:
@@ -1358,20 +1596,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create fair date config
       tags:
-        - fair-dates
+      - fair-dates
   /fairdates/{id}:
     delete:
       parameters:
-        - description: FairDateConfig ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: FairDateConfig ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -1382,55 +1620,55 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete fair date config
       tags:
-        - fair-dates
+      - fair-dates
     get:
       parameters:
-        - description: FairDateConfig ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: FairDateConfig ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.FairDateConfig"
+            $ref: '#/definitions/models.FairDateConfig'
         "404":
           description: fair date config not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get fair date config by ID
       tags:
-        - fair-dates
+      - fair-dates
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: FairDateConfig ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated fair date config
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.FairDateConfig"
+      - description: FairDateConfig ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated fair date config
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.FairDateConfig'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.FairDateConfig"
+            $ref: '#/definitions/models.FairDateConfig'
         "400":
           description: Invalid data
           schema:
@@ -1444,27 +1682,27 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update fair date config
       tags:
-        - fair-dates
+      - fair-dates
   /featureflags:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -1474,28 +1712,28 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.FeatureFlag"
+              $ref: '#/definitions/models.FeatureFlag'
             type: array
       summary: List feature flags
       tags:
-        - feature-flags
+      - feature-flags
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Feature flag data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.FeatureFlag"
+      - description: Feature flag data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.FeatureFlag'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.FeatureFlag"
+            $ref: '#/definitions/models.FeatureFlag'
         "400":
           description: Invalid body
           schema:
@@ -1505,20 +1743,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create feature flag
       tags:
-        - feature-flags
+      - feature-flags
   /featureflags/{id}:
     delete:
       parameters:
-        - description: FeatureFlag ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: FeatureFlag ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -1529,53 +1767,53 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete feature flag
       tags:
-        - feature-flags
+      - feature-flags
     get:
       parameters:
-        - description: FeatureFlag ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: FeatureFlag ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.FeatureFlag"
+            $ref: '#/definitions/models.FeatureFlag'
         "404":
           description: feature flag not found
           schema:
             type: string
       summary: Get feature flag by ID
       tags:
-        - feature-flags
+      - feature-flags
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: FeatureFlag ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated feature flag
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.FeatureFlag"
+      - description: FeatureFlag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated feature flag
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.FeatureFlag'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.FeatureFlag"
+            $ref: '#/definitions/models.FeatureFlag'
         "400":
           description: Invalid body
           schema:
@@ -1589,58 +1827,60 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update feature flag
       tags:
-        - feature-flags
-  /industries:
+      - feature-flags
+  /highlightcards:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           headers:
             Content-Range:
-              description: industries 0-24/50
+              description: highlightcards 0-24/5
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Industry"
+              $ref: '#/definitions/models.HighlightCard'
             type: array
-      summary: List industries
+      security:
+      - BearerAuth: []
+      summary: List highlight cards
       tags:
-        - industries
+      - highlight-cards
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Industry data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Industry"
+      - description: Highlight card data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.HighlightCard'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Industry"
+            $ref: '#/definitions/models.HighlightCard'
         "400":
           description: Invalid body
           schema:
@@ -1650,77 +1890,79 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
-      summary: Create industry
+      - BearerAuth: []
+      summary: Create highlight card
       tags:
-        - industries
-  /industries/{id}:
+      - highlight-cards
+  /highlightcards/{id}:
     delete:
       parameters:
-        - description: Industry ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: HighlightCard ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
           schema:
             type: string
         "404":
-          description: industry not found
+          description: highlight card not found
           schema:
             type: string
       security:
-        - BearerAuth: []
-      summary: Delete industry
+      - BearerAuth: []
+      summary: Delete highlight card
       tags:
-        - industries
+      - highlight-cards
     get:
       parameters:
-        - description: Industry ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: HighlightCard ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Industry"
+            $ref: '#/definitions/models.HighlightCard'
         "404":
-          description: industry not found
+          description: highlight card not found
           schema:
             type: string
-      summary: Get industry by ID
+      security:
+      - BearerAuth: []
+      summary: Get highlight card by ID
       tags:
-        - industries
+      - highlight-cards
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Industry ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated industry data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Industry"
+      - description: HighlightCard ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated highlight card
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.HighlightCard'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Industry"
+            $ref: '#/definitions/models.HighlightCard'
         "400":
           description: Invalid data
           schema:
@@ -1734,28 +1976,173 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
-      summary: Update industry
+      - BearerAuth: []
+      summary: Update highlight card
       tags:
-        - industries
-  /login:
+      - highlight-cards
+  /industries:
+    get:
+      parameters:
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Range:
+              description: industries 0-24/50
+              type: string
+          schema:
+            items:
+              $ref: '#/definitions/models.Industry'
+            type: array
+      summary: List industries
+      tags:
+      - industries
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Credentials
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.loginRequest"
+      - description: Industry data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Industry'
       produces:
-        - application/json
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Industry'
+        "400":
+          description: Invalid body
+          schema:
+            type: string
+        "500":
+          description: Create failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create industry
+      tags:
+      - industries
+  /industries/{id}:
+    delete:
+      parameters:
+      - description: Industry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted
+          schema:
+            type: string
+        "404":
+          description: industry not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete industry
+      tags:
+      - industries
+    get:
+      parameters:
+      - description: Industry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Tokens"
+            $ref: '#/definitions/models.Industry'
+        "404":
+          description: industry not found
+          schema:
+            type: string
+      summary: Get industry by ID
+      tags:
+      - industries
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Industry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated industry data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Industry'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Industry'
+        "400":
+          description: Invalid data
+          schema:
+            type: string
+        "404":
+          description: Not found
+          schema:
+            type: string
+        "500":
+          description: Update failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update industry
+      tags:
+      - industries
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Tokens'
         "400":
           description: Invalid JSON
           schema:
@@ -1770,11 +2157,11 @@ paths:
             type: string
       summary: Login
       tags:
-        - auth
+      - auth
   /me:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -1790,41 +2177,41 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get current user
       tags:
-        - auth
+      - auth
   /organization:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: "#/definitions/models.OrganizationGroup"
+              $ref: '#/definitions/models.OrganizationGroup'
             type: array
       summary: Get organization structure
       tags:
-        - public
+      - public
   /profiles:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -1834,55 +2221,55 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Profile"
+              $ref: '#/definitions/models.Profile'
             type: array
       summary: List profiles
       tags:
-        - profiles
+      - profiles
     post:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Full name
-          in: formData
-          name: name
-          required: true
-          type: string
-        - description: Job title
-          in: formData
-          name: title
-          type: string
-        - description: Rank within team
-          in: formData
-          name: rank
-          type: string
-        - description: Email address
-          in: formData
-          name: email
-          type: string
-        - description: LinkedIn URL
-          in: formData
-          name: linkedin
-          type: string
-        - description: Team ID
-          in: formData
-          name: team_id
-          type: integer
-        - description: Profile photo (JPG/PNG/WEBP/GIF)
-          in: formData
-          name: file
-          type: file
-        - description: Photo URL (alternative to file upload)
-          in: formData
-          name: photoUrl
-          type: string
+      - description: Full name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Job title
+        in: formData
+        name: title
+        type: string
+      - description: Rank within team
+        in: formData
+        name: rank
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        type: string
+      - description: LinkedIn URL
+        in: formData
+        name: linkedin
+        type: string
+      - description: Team ID
+        in: formData
+        name: team_id
+        type: integer
+      - description: Profile photo (JPG/PNG/WEBP/GIF)
+        in: formData
+        name: file
+        type: file
+      - description: Photo URL (alternative to file upload)
+        in: formData
+        name: photoUrl
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Profile"
+            $ref: '#/definitions/models.Profile'
         "400":
           description: Bad request
           schema:
@@ -1892,20 +2279,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create profile
       tags:
-        - profiles
+      - profiles
   /profiles/{id}:
     delete:
       parameters:
-        - description: Profile ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -1916,79 +2303,79 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete profile
       tags:
-        - profiles
+      - profiles
     get:
       parameters:
-        - description: Profile ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Profile"
+            $ref: '#/definitions/models.Profile'
         "404":
           description: profile not found
           schema:
             type: string
       summary: Get profile by ID
       tags:
-        - profiles
+      - profiles
     put:
       consumes:
-        - multipart/form-data
+      - multipart/form-data
       parameters:
-        - description: Profile ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Full name
-          in: formData
-          name: name
-          type: string
-        - description: Job title
-          in: formData
-          name: title
-          type: string
-        - description: Rank within team
-          in: formData
-          name: rank
-          type: string
-        - description: Email address
-          in: formData
-          name: email
-          type: string
-        - description: LinkedIn URL
-          in: formData
-          name: linkedin
-          type: string
-        - description: Team ID
-          in: formData
-          name: team_id
-          type: integer
-        - description: Profile photo (JPG/PNG/WEBP/GIF)
-          in: formData
-          name: file
-          type: file
-        - description: Photo URL (alternative to file upload)
-          in: formData
-          name: photoUrl
-          type: string
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Full name
+        in: formData
+        name: name
+        type: string
+      - description: Job title
+        in: formData
+        name: title
+        type: string
+      - description: Rank within team
+        in: formData
+        name: rank
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        type: string
+      - description: LinkedIn URL
+        in: formData
+        name: linkedin
+        type: string
+      - description: Team ID
+        in: formData
+        name: team_id
+        type: integer
+      - description: Profile photo (JPG/PNG/WEBP/GIF)
+        in: formData
+        name: file
+        type: file
+      - description: Photo URL (alternative to file upload)
+        in: formData
+        name: photoUrl
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Profile"
+            $ref: '#/definitions/models.Profile'
         "400":
           description: Bad request
           schema:
@@ -2002,27 +2389,27 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update profile
       tags:
-        - profiles
+      - profiles
   /programs:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -2032,28 +2419,28 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Program"
+              $ref: '#/definitions/models.Program'
             type: array
       summary: List programs
       tags:
-        - programs
+      - programs
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Program data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Program"
+      - description: Program data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Program'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Program"
+            $ref: '#/definitions/models.Program'
         "400":
           description: Invalid body
           schema:
@@ -2063,20 +2450,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create program
       tags:
-        - programs
+      - programs
   /programs/{id}:
     delete:
       parameters:
-        - description: Program ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Program ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -2087,53 +2474,53 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete program
       tags:
-        - programs
+      - programs
     get:
       parameters:
-        - description: Program ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Program ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Program"
+            $ref: '#/definitions/models.Program'
         "404":
           description: program not found
           schema:
             type: string
       summary: Get program by ID
       tags:
-        - programs
+      - programs
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Program ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated program data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Program"
+      - description: Program ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated program data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Program'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Program"
+            $ref: '#/definitions/models.Program'
         "400":
           description: Invalid data
           schema:
@@ -2147,41 +2534,41 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update program
       tags:
-        - programs
+      - programs
   /recruitment:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: "#/definitions/models.RecruitmentPeriod"
+              $ref: '#/definitions/models.RecruitmentPeriod'
             type: array
       summary: Get active recruitment
       tags:
-        - public
+      - public
   /recruitmentperiods:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -2191,30 +2578,30 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.RecruitmentPeriod"
+              $ref: '#/definitions/models.RecruitmentPeriod'
             type: array
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List recruitment periods
       tags:
-        - recruitment
+      - recruitment
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Recruitment period data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.recruitmentPeriodPayload"
+      - description: Recruitment period data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.recruitmentPeriodPayload'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.RecruitmentPeriod"
+            $ref: '#/definitions/models.RecruitmentPeriod'
         "400":
           description: Invalid body
           schema:
@@ -2224,20 +2611,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create recruitment period
       tags:
-        - recruitment
+      - recruitment
   /recruitmentperiods/{id}:
     delete:
       parameters:
-        - description: RecruitmentPeriod ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: RecruitmentPeriod ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -2248,55 +2635,55 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete recruitment period
       tags:
-        - recruitment
+      - recruitment
     get:
       parameters:
-        - description: RecruitmentPeriod ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: RecruitmentPeriod ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.RecruitmentPeriod"
+            $ref: '#/definitions/models.RecruitmentPeriod'
         "404":
           description: recruitment period not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get recruitment period by ID
       tags:
-        - recruitment
+      - recruitment
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: RecruitmentPeriod ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated recruitment period
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.recruitmentPeriodPayload"
+      - description: RecruitmentPeriod ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated recruitment period
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.recruitmentPeriodPayload'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.RecruitmentPeriod"
+            $ref: '#/definitions/models.RecruitmentPeriod'
         "400":
           description: Invalid body
           schema:
@@ -2310,27 +2697,27 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update recruitment period
       tags:
-        - recruitment
+      - recruitment
   /recruitmentroles:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -2340,30 +2727,30 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.RecruitmentRole"
+              $ref: '#/definitions/models.RecruitmentRole'
             type: array
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List recruitment roles
       tags:
-        - recruitment
+      - recruitment
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Recruitment role data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.recruitmentRolePayload"
+      - description: Recruitment role data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.recruitmentRolePayload'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.RecruitmentRole"
+            $ref: '#/definitions/models.RecruitmentRole'
         "400":
           description: Invalid body
           schema:
@@ -2373,20 +2760,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create recruitment role
       tags:
-        - recruitment
+      - recruitment
   /recruitmentroles/{id}:
     delete:
       parameters:
-        - description: RecruitmentRole ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: RecruitmentRole ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -2397,55 +2784,55 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete recruitment role
       tags:
-        - recruitment
+      - recruitment
     get:
       parameters:
-        - description: RecruitmentRole ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: RecruitmentRole ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.RecruitmentRole"
+            $ref: '#/definitions/models.RecruitmentRole'
         "404":
           description: recruitment role not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get recruitment role by ID
       tags:
-        - recruitment
+      - recruitment
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: RecruitmentRole ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated recruitment role
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/controllers.recruitmentRolePayload"
+      - description: RecruitmentRole ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated recruitment role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.recruitmentRolePayload'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.RecruitmentRole"
+            $ref: '#/definitions/models.RecruitmentRole'
         "400":
           description: Invalid body
           schema:
@@ -2459,27 +2846,47 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update recruitment role
       tags:
-        - recruitment
+      - recruitment
+  /refreshAccessToken:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Tokens'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            type: string
+        "500":
+          description: Token refresh failed
+          schema:
+            type: string
+      summary: Refresh access token
+      tags:
+      - auth
   /roles:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -2489,30 +2896,30 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Role"
+              $ref: '#/definitions/models.Role'
             type: array
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: List roles
       tags:
-        - roles
+      - roles
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Role data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Role"
+      - description: Role data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Role'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Role"
+            $ref: '#/definitions/models.Role'
         "400":
           description: Invalid body
           schema:
@@ -2522,20 +2929,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create role
       tags:
-        - roles
+      - roles
   /roles/{id}:
     delete:
       parameters:
-        - description: Role ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -2546,55 +2953,55 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete role
       tags:
-        - roles
+      - roles
     get:
       parameters:
-        - description: Role ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Role"
+            $ref: '#/definitions/models.Role'
         "404":
           description: Role not found
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Get role by ID
       tags:
-        - roles
+      - roles
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Role ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated role data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Role"
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated role data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Role'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Role"
+            $ref: '#/definitions/models.Role'
         "400":
           description: Invalid body
           schema:
@@ -2608,27 +3015,27 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update role
       tags:
-        - roles
+      - roles
   /teams:
     get:
       parameters:
-        - description: Pagination range, e.g. [0,24]
-          in: query
-          name: range
-          type: string
-        - description: Sort, e.g. [\
-          in: query
-          name: sort
-          type: string
-        - description: Filter, e.g. {\
-          in: query
-          name: filter
-          type: string
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      - description: Sort, e.g. [\
+        in: query
+        name: sort
+        type: string
+      - description: Filter, e.g. {\
+        in: query
+        name: filter
+        type: string
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -2638,28 +3045,28 @@ paths:
               type: string
           schema:
             items:
-              $ref: "#/definitions/models.Team"
+              $ref: '#/definitions/models.Team'
             type: array
       summary: List teams
       tags:
-        - teams
+      - teams
     post:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Team data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Team"
+      - description: Team data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Team'
       produces:
-        - application/json
+      - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: "#/definitions/models.Team"
+            $ref: '#/definitions/models.Team'
         "400":
           description: Invalid body
           schema:
@@ -2669,20 +3076,20 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Create team
       tags:
-        - teams
+      - teams
   /teams/{id}:
     delete:
       parameters:
-        - description: Team ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Team ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: Deleted
@@ -2693,53 +3100,53 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Delete team
       tags:
-        - teams
+      - teams
     get:
       parameters:
-        - description: Team ID
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: Team ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Team"
+            $ref: '#/definitions/models.Team'
         "404":
           description: team not found
           schema:
             type: string
       summary: Get team by ID
       tags:
-        - teams
+      - teams
     put:
       consumes:
-        - application/json
+      - application/json
       parameters:
-        - description: Team ID
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: Updated team data
-          in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/models.Team"
+      - description: Team ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated team data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Team'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: "#/definitions/models.Team"
+            $ref: '#/definitions/models.Team'
         "400":
           description: Invalid data
           schema:
@@ -2753,14 +3160,13 @@ paths:
           schema:
             type: string
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       summary: Update team
       tags:
-        - teams
+      - teams
 securityDefinitions:
   BearerAuth:
-    description:
-      'Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer
+    description: 'Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer
       <token>"'
     in: header
     name: Authorization
