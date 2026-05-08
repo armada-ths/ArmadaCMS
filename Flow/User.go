@@ -28,14 +28,11 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 	}
 
 	// Resolve role name and permissions for JWT
-	roleName := "admin"
+	roleName := ""
 	var permissions []string
 	if user.Role != nil {
 		roleName = user.Role.Name
 		permissions = user.Role.Permissions
-	} else {
-		// Users without an assigned role get full admin access
-		permissions = []string{"*"}
 	}
 
 	refreshToken, err := utils.GenerateRefreshToken()
