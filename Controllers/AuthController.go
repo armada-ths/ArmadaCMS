@@ -99,13 +99,11 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := rt.User
-	roleName := "admin"
+	roleName := ""
 	var permissions []string
 	if user.Role != nil {
 		roleName = user.Role.Name
 		permissions = user.Role.Permissions
-	} else {
-		permissions = []string{"*"}
 	}
 
 	newRefreshTokenStr, err := utils.GenerateRefreshToken()
