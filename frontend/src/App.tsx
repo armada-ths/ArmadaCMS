@@ -1,6 +1,7 @@
 import {
   Admin,
   AppBar,
+  Logout,
   Menu,
   Resource,
   Layout,
@@ -106,6 +107,7 @@ export const MyMenu = () => {
 const MyUserMenu = () => (
   <UserMenu>
     <ChangePasswordButton />
+    <Logout />
   </UserMenu>
 );
 

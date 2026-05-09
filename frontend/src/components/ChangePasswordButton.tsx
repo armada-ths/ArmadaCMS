@@ -1,12 +1,15 @@
 import { useState } from "react";
 import {
-  Button,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
   Alert,
+  Button,
 } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 import { usePermissions, useNotify } from "react-admin";
@@ -53,6 +56,10 @@ export const ChangePasswordButton = () => {
       setError("New password must be at least 6 characters.");
       return;
     }
+    if (oldPassword === newPassword) {
+      setError("New password must be different from the current password.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -85,19 +92,12 @@ export const ChangePasswordButton = () => {
 
   return (
     <>
-      <Button
-        startIcon={<LockIcon />}
-        onClick={() => setOpen(true)}
-        sx={{
-          width: "100%",
-          justifyContent: "flex-start",
-          padding: "6px 16px",
-          textTransform: "none",
-          color: "text.secondary",
-        }}
-      >
-        Change password
-      </Button>
+      <MenuItem onClick={() => setOpen(true)}>
+        <ListItemIcon>
+          <LockIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>Change password</ListItemText>
+      </MenuItem>
       <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
         <DialogTitle>Change Password</DialogTitle>
         <DialogContent>

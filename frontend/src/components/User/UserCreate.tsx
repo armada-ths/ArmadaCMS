@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Create,
   CreateProps,
@@ -17,11 +16,7 @@ export const UserCreate = (props: CreateProps) => {
         <TextInput label="Name" source="name" />
         <TextInput label="Avatar" source="avatar" />
         <ReferenceInput source="role_id" reference="roles">
-          <SelectInput
-            label="Role"
-            optionText="name"
-            helperText="Leave empty for full admin access"
-          />
+          <SelectInput label="Role" optionText="name" />
         </ReferenceInput>
       </SimpleForm>
     </Create>

@@ -297,6 +297,10 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Both oldPassword and newPassword are required", http.StatusBadRequest)
 		return
 	}
+	if body.OldPassword == body.NewPassword {
+		http.Error(w, "New password must be different from the old password", http.StatusBadRequest)
+		return
+	}
 
 	var user models.User
 	if err := db.DB.First(&user, userID).Error; err != nil {
