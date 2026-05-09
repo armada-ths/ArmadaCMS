@@ -27,7 +27,19 @@ func RevalidateTag(tag string) {
 		return
 	}
 
-	resp, err := revalidateClient.Post(url, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		log.Printf("revalidation: failed to create request for tag %q: %v", tag, err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Bypass Vercel Deployment Protection on staging/preview deployments.
+	if bypassSecret := os.Getenv("VERCEL_AUTOMATION_BYPASS_SECRET"); bypassSecret != "" {
+		req.Header.Set("x-vercel-protection-bypass", bypassSecret)
+	}
+
+	resp, err := revalidateClient.Do(req)
 	if err != nil {
 		log.Printf("revalidation: request failed for tag %q: %v", tag, err)
 		return

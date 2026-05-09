@@ -36,15 +36,16 @@ locals {
   # Secret IDs are prefixed with name_prefix to avoid colliding with production
   # secrets in the same GCP project.
   secret_env_vars = {
-    DB_PASSWORD            = "${var.name_prefix}-DB_PASSWORD"
-    jwtsecret_laganda      = "${var.name_prefix}-jwtsecret_laganda"
-    EVENTRO_API            = "${var.name_prefix}-EVENTRO_API"
-    EVENTRO_FAIR_ID        = "${var.name_prefix}-EVENTRO_FAIR_ID"
-    EVENTRO_ORG            = "${var.name_prefix}-EVENTRO_ORG"
-    AWS_ACCESS_KEY_ID      = "${var.name_prefix}-AWS_ACCESS_KEY_ID"
-    AWS_SECRET_ACCESS_KEY  = "${var.name_prefix}-AWS_SECRET_ACCESS_KEY"
-    INITIAL_ADMIN_PASSWORD = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
-    REVALIDATION_SECRET    = "${var.name_prefix}-REVALIDATION_SECRET"
+    DB_PASSWORD                     = "${var.name_prefix}-DB_PASSWORD"
+    jwtsecret_laganda               = "${var.name_prefix}-jwtsecret_laganda"
+    EVENTRO_API                     = "${var.name_prefix}-EVENTRO_API"
+    EVENTRO_FAIR_ID                 = "${var.name_prefix}-EVENTRO_FAIR_ID"
+    EVENTRO_ORG                     = "${var.name_prefix}-EVENTRO_ORG"
+    AWS_ACCESS_KEY_ID               = "${var.name_prefix}-AWS_ACCESS_KEY_ID"
+    AWS_SECRET_ACCESS_KEY           = "${var.name_prefix}-AWS_SECRET_ACCESS_KEY"
+    INITIAL_ADMIN_PASSWORD          = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
+    REVALIDATION_SECRET             = "${var.name_prefix}-REVALIDATION_SECRET"
+    VERCEL_AUTOMATION_BYPASS_SECRET = "${var.name_prefix}-VERCEL_AUTOMATION_BYPASS_SECRET"
   }
 
   secret_value_keys = toset([
