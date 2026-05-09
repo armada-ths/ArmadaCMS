@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -44,7 +45,10 @@ func RevalidateTag(tag string) {
 		log.Printf("revalidation: request failed for tag %q: %v", tag, err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("revalidation: returned %d for tag %q", resp.StatusCode, tag)
