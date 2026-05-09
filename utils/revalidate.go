@@ -46,7 +46,7 @@ func RevalidateTag(tag string) {
 		return
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
