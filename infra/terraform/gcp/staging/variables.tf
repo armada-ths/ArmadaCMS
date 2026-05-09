@@ -90,7 +90,7 @@ variable "secret_values" {
 }
 
 variable "revalidation_url" {
-  description = "URL of the armada.nu on-demand revalidation endpoint. Injected as a plain Cloud Run env var."
+  description = "URL of the public site on-demand revalidation endpoint. Injected as a plain Cloud Run env var."
   type        = string
   default     = ""
 }
