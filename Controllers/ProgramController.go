@@ -90,7 +90,7 @@ func CreateProgram(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := createWithAudit(r, "programs", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "programs"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -130,7 +130,7 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "programs"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -150,5 +150,5 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 // @Router /programs/{id} [delete]
 func DeleteProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil)
+	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil, "programs")
 }

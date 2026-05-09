@@ -28,6 +28,8 @@ db_host = "db.yfybmnqzclpmpncyfmdc.supabase.co"
 db_user = "postgres"
 db_name = "postgres"
 
+revalidation_url = "https://staging.armada.nu/api/revalidate"
+
 # Initial admin user seeded on first startup when the DB is empty.
 # Set secret_values["INITIAL_ADMIN_PASSWORD"] in HCP Terraform to activate.
 # Once the account is created the env vars have no further effect.

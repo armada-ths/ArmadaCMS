@@ -159,7 +159,7 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return tx.Create(&profile).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Team").First(&profile, profile.ID).Error
-	}); err != nil {
+	}, "organization"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -277,7 +277,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&profile).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Team").First(&profile, id).Error
-	}); err != nil {
+	}, "organization"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -299,5 +299,5 @@ func DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Profile](w, r, "profiles", id, "profile not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Team")
-	})
+	}, "organization")
 }
