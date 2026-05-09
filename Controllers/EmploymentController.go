@@ -92,7 +92,7 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Exhibitor").First(&item, item.ID).Error
-	}); err != nil {
+	}, "employments"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -133,7 +133,7 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Exhibitor").First(&item, id).Error
-	}); err != nil {
+	}, "employments"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -155,5 +155,5 @@ func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Employment](w, r, "employments", id, "employment not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Exhibitor")
-	})
+	}, "employments")
 }

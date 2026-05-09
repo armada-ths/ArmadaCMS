@@ -119,7 +119,7 @@ func CreateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Team").Preload("Recruitment").First(&item, item.ID).Error
-	}); err != nil {
+	}, "recruitment"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -170,7 +170,7 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Team").Preload("Recruitment").First(&item, id).Error
-	}); err != nil {
+	}, "recruitment"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -192,5 +192,5 @@ func DeleteRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.RecruitmentRole](w, r, "recruitmentroles", id, "recruitment role not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Team").Preload("Recruitment")
-	})
+	}, "recruitment")
 }

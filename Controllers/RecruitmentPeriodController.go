@@ -127,7 +127,7 @@ func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Roles").Preload("Roles.Team").First(&item, item.ID).Error
-	}); err != nil {
+	}, "recruitment"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -188,7 +188,7 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Roles").Preload("Roles.Team").First(&item, id).Error
-	}); err != nil {
+	}, "recruitment"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -210,7 +210,7 @@ func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.RecruitmentPeriod](w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Roles").Preload("Roles.Team")
-	})
+	}, "recruitment")
 }
 
 func parseFlexibleDateTime(value *string) (*time.Time, error) {

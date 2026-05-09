@@ -41,6 +41,7 @@ locals {
     EVENTRO_ORG           = "EVENTRO_ORG"
     AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
     AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
+    REVALIDATION_SECRET   = "REVALIDATION_SECRET"
   }
 
   secret_value_keys = toset([
@@ -63,6 +64,7 @@ locals {
     DB_CONN_MAX_LIFETIME_MINUTES  = "30"
     DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
     AUDIT_LOG_RETENTION_DAYS      = "7"
+    REVALIDATION_URL              = var.revalidation_url
   }
 
   cloud_build_service_account_email     = trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"

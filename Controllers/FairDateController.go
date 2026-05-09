@@ -95,7 +95,7 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 	if err := createWithAudit(r, "fairdates", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "dates"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -145,7 +145,7 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "dates"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -165,5 +165,5 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 // @Router /fairdates/{id} [delete]
 func DeleteFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.FairDateConfig](w, r, "fairdates", id, "fair date config not found", nil)
+	writeDeleteResponseWithAudit[models.FairDateConfig](w, r, "fairdates", id, "fair date config not found", nil, "dates")
 }

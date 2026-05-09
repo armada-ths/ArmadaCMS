@@ -153,7 +153,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 
 	if err := createWithAudit(r, "blogposts", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "blog-posts"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -227,7 +227,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "blog-posts"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -289,5 +289,5 @@ func UploadBlogImage(w http.ResponseWriter, r *http.Request) {
 // @Router /blogposts/{id} [delete]
 func DeleteBlogpost(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Blogpost](w, r, "blogposts", id, "Blogpost not found", nil)
+	writeDeleteResponseWithAudit[models.Blogpost](w, r, "blogposts", id, "Blogpost not found", nil, "blog-posts")
 }

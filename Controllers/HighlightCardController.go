@@ -95,7 +95,7 @@ func CreateHighlightCard(w http.ResponseWriter, r *http.Request) {
 
 	if err := createWithAudit(r, "highlightcards", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "highlight-cards"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +148,7 @@ func UpdateHighlightCard(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "highlight-cards"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -168,5 +168,5 @@ func UpdateHighlightCard(w http.ResponseWriter, r *http.Request) {
 // @Router /highlightcards/{id} [delete]
 func DeleteHighlightCard(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.HighlightCard](w, r, "highlightcards", id, "highlight card not found", nil)
+	writeDeleteResponseWithAudit[models.HighlightCard](w, r, "highlightcards", id, "highlight card not found", nil, "highlight-cards")
 }

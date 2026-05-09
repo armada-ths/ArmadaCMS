@@ -101,7 +101,7 @@ func CreateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := createWithAudit(r, "featureflags", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "feature-flags"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -146,7 +146,7 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updatePayload).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "feature-flags"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -166,7 +166,7 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 // @Router /featureflags/{id} [delete]
 func DeleteFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil)
+	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil, "feature-flags")
 }
 
 func SeedFeatureFlags(dbConn *gorm.DB) error {
