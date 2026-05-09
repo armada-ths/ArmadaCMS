@@ -342,13 +342,21 @@ func SeedInitialAdminUser(database *gorm.DB) error {
 		return nil // users already exist; skip seeding
 	}
 
+	var adminRole models.Role
+	if err := database.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+		log.Printf("Warning: admin role not found, seeding user without role")
+	}
+
 	user := models.User{
 		Username: username,
 		Password: utils.HashPassword(password),
 	}
+	if adminRole.ID != 0 {
+		user.RoleID = &adminRole.ID
+	}
 	if err := database.Create(&user).Error; err != nil {
 		return fmt.Errorf("failed to seed initial admin user: %w", err)
 	}
-	log.Printf("Seeded initial admin user: %s", username)
+	log.Printf("Seeded initial admin user: %s (role: admin)", username)
 	return nil
 }
