@@ -1,4 +1,12 @@
-import { Admin, Menu, Resource, Layout, CustomRoutes } from "react-admin";
+import {
+  Admin,
+  AppBar,
+  Menu,
+  Resource,
+  Layout,
+  CustomRoutes,
+  UserMenu,
+} from "react-admin";
 import { dataProvider } from "./dataProvider";
 import { UserList } from "./components/User/UserList";
 import { UserCreate } from "./components/User/UserCreate";
@@ -49,6 +57,7 @@ import { EventroSync } from "./components/EventroSync/EventroSync";
 import { BlogpostList } from "./components/Blogpost/BlogpostList";
 import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
 import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
+import { ChangePasswordButton } from "./components/ChangePasswordButton";
 
 import { Icon } from "@mui/material";
 import { usePermissions } from "react-admin";
@@ -94,8 +103,18 @@ export const MyMenu = () => {
   );
 };
 
+const MyUserMenu = () => (
+  <UserMenu>
+    <ChangePasswordButton />
+  </UserMenu>
+);
+
+const MyAppBar = () => <AppBar userMenu={<MyUserMenu />} />;
+
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
-  <Layout menu={MyMenu}>{children}</Layout>
+  <Layout menu={MyMenu} appBar={MyAppBar}>
+    {children}
+  </Layout>
 );
 
 export const App = () => (
