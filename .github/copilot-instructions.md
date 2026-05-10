@@ -59,14 +59,16 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **List endpoints**: use `utils.ParseListParams` (parses react-admin `sort`/`range`/`filter` query params) and set `Content-Range` header for react-admin pagination.
 - **Models** (`models/`): GORM structs with camelCase JSON tags. Many-to-many via GORM `many2many` tag. Not all files in `models/` are DB models — `person.go` and `token.go` are response shapes.
 - **Auto-migration**: every DB model must be registered in `db.DB.AutoMigrate(...)` in `main.go`.
-- **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`.
+- **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`. All three helpers accept a variadic `revalidateTags ...string` trailing argument — on success they fire `go utils.RevalidateTag(tag)` for each tag to purge the public site's ISR cache (see _Cache revalidation_ below).
 - **File uploads**: controllers accepting files use `multipart/form-data`; files go to AWS S3 via `utils/aws_s3.go` (validates MIME, generates timestamped key).
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
 - **Session tokens**: access tokens expire in 15 minutes; the admin frontend holds a 7-day rotating refresh token in `localStorage`. `POST /api/v1/login` returns both. `GET /api/v1/refreshAccessToken` (public route, `X-RefreshAuthorization: Bearer <token>` header) rotates the refresh token and issues a new access token. Ensure `jwtsecret_laganda` differs between staging and production.
 - **Initial admin seeding**: on startup `SeedInitialAdminUser` runs once — it creates a user from `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` env vars only if no users exist yet. Remove or leave empty once real accounts are created.
 - **Eventro integration**: `Controllers/EventroController.go` proxies the external Eventro API (exhibitors/events/members/recruitments). Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the `EventroSync` admin page.
 - **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
-- **Blogpost model** (`models/blogpost.go`) exists and is auto-migrated but has no controller, no API routes, and no admin UI — it is legacy and should not be extended without a deliberate decision.
+- **Blogpost** (`Controllers/BlogpostController.go`): full CRUD with S3 image upload (`multipart/form-data`) and a dedicated `POST /api/v1/blogimages` endpoint for inline markdown images. Revalidation tag: `"blog-posts"`.
+- **Cache revalidation** (`utils/revalidate.go`): `RevalidateTag(tag)` POSTs `{ tag, secret }` to the public site's `/api/revalidate` endpoint (fire-and-forget, 5 s timeout). Requires `REVALIDATION_URL` and `REVALIDATION_SECRET`. On staging/preview, `VERCEL_AUTOMATION_BYPASS_SECRET` is sent as `x-vercel-protection-bypass` header. Silently skipped if env vars are unset. Tag names must match between Go controllers and the Next.js data hooks (see `armada.nu/.github/copilot-instructions.md` for the full tag inventory).
+- **Update normalization** (`Controllers/update_normalization_helpers.go`): `NormalizeOptionalStringPointers()` trims whitespace / nils empty strings; `BuildNormalizedSnakeCaseUpdateMap()` converts camelCase form fields to snake_case for GORM partial updates.
 
 ## Admin frontend patterns
 
@@ -74,25 +76,30 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **API endpoint**: `frontend/src/context/globalApi.ts` — `localhost:8080/api/v1` in dev, `window.location.origin/api/v1` in prod.
 - **Auth**: JWT in `localStorage` (`accessToken`, `refreshToken`). Provider: `frontend/src/context/authProvider.ts`.
 - **Resource components**: `frontend/src/components/{Resource}/` — each has `List`, `Create`, `Edit`. `auditlogs` has `List` + `Show` (read-only).
-- **Multipart uploads**: `profiles`, `events`, `exhibitors` use `FormData` (detected by `rawFile` on `ImageInput` values). All other resources use standard JSON. To add a new file-upload resource, add it to the multipart list in `dataProvider.ts`.
+- **Multipart uploads**: `profiles`, `events`, `exhibitors`, `blogposts` use `FormData` (detected by `rawFile` on `ImageInput` values). All other resources use standard JSON. To add a new file-upload resource, add it to the multipart list in `dataProvider.ts`.
 - **Custom page**: `EventroSync` at `/eventrosync`, requires `eventrosync.access` permission — registered as a custom route in `App.tsx`.
 
 ## Environment variables
 
 All vars loaded from `.env` (see `.env.example`). Key vars:
 
-| Var                                             | Purpose                                           |
-| ----------------------------------------------- | ------------------------------------------------- |
-| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                               |
-| `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.** |
-| `S3_BUCKET`, `AWS_REGION`                       | S3 file storage (region default: `eu-north-1`)    |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | S3 credentials (optional if IAM role in use)      |
-| `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                         |
-| `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)   |
-| `PORT`                                          | Server port (default: 8080)                       |
-| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`        | Postgres connection pool tuning (optional)        |
-| `INITIAL_ADMIN_USERNAME`                        | Username seeded on first startup (if DB empty)    |
-| `INITIAL_ADMIN_PASSWORD`                        | Password for the seeded admin user (sensitive)    |
+| Var                                             | Purpose                                                                     |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                                                         |
+| `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.**                           |
+| `S3_BUCKET`, `AWS_REGION`                       | S3 file storage (region default: `eu-north-1`)                              |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | S3 credentials (optional if IAM role in use)                                |
+| `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                                                   |
+| `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)                             |
+| `PORT`                                          | Server port (default: 8080)                                                 |
+| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`        | Postgres connection pool tuning (optional)                                  |
+| `INITIAL_ADMIN_USERNAME`                        | Username seeded on first startup (if DB empty)                              |
+| `INITIAL_ADMIN_PASSWORD`                        | Password for the seeded admin user (sensitive)                              |
+| `REVALIDATION_URL`                              | Public site revalidation endpoint (e.g. `https://armada.nu/api/revalidate`) |
+| `REVALIDATION_SECRET`                           | Shared secret for revalidation webhook auth                                 |
+| `VERCEL_AUTOMATION_BYPASS_SECRET`               | Bypass Vercel Deployment Protection on staging/preview (optional)           |
+| `DB_CONN_MAX_LIFETIME_MINUTES`                  | Postgres connection max lifetime (optional)                                 |
+| `DB_CONN_MAX_IDLE_TIME_MINUTES`                 | Postgres idle connection timeout (optional)                                 |
 
 ## Adding a new resource (checklist)
 
@@ -103,3 +110,4 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 5. Create `List`, `Create`, `Edit` in `frontend/src/components/{Resource}/`.
 6. Register `<Resource>` in `frontend/src/App.tsx`.
 7. If file uploads: add to the multipart resource list in `frontend/src/dataProvider.ts`.
+8. If the resource is displayed on the public site, pass the matching cache tag to the audit helper (`revalidateTags ...string`) and ensure the same tag is used in the Next.js data hook.
