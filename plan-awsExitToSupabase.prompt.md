@@ -1,6 +1,6 @@
 ## Plan: AWS exit to Supabase
 
-Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging object storage, local development, and pre-production environments while preserving Cloud Run on GCP. The long-term target is one Terraform-managed Supabase production project imported from the already-created `ArmadaCMS` project, plus a persistent Supabase branch named `staging` for the long-lived staging environment, and ephemeral PR preview branches rolled out together with per-PR GCP services. Until the preview-environment phase is reached, keep the current standalone staging Supabase project in service as the staging database.
+Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging/pre-production object storage, and remote environment management while preserving Cloud Run on GCP. Local development continues to use Docker Compose with local Postgres and MinIO — the Supabase CLI is used only as a migration management tool, not as the local runtime. The long-term target is one Terraform-managed Supabase production project imported from the already-created `ArmadaCMS` project, plus a persistent Supabase branch named `staging` for the long-lived staging environment, and ephemeral PR preview branches rolled out together with per-PR GCP services. Until the preview-environment phase is reached, keep the current standalone staging Supabase project in service as the staging database.
 
 **Steps**
 
@@ -22,24 +22,23 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
    3.2 Link the repo to the existing production Supabase project and immediately pull the current remote schema into versioned migrations using Supabase CLI so the repository, local CLI workflow, and remote production schema all agree.
    3.3 Stop treating GORM `AutoMigrate` as the primary production schema-management mechanism. Keep it temporarily for compatibility if needed, but move the source of truth to checked-in SQL migrations under `supabase/migrations/`.
    3.4 Audit every existing table, index, default, extension, trigger, and permission in production/staging so the initial migration set reflects reality rather than only what GORM knows about.
-   3.5 Add `supabase/seed.sql` for local development first, and later reuse or extend it for hosted preview branches once those are enabled. Keep it limited to safe bootstrap data needed for ArmadaCMS to start and be testable: roles, feature flags, optionally a non-production admin account, and minimal relational fixtures.
+   3.5 Add `supabase/seed.sql` for remote environment resets and CI. Keep it limited to safe bootstrap data needed for ArmadaCMS to start and be testable: roles, feature flags, optionally a non-production admin account, and minimal relational fixtures.
    3.6 Add CI checks to validate that migrations and seeds apply cleanly in a local Supabase stack before merge.
 
 4. Phase 3 — Prepare the application for Supabase storage.
    4.1 Replace the AWS-specific storage implementation in `utils/aws_s3.go` with a provider-neutral storage abstraction. The immediate backend provider can target Supabase Storage, but the interface should hide provider details from controllers.
    4.2 Preserve existing MIME validation, max-size enforcement, and multipart upload behavior so the admin frontend remains unchanged.
    4.3 Decide how uploaded file locations are represented in the database. Recommended migration path: keep existing URL fields for the initial cutover to minimize API churn, but centralize public-URL generation in one storage service and add a follow-up task to move to provider-neutral object keys later if desired.
-   4.4 Create the required Supabase Storage buckets for production, the current standalone staging project, and local development first. Add hosted-branch bucket strategy later when branching is enabled.
+   4.4 Create the required Supabase Storage buckets for production and the current standalone staging project. Add hosted-branch bucket strategy later when branching is enabled. Local development continues to use MinIO.
    4.5 Define storage access rules explicitly. Because ArmadaCMS uploads from the backend, prefer server-side credentials/service role access from Cloud Run rather than direct browser uploads for the first migration.
    4.6 Plan the historical object migration: S3 object inventory export, copy to Supabase Storage, checksum/size verification, URL mapping manifest, and idempotent reruns.
    4.7 Plan cleanup/retention of old AWS objects so rollback remains possible until sign-off.
 
-5. Phase 4 — Restructure local development around Supabase.
-   5.1 Add Supabase CLI local development as the primary database/storage workflow for ArmadaCMS. Developers should be able to run the local Supabase stack, the Go backend, and the admin frontend without AWS or MinIO.
-   5.2 Decide whether Docker Compose remains the top-level orchestrator or whether Supabase CLI owns database/storage while Compose only runs backend/frontend. Recommended: keep Docker Compose for backend/frontend convenience, but remove local Postgres/MinIO ownership from it once Supabase CLI is documented and stable.
-   5.3 Update `.env.example`, README, and onboarding docs with the new variable set for local Supabase, remote Supabase, and Cloud Run environments.
-   5.4 Replace or complement `scripts/import-remote-db.ps1` with a cross-platform workflow that can clone or restore Supabase-compatible backups into local CLI environments.
-   5.5 Ensure local seeding supports empty-database development now, with a later extension path for hosted branch-preview validation.
+5. Phase 4 — Document the Supabase CLI as a migration management tool (not a local runtime).
+   5.1 Local development remains on Docker Compose (Postgres + MinIO + backend + frontend). Do not replace this with the Supabase CLI stack.
+   5.2 Use the Supabase CLI exclusively for migration authoring (`supabase db diff`), validation (`supabase db reset` against a temporary local stack or CI), and remote pushes (`supabase db push`).
+   5.3 Update `.env.example` and README to document the Supabase CLI migration workflow clearly, separated from the day-to-day Docker Compose dev workflow.
+   5.4 Replace or complement `scripts/import-remote-db.ps1` with a Supabase-aware restore workflow for cloning remote data into local Postgres for debugging purposes.
 
 6. Phase 5 — Manage Supabase with Terraform.
    6.1 Add a new Terraform root for Supabase platform resources instead of forcing them into existing GCP or AWS roots. Keep one logical root per stack, consistent with repo conventions.
@@ -112,7 +111,7 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\Controllers\BlogpostController.go` — multipart upload consumer.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\frontend\src\dataProvider.ts` — frontend multipart behavior expected to remain stable.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\.env.example` — local/dev/runtime environment contract to redesign for Supabase.
-- `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\docker-compose.dev.yml` — local dev topology to simplify around Supabase CLI.
+- `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\docker-compose.dev.yml` — local dev topology; Postgres and MinIO stay here permanently.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\scripts\import-remote-db.ps1` — current remote clone workflow to replace/complement with Supabase-aware, cross-platform restore/import tooling.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\infra\terraform\README.md` — current provider/environment layout to update.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\infra\terraform\gcp\prod\locals.tf` — currently injects AWS-derived env vars into Cloud Run production.
@@ -122,13 +121,13 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\infra\terraform\aws\prod\README.md` — production AWS resources currently providing DB/storage.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\infra\terraform\aws\staging\README.md` — staging AWS storage root to retire.
 - `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\.github\workflows\keep-staging-alive.yml` — likely removable once the old free-tier staging project is retired.
-- `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\README.md` — developer workflow documentation to update for Supabase local dev and migration-based schema management.
+- `c:\Users\einar\Programmeringsprojekt\Armada\ArmadaCMS\README.md` — developer workflow documentation; update to clarify that local dev stays on Docker Compose and Supabase CLI is a migration management tool only.
 - `c:\Users\einar\Programmeringsprojekt\Armada\armada.nu\src\env.ts` — if the public site ever needs new CMS/storage-facing env vars or preview awareness.
 
 **Verification**
 
 1. Live inventory verified: database versions, bucket inventories, secret inventories, Terraform workspace dependencies, and current Supabase project details captured before any changes.
-2. Local Supabase workflow verified: fresh clone can start local Supabase, reset DB from migrations, seed test data, run ArmadaCMS backend/frontend, and complete one upload flow.
+2. Migration tooling verified: `supabase db reset` applies all migrations and seeds cleanly in a temporary local Supabase stack or CI; `supabase db push` applies pending migrations to remote environments.
 3. Migration discipline verified: CI fails when migrations or seeds do not apply cleanly; hosted preview-branch checks are added later when the preview-environment phase begins.
 4. Storage abstraction verified: all upload endpoints (`profiles`, `events`, `exhibitors`, `blogposts`) can create and update records against Supabase Storage; public URLs resolve correctly from both admin and `armada.nu`.
 5. Staging verified on the active staging database topology: health endpoint, auth/login/refresh, CRUD, uploads, public-site reads, Eventro sync paths, and audit logs all pass.
@@ -138,7 +137,8 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 
 **Decisions**
 
-- Included scope: production database migration, production/staging storage migration, Supabase local development, Supabase migrations/seeds, Terraform-managed Supabase adoption, Cloud Run/GCP integration updates, and cutover/rollback/decommission planning.
+- Included scope: production database migration, production/staging/pre-production storage migration, Supabase migrations/seeds as remote schema management, Terraform-managed Supabase adoption, Cloud Run/GCP integration updates, and cutover/rollback/decommission planning.
+- Excluded from all phases: replacing local Docker Compose development with Supabase CLI. Local dev permanently uses Docker Compose (Postgres + MinIO). Supabase CLI is a migration authoring and push tool only.
 - Excluded from first migration wave: adopting Supabase Auth, Realtime, Edge Functions, or direct browser uploads. These are not needed to eliminate AWS and would add unnecessary risk.
 - Recommended environment model for the current phase: one imported production Supabase project, the existing standalone staging Supabase project, and no hosted preview branches yet. Proceed with a persistent hosted `staging` branch and ephemeral PR preview branches in the next phase, together with per-PR GCP services.
 - Recommended cutover model: short production maintenance window with final DB dump + final incremental object sync rather than near-zero-downtime dual-write.

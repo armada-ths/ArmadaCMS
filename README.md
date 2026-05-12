@@ -173,7 +173,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 6. **Set up file uploads (MinIO, AWS S3, or Supabase Storage)**
 
-   File uploads (profile photos, exhibitor logos, event images) now go through a provider-neutral storage service. **For local development, MinIO remains the recommended default.**
+   File uploads (profile photos, exhibitor logos, event images) now go through a provider-neutral storage service. **For local development, MinIO is the permanent default and will not be replaced.**
    - The Docker development stack already starts MinIO automatically and uses the `.env.example` default `S3_ENDPOINT=http://minio:9000`.
    - The production-style local verification flow also needs container-reachable endpoints such as `host.docker.internal` if you want to use locally started services.
    - Supabase Storage is also supported for backend uploads through its S3-compatible endpoint once you generate storage access keys and configure the `SUPABASE_STORAGE_*` variables.
@@ -217,13 +217,13 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ## Supabase migration groundwork
 
-The repository now includes an initial `supabase/` scaffold for the AWS → Supabase migration.
+The repository includes a `supabase/` scaffold for the AWS → Supabase migration. **Local development continues to use Docker Compose (Postgres + MinIO) and is not changing.** The Supabase CLI is used only as a migration management tool — for authoring, validating, and pushing schema changes to remote environments (production, staging, pre-production).
 
-- `supabase/config.toml` establishes the local Supabase CLI project configuration.
-- `supabase/seed.sql` now bootstraps deterministic roles and feature flags for local resets.
-- `supabase/migrations/` is where checked-in SQL migrations will live.
-- `docs/supabase-migration-inventory.md` is the operator checklist for the early migration phases.
-- `docs/supabase-app-schema-inventory.md` captures the ArmadaCMS application tables and bootstrap data that still need checked-in SQL migrations.
+- `supabase/config.toml` configures the Supabase CLI project for migration management.
+- `supabase/seed.sql` bootstraps deterministic roles and feature flags for remote environment resets and CI.
+- `supabase/migrations/` holds all checked-in SQL migrations applied to remote Supabase environments.
+- `docs/supabase-migration-inventory.md` is the operator checklist for the migration phases.
+- `docs/supabase-app-schema-inventory.md` captures the ArmadaCMS application tables and bootstrap data in the migration.
 
 ### What is intentionally deferred
 
@@ -233,17 +233,18 @@ The repository now includes an initial `supabase/` scaffold for the AWS → Supa
 
 Those features will be introduced in the next phase, as one coordinated preview-environment rollout.
 
-### Local Supabase workflow
+### Supabase CLI migration workflow
 
-You can now prepare the repo for migration-driven local database work with the Supabase CLI:
+The Supabase CLI is used to manage schema migrations for remote environments. It is **not** used for local development.
 
-1. Start the local Supabase stack:
-   - `pnpx supabase start`
-2. Reset and seed the local database from checked-in migrations and `supabase/seed.sql`:
+1. Push pending migrations to a linked remote environment:
+   - `pnpx supabase db push`
+2. Validate that all migrations apply cleanly from scratch (uses a temporary local Supabase stack for verification only):
    - `pnpx supabase db reset`
-3. When ready to baseline the existing hosted schema into migrations:
+3. Generate a new migration from schema changes:
+   - `pnpx supabase db diff -f <migration-name>`
+4. Link the CLI to a remote project:
    - `pnpx supabase link --project-ref <project-ref>`
-   - `pnpx supabase db pull <migration-name>`
 
 The repository already includes an initial baseline migration generated from the newly created hosted Supabase production project. The next schema milestone is to represent the ArmadaCMS application schema itself in checked-in SQL migrations.
 

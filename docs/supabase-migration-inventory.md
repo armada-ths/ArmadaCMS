@@ -44,21 +44,17 @@ It intentionally excludes paid Supabase branching work for now.
 
 - Supabase CLI version: `2.98.1`
 - Docker version: `4.71.0`
-- Current local DB workflow owner (Docker Compose / Supabase CLI): Docker Compose today, with Supabase CLI now scaffolded for migration-driven DB work
-- Current local storage workflow owner (MinIO / Supabase CLI): MinIO today
+- Local DB runtime: Docker Compose (Postgres) — permanent, not migrating to Supabase CLI
+- Local storage runtime: Docker Compose (MinIO) — permanent, not migrating to Supabase CLI
+- Supabase CLI role: migration authoring (`supabase db diff`), validation (`supabase db reset`), and remote pushes (`supabase db push`) only
 - Checked-in Supabase storage bucket migration: `supabase/migrations/20260504092802_create_public_storage_bucket.sql`
 - Application schema inventory for the next migration phase: `docs/supabase-app-schema-inventory.md`
-- Known blockers for moving local DB work to Supabase CLI:
-  - `.env` / docs still default to the Docker Compose Postgres service
-  - the repository now has both the hosted Supabase baseline migration and a first generated ArmadaCMS application schema snapshot, but that snapshot still needs manual review/cleanup before it becomes the trusted long-term source of truth (see `docs/supabase-app-schema-inventory.md`)
-  - the backend still needs a documented and tested path for running against the local Supabase database instead of the Docker Compose Postgres service by default
-  - `DB_ENABLE_AUTOMIGRATE` now makes runtime GORM schema writes optional, but production/staging still need an explicit rollout decision for when to disable it by default
 - Current SQL bootstrap ownership:
-  - `supabase/seed.sql` now seeds deterministic roles and feature flags
+  - `supabase/seed.sql` seeds deterministic roles and feature flags for remote environment resets and CI
   - the optional initial admin user still comes from Go startup because it depends on environment variables
-- Known blockers for moving local storage away from MinIO:
-  - provider-neutral backend upload plumbing now exists, and the default public bucket is now described in checked-in SQL, but Supabase Storage still needs generated storage access keys in each environment
-  - Supabase Storage bucket policy and long-term object-path strategy still need a follow-up decision
+- Remaining schema migration work:
+  - the application schema snapshot still needs manual review/cleanup before it becomes the trusted long-term source of truth (see `docs/supabase-app-schema-inventory.md`)
+  - `DB_ENABLE_AUTOMIGRATE` needs to be set to `false` in production/staging once checked-in migration parity is confirmed
 
 ## Cutover planning
 
