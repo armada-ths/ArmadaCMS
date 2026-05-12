@@ -19,7 +19,7 @@ It intentionally excludes paid Supabase branching work for now.
 - Current standalone staging Supabase region: `North EU (Stockholm)`
 - Intended production Supabase project ref (`ArmadaCMS`): `rsdjnixgxqauonaofrwr`
 - Intended production Supabase region: `North EU (Stockholm)`
-- Supabase plan tier / billing status: billing not configured yet; avoid hosted branching and other paid rollout steps for now
+- Supabase plan tier / billing status: billing configured; hosted branching and preview branches are ready to proceed as the next phase
 
 ## Terraform and runtime wiring inventory
 
@@ -70,7 +70,7 @@ It intentionally excludes paid Supabase branching work for now.
 - Database migration approver:
 - Storage migration approver:
 
-## Deferred until billing setup
+## Next phase (billing now configured)
 
 - Persistent hosted Supabase `staging` branch
 - Ephemeral Supabase preview branches

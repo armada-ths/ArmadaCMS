@@ -1,6 +1,6 @@
 ## Plan: AWS exit to Supabase
 
-Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging object storage, local development, and pre-production environments while preserving Cloud Run on GCP. The long-term target remains one Terraform-managed Supabase production project imported from the already-created `ArmadaCMS` project, plus a persistent Supabase branch named `staging` for the long-lived staging environment. However, hosted Supabase branching and PR preview branches are deferred until billing is configured and can be rolled out together with per-PR GCP services. Until then, keep the current standalone staging Supabase project in service as the staging database.
+Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging object storage, local development, and pre-production environments while preserving Cloud Run on GCP. The long-term target is one Terraform-managed Supabase production project imported from the already-created `ArmadaCMS` project, plus a persistent Supabase branch named `staging` for the long-lived staging environment, and ephemeral PR preview branches rolled out together with per-PR GCP services. Until the preview-environment phase is reached, keep the current standalone staging Supabase project in service as the staging database.
 
 **Steps**
 
@@ -12,7 +12,7 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 
 2. Phase 1 — Lock the target environment model.
    2.1 Adopt the target topology: GCP Cloud Run remains the runtime platform; Supabase becomes the only database and object-storage platform; AWS is retained only until post-cutover validation is complete.
-   2.2 Keep the current standalone Supabase staging project as the active staging database until billing is configured. After that, migrate staging to a persistent hosted Supabase branch `staging` if the branching model still fits the operational workflow.
+   2.2 Keep the current standalone Supabase staging project as the active staging database until the preview-environment phase. After that, migrate staging to a persistent hosted Supabase branch `staging` if the branching model still fits the operational workflow.
    2.3 Explicitly defer GitHub-integrated hosted preview branches for PRs. Roll them out later together with per-PR GCP preview services so preview infrastructure is introduced as one cohesive feature instead of in half-built layers.
    2.4 First deliver stable production + standalone staging on Supabase-backed workflows, then revisit hosted branching and per-PR preview environments as a later phase.
    2.5 Keep the current standalone Supabase staging project as a safety net through validation, and do not delete it until its replacement topology has been running the staging app successfully for at least one release cycle.
@@ -43,8 +43,8 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 
 6. Phase 5 — Manage Supabase with Terraform.
    6.1 Add a new Terraform root for Supabase platform resources instead of forcing them into existing GCP or AWS roots. Keep one logical root per stack, consistent with repo conventions.
-   6.2 Use the Supabase Terraform provider to import the existing production project (`ArmadaCMS`) rather than recreating it. Version-control project settings and storage buckets there now, and add hosted branch configuration later when billing-backed branching is enabled.
-   6.3 Once billing is configured, decide whether persistent `staging` branch management belongs in Terraform or is bootstrapped manually then imported; prefer Terraform if provider support is adequate for the exact branch resources you need.
+   6.2 Use the Supabase Terraform provider to import the existing production project (`ArmadaCMS`) rather than recreating it. Version-control project settings and storage buckets there now, and add hosted branch configuration in the next phase when the preview-environment rollout begins.
+   6.3 Decide whether persistent `staging` branch management belongs in Terraform or is bootstrapped manually then imported; prefer Terraform if provider support is adequate for the exact branch resources you need.
    6.4 Move GCP runtime configuration away from `data.tfe_outputs` coming from `aws/prod` and `aws/staging`. Replace those dependencies with Supabase-derived plain env vars and Secret Manager secrets.
    6.5 Remove the AWS production RDS and S3 outputs as upstream dependencies only after GCP production/staging run exclusively against Supabase.
    6.6 Update HCP Terraform workspace design, remote-state sharing, and documentation to reflect the new provider split. The GCP workspaces should no longer depend on AWS workspaces for DB/storage configuration once cutover is complete.
@@ -57,8 +57,8 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
    7.4 Update connection-pool tuning for Supabase limits in each environment and validate that staging/prod values are intentionally different if needed.
    7.5 Document operator procedures for rotating Supabase database credentials, service-role keys, and any GitHub-integration tokens.
 
-8. Phase 7 — Build the preview-environment workflow (deferred until billing setup).
-   8.1 Once billing is configured, connect the `ArmadaCMS` GitHub repository to Supabase GitHub integration with the correct working directory.
+8. Phase 7 — Build the preview-environment workflow.
+   8.1 Connect the `ArmadaCMS` GitHub repository to Supabase GitHub integration with the correct working directory.
    8.2 Enable automatic preview branches for PRs together with per-PR GCP preview services, and configure required checks so failed hosted previews block merges.
    8.3 Ensure preview branches apply migrations and seed data automatically. Preview branches contain no production data, so seed coverage must be enough to exercise admin flows and smoke tests.
    8.4 Roll out preview app runtimes and hosted preview databases together so service naming, secret injection, and cleanup are deterministic from the start.
@@ -140,12 +140,12 @@ Migrate ArmadaCMS to Supabase for production PostgreSQL, production/staging obje
 
 - Included scope: production database migration, production/staging storage migration, Supabase local development, Supabase migrations/seeds, Terraform-managed Supabase adoption, Cloud Run/GCP integration updates, and cutover/rollback/decommission planning.
 - Excluded from first migration wave: adopting Supabase Auth, Realtime, Edge Functions, or direct browser uploads. These are not needed to eliminate AWS and would add unnecessary risk.
-- Recommended environment model for the current non-billing phase: one imported production Supabase project, the existing standalone staging Supabase project, and no hosted preview branches yet. Revisit a persistent hosted `staging` branch and ephemeral PR preview branches later when billing and per-PR GCP services are ready.
+- Recommended environment model for the current phase: one imported production Supabase project, the existing standalone staging Supabase project, and no hosted preview branches yet. Proceed with a persistent hosted `staging` branch and ephemeral PR preview branches in the next phase, together with per-PR GCP services.
 - Recommended cutover model: short production maintenance window with final DB dump + final incremental object sync rather than near-zero-downtime dual-write.
 - Recommended storage migration model: backend-driven uploads to Supabase Storage, keep existing API/frontend upload contract stable for the first wave.
 
 **Further Considerations**
 
 1. If Supabase Terraform branch resource support is incomplete for the exact branch workflow you want, bootstrap the persistent `staging` branch manually, then import/manage the supported subset in Terraform while documenting the gap clearly.
-2. Once billing is configured, enable hosted Supabase preview branches together with per-PR Cloud Run preview services rather than separately, so preview infrastructure is introduced as one coherent system.
+2. Enable hosted Supabase preview branches together with per-PR Cloud Run preview services rather than separately, so preview infrastructure is introduced as one coherent system.
 3. After AWS exit is complete, consider a second hardening project to replace absolute file URLs stored in database rows with provider-neutral object keys to reduce future storage lock-in.

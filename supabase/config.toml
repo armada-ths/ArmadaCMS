@@ -1,8 +1,8 @@
 # ArmadaCMS Supabase local-development scaffold.
 #
-# This is the first migration-phase setup: local CLI workflow, migrations, and
-# seeds. Hosted paid features such as persistent staged branches and ephemeral
-# preview branches are intentionally deferred until billing is configured.
+# Billing is now configured. Hosted branching (persistent staging branch and
+# ephemeral PR preview branches) is ready to be enabled as the next phase,
+# together with per-PR GCP preview services.
 #
 # Storage is enabled locally so we can evolve toward Supabase Storage, but the
 # ArmadaCMS application still uses MinIO/AWS-compatible uploads until the

@@ -8,8 +8,8 @@
 -- Keep this file safe and deterministic. It should only contain local/test data
 -- that is acceptable in branch databases and on developer machines.
 --
--- Preview branches are intentionally deferred until a later phase, together
--- with per-PR GCP services and billing-backed Supabase branching.
+-- Preview branches (persistent staging and ephemeral PR branches) are ready to
+-- be enabled in the next phase, together with per-PR GCP services.
 
 insert into public.roles (name, permissions)
 values

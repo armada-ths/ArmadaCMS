@@ -231,7 +231,7 @@ The repository now includes an initial `supabase/` scaffold for the AWS → Supa
 - Supabase PR preview branches
 - Per-PR GCP preview services
 
-Those features will be introduced later, after billing is configured, as one coordinated preview-environment rollout.
+Those features will be introduced in the next phase, as one coordinated preview-environment rollout.
 
 ### Local Supabase workflow
 
