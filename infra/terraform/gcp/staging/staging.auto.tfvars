@@ -4,7 +4,7 @@ environment  = "staging"
 service_name = "armadacms-staging"
 name_prefix  = "armadacms-staging"
 
-storage_provider = "s3"
+storage_provider = "supabase"
 # Storage cutover: uncomment the block below and change storage_provider to "supabase"
 # after all S3 files have been copied and the URL rewrite SQL has been run.
 # supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
