@@ -1,7 +1,7 @@
 project_id = "just-sunrise-491718-m9"
 region     = "europe-north2"
 
-storage_provider = "s3"
+storage_provider = "supabase"
 # Storage cutover: uncomment the block below and change storage_provider to "supabase"
 # after all S3 files have been copied and the URL rewrite SQL has been run.
 # Then add SUPABASE_STORAGE_ACCESS_KEY_ID and SUPABASE_STORAGE_SECRET_ACCESS_KEY
