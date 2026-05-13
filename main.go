@@ -238,6 +238,9 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	// Current user info (for frontend permissions)
 	protectedAPI.HandleFunc("/me", controllers.GetMe).Methods("GET")
 
+	// Change own password — standalone permission
+	protectedAPI.HandleFunc("/me/password", auth.RequirePermission("customusers.changeownpassword", controllers.ChangeOwnPassword)).Methods("PUT")
+
 	// Users — admin only
 	protectedAPI.HandleFunc("/customusers", auth.RequirePermission("customusers.list", controllers.GetUsers)).Methods("GET")
 	protectedAPI.HandleFunc("/customusers/{id}", auth.RequirePermission("customusers.show", controllers.GetUserByID)).Methods("GET")

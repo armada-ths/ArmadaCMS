@@ -40,6 +40,7 @@ locals {
       EVENTRO_API       = "EVENTRO_API"
       EVENTRO_FAIR_ID   = "EVENTRO_FAIR_ID"
       EVENTRO_ORG       = "EVENTRO_ORG"
+      REVALIDATION_SECRET   = "REVALIDATION_SECRET"
     },
     var.storage_provider == "s3" ? {
       AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
@@ -71,6 +72,7 @@ locals {
       DB_CONN_MAX_LIFETIME_MINUTES  = "30"
       DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
       AUDIT_LOG_RETENTION_DAYS      = "7"
+      REVALIDATION_URL              = var.revalidation_url
     },
     var.storage_provider == "s3" ? {
       S3_BUCKET  = nonsensitive(data.tfe_outputs.aws_prod.values["s3_bucket_name"])

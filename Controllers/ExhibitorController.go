@@ -187,7 +187,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 		return tx.Create(&exhibitor).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Industries").Preload("Programs").Preload("Employments").First(&exhibitor, exhibitor.ID).Error
-	}); err != nil {
+	}, "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -315,7 +315,7 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Programs").Preload("Industries").Preload("Employments").First(&exhibitor, id).Error
-	}); err != nil {
+	}, "exhibitors"); err != nil {
 		http.Error(w, "Failed to update exhibitor", http.StatusInternalServerError)
 		return
 	}
@@ -338,5 +338,5 @@ func DeleteExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Exhibitor](w, r, "exhibitors", id, "exhibitor not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Industries").Preload("Programs").Preload("Employments")
-	})
+	}, "exhibitors")
 }

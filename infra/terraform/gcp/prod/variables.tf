@@ -77,6 +77,12 @@ variable "secret_values" {
   default     = {}
 }
 
+variable "revalidation_url" {
+  description = "URL of the public site on-demand revalidation endpoint. Injected as a plain Cloud Run env var."
+  type        = string
+  default     = ""
+}
+
 variable "deploy_cloud_run_service" {
   description = "Whether Terraform should manage the Cloud Run service itself. Set this to false for the initial bootstrap if secrets have not been populated yet."
   type        = bool

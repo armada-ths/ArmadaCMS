@@ -12,6 +12,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - [Testing](#testing)
 - [API](#api)
 - [Swagger docs](#swagger-docs)
+- [Cache Revalidation](#cache-revalidation)
+- [CI / CD](#ci--cd)
 - [Operations notes](#operations-notes)
 - [Infrastructure as code](#infrastructure-as-code)
 - [Adding a New Resource](#adding-a-new-resource)
@@ -362,6 +364,20 @@ This overwrites `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Co
 
 > **Prerequisites:** install the `swag` CLI once with `go install github.com/swaggo/swag/cmd/swag@latest`.
 
+## Cache Revalidation
+
+Write operations automatically purge the public site's ISR cache via `utils.RevalidateTag(tag)`, which POSTs to armada.nu's `/api/revalidate` endpoint. Tags are passed as the trailing `revalidateTags ...string` argument to the audit helpers. Requires `REVALIDATION_URL` and `REVALIDATION_SECRET` env vars (silently skipped if unset). See [`armada.nu/.github/copilot-instructions.md`](https://github.com/armada-ths/armada.nu/blob/main/.github/copilot-instructions.md) for the full tag inventory.
+
+## CI / CD
+
+GitHub Actions workflows in `.github/workflows/`:
+
+| Workflow                 | Trigger                                                  | What it does                                                       |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `go-checks.yml`          | Push to `main`/`staging` when Go files change, PRs       | `go vet`, `golangci-lint`, `go test -race`                         |
+| `frontend-checks.yml`    | Push to `main`/`staging` when frontend files change, PRs | `npm run lint:check`, `npm run type-check`, `npm run format:check` |
+| `keep-staging-alive.yml` | Weekly schedule                                          | `curl` to staging `/health` to prevent Supabase free-tier pause    |
+
 ## Operations notes
 
 - Production traffic is served through Cloud Run. PostgreSQL and file uploads currently use AWS-managed services; the cutover to Supabase DB and Supabase Storage is in progress (DB rehearsal complete, storage migration and production cutover pending).
@@ -391,3 +407,4 @@ Use those documents as the canonical source for infrastructure specifics rather 
 5. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
 6. Register the `<Resource>` in `frontend/src/App.tsx`.
 7. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
+8. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.

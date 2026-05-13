@@ -3,6 +3,7 @@ package controllers
 import (
 	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/db"
+	"ArmadaCMS/main/utils"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -10,8 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func createWithAudit[T any](r *http.Request, resourceType string, entity *T, persist func(tx *gorm.DB) error, reload func(tx *gorm.DB) error) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+func createWithAudit[T any](r *http.Request, resourceType string, entity *T, persist func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := persist(tx); err != nil {
 			return err
 		}
@@ -22,10 +23,16 @@ func createWithAudit[T any](r *http.Request, resourceType string, entity *T, per
 		}
 		return audit.LogCreate(tx, r, resourceType, getResourceID(entity), entity)
 	})
+	if err == nil {
+		for _, tag := range revalidateTags {
+			go utils.RevalidateTag(tag)
+		}
+	}
+	return err
 }
 
-func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error, reload func(tx *gorm.DB) error) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := mutate(tx); err != nil {
 			return err
 		}
@@ -36,9 +43,15 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 		}
 		return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
 	})
+	if err == nil {
+		for _, tag := range revalidateTags {
+			go utils.RevalidateTag(tag)
+		}
+	}
+	return err
 }
 
-func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB) {
+func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, revalidateTags ...string) {
 	var entity T
 	query := db.DB
 	if buildQuery != nil {
@@ -70,6 +83,10 @@ func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request,
 		}
 		http.Error(w, "Delete failed", http.StatusInternalServerError)
 		return
+	}
+
+	for _, tag := range revalidateTags {
+		go utils.RevalidateTag(tag)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

@@ -37,12 +37,14 @@ locals {
   # secrets in the same GCP project.
   secret_env_vars = merge(
     {
-      DB_PASSWORD            = "${var.name_prefix}-DB_PASSWORD"
-      jwtsecret_laganda      = "${var.name_prefix}-jwtsecret_laganda"
-      EVENTRO_API            = "${var.name_prefix}-EVENTRO_API"
-      EVENTRO_FAIR_ID        = "${var.name_prefix}-EVENTRO_FAIR_ID"
-      EVENTRO_ORG            = "${var.name_prefix}-EVENTRO_ORG"
-      INITIAL_ADMIN_PASSWORD = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
+      DB_PASSWORD                     = "${var.name_prefix}-DB_PASSWORD"
+      jwtsecret_laganda               = "${var.name_prefix}-jwtsecret_laganda"
+      EVENTRO_API                     = "${var.name_prefix}-EVENTRO_API"
+      EVENTRO_FAIR_ID                 = "${var.name_prefix}-EVENTRO_FAIR_ID"
+      EVENTRO_ORG                     = "${var.name_prefix}-EVENTRO_ORG"
+      INITIAL_ADMIN_PASSWORD          = "${var.name_prefix}-INITIAL_ADMIN_PASSWORD"
+      REVALIDATION_SECRET             = "${var.name_prefix}-REVALIDATION_SECRET"
+      VERCEL_AUTOMATION_BYPASS_SECRET = "${var.name_prefix}-VERCEL_AUTOMATION_BYPASS_SECRET"
     },
     var.storage_provider == "s3" ? {
       AWS_ACCESS_KEY_ID     = "${var.name_prefix}-AWS_ACCESS_KEY_ID"
@@ -78,6 +80,7 @@ locals {
       DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
       AUDIT_LOG_RETENTION_DAYS      = "7"
       INITIAL_ADMIN_USERNAME        = var.initial_admin_username
+      REVALIDATION_URL              = var.revalidation_url
     },
     var.storage_provider == "s3" ? {
       S3_BUCKET  = nonsensitive(data.tfe_outputs.aws_staging[0].values["s3_bucket_name"])

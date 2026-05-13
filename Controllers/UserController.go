@@ -263,6 +263,70 @@ func GetMe(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+type changePasswordBody struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
+// ChangeOwnPassword lets an authenticated user change their own password.
+// @Summary Change own password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body controllers.changePasswordBody true "Old and new password"
+// @Success 204 "Password changed"
+// @Failure 400 {string} string "Invalid body or missing fields"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {string} string "Old password is incorrect"
+// @Failure 500 {string} string "Update failed"
+// @Security BearerAuth
+// @Router /me/password [put]
+func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body changePasswordBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+	if body.OldPassword == "" || body.NewPassword == "" {
+		http.Error(w, "Both oldPassword and newPassword are required", http.StatusBadRequest)
+		return
+	}
+	if body.OldPassword == body.NewPassword {
+		http.Error(w, "New password must be different from the old password", http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	if err := db.DB.First(&user, userID).Error; err != nil {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	if err := utils.CheckPasswordHash(body.OldPassword, user.Password); err != nil {
+		http.Error(w, "Old password is incorrect", http.StatusForbidden)
+		return
+	}
+
+	before := user
+	newHash := utils.HashPassword(body.NewPassword)
+	if err := updateWithAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB) error {
+		return tx.Model(&user).Update("password", newHash).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(&user, userID).Error
+	}); err != nil {
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // SeedInitialAdminUser creates a single admin user if no users exist and
 // INITIAL_ADMIN_USERNAME / INITIAL_ADMIN_PASSWORD env vars are set.
 // This lets a fresh staging (or dev) environment become usable without any
@@ -282,13 +346,21 @@ func SeedInitialAdminUser(database *gorm.DB) error {
 		return nil // users already exist; skip seeding
 	}
 
+	var adminRole models.Role
+	if err := database.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+		log.Printf("Warning: admin role not found, seeding user without role")
+	}
+
 	user := models.User{
 		Username: username,
 		Password: utils.HashPassword(password),
 	}
+	if adminRole.ID != 0 {
+		user.RoleID = &adminRole.ID
+	}
 	if err := database.Create(&user).Error; err != nil {
 		return fmt.Errorf("failed to seed initial admin user: %w", err)
 	}
-	log.Printf("Seeded initial admin user: %s", username)
+	log.Printf("Seeded initial admin user: %s (role: admin)", username)
 	return nil
 }

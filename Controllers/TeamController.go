@@ -92,7 +92,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := createWithAudit(r, "teams", &team, func(tx *gorm.DB) error {
 		return tx.Create(&team).Error
-	}, nil); err != nil {
+	}, nil, "organization"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -134,7 +134,7 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&team).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&team, id).Error
-	}); err != nil {
+	}, "organization"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -154,5 +154,5 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 // @Router /teams/{id} [delete]
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil)
+	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil, "organization")
 }

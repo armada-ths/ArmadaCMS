@@ -90,7 +90,7 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := createWithAudit(r, "industries", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil); err != nil {
+	}, nil, "industries"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -130,7 +130,7 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}); err != nil {
+	}, "industries"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -150,5 +150,5 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 // @Router /industries/{id} [delete]
 func DeleteIndustry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil)
+	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil, "industries")
 }

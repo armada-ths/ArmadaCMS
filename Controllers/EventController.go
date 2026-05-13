@@ -199,7 +199,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 
 	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
 		return tx.Create(&event).Error
-	}, nil); err != nil {
+	}, nil, "events"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -326,7 +326,7 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&event).Select(fieldsToUpdate).Updates(updates).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&event, id).Error
-	}); err != nil {
+	}, "events"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -346,5 +346,5 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 // @Router /events/{id} [delete]
 func DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil)
+	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil, "events")
 }
