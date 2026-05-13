@@ -71,7 +71,7 @@ variable "github_app_private_key" {
 }
 
 variable "secret_values" {
-  description = "Optional map of ArmadaCMS runtime secret values keyed by environment variable name. Supplying values lets Terraform create secret versions, but the values will be stored in Terraform state."
+  description = "Escape-hatch for seeding Secret Manager versions via Terraform. Intentionally left empty in practice — secret values are set directly in GCP Secret Manager (console or gcloud), never via Terraform, to keep them out of Terraform state."
   type        = map(string)
   sensitive   = true
   default     = {}

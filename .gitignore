@@ -50,3 +50,12 @@ terraform.tfvars
 terraform.tfvars.json
 infra/terraform/**/backend.tf
 infra/terraform/**/backend.hcl
+
+# DB dump files — contain production data, created during migration rehearsals
+*.dump
+rehearsal-schema.sql
+restore-data.sql
+restore-data-nofk.sql
+
+# S3 export folder — created during storage migration, contains production files
+s3-export/

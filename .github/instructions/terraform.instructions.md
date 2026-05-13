@@ -39,7 +39,9 @@ For `data "tfe_outputs"` to work, **each workspace must be granted remote state 
 
 Runtime secrets for Cloud Run (DB password, JWT secret, Eventro credentials, AWS keys) are stored in **GCP Secret Manager** and injected as environment variables. They are referenced by name in `locals.secret_env_vars` in `gcp/prod/locals.tf`.
 
-**Never** put secret values in `.tf` or `.tfvars` files — they would end up in HCP Terraform state.
+**Workflow**: Terraform creates the Secret Manager resource (the empty shell). Secret _values_ are set **directly in GCP Secret Manager** — via the GCP console or `gcloud secrets versions add <secret-id> --data-file=-`. Terraform never writes secret values in practice: the `secret_values` variable is intentionally always left `{}` and the `google_secret_manager_secret_version` resource only fires when it is non-empty.
+
+**Never** put secret values in `.tf`, `.tfvars`, or HCP Terraform workspace variables — they would end up in Terraform state. To rotate a secret, add a new version directly in Secret Manager; Cloud Run picks it up on next deploy without a Terraform apply.
 
 ## Conventions
 

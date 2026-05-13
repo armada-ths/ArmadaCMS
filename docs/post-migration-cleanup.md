@@ -58,3 +58,16 @@ Once AWS decommission is done, delete these secrets from the GCP project (they w
 ## Script update
 
 **`scripts/import-remote-db.ps1`** — currently documents cloning from a reachable PostgreSQL instance. Once RDS is decommissioned, update the script's comments to point at the Supabase pooler as the source rather than RDS. The script itself (pg_dump + psql) works against any PostgreSQL; only the example env var values need updating.
+
+## Gitignore cleanup
+
+Remove the following entries that were added for migration purposes (after the files are removed and no longer needed for audit trail):
+
+```env
+*.dump
+rehearsal-schema.sql
+restore-data.sql
+restore-data-nofk.sql
+
+s3-export/
+```

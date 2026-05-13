@@ -15,6 +15,9 @@ resource "google_secret_manager_secret" "app" {
   depends_on = [google_project_service.enabled]
 }
 
+# Secret *values* are set directly in GCP Secret Manager (console or gcloud), NOT via Terraform.
+# This resource only fires when secret_values is non-empty, which it intentionally never is.
+# Keeping it avoids a manual import step if the escape hatch is ever needed.
 resource "google_secret_manager_secret_version" "app" {
   for_each = local.secret_value_keys
 
