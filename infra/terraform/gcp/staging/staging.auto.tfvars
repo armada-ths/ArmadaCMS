@@ -26,7 +26,7 @@ enable_vpc_egress = false
 enable_domain_mapping   = true
 domain_mapping_hostname = "staging.cms.armada.nu"
 
-db_host = "db.yfybmnqzclpmpncyfmdc.supabase.co"
+db_host = "db.dqeikqjiztvmifmnbzbf.supabase.co"
 db_user = "postgres"
 db_name = "postgres"
 
