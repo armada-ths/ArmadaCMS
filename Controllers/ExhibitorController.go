@@ -146,7 +146,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 		exhibitor.LogoFreesizeUrl = &logoUrl
 	} else if file, header, err := r.FormFile("file"); err == nil {
 		defer file.Close()
-		fileURL, err := utils.UploadToS3(file, header)
+		fileURL, err := utils.UploadImage(file, header)
 		if err != nil {
 			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
@@ -256,7 +256,7 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		exhibitor.LogoFreesizeUrl = &logoUrl
 	} else if file, header, err := r.FormFile("file"); err == nil {
 		defer file.Close()
-		fileURL, err := utils.UploadToS3(file, header)
+		fileURL, err := utils.UploadImage(file, header)
 		if err != nil {
 			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)

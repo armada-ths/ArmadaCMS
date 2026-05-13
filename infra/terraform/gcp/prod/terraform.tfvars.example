@@ -8,6 +8,8 @@
 project_id = "your-gcp-project-id"
 region     = "europe-north2"
 
+storage_provider = "s3"
+
 deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
@@ -45,3 +47,15 @@ lb_managed_certificate_domains = ["cms.example.com"]
 #   AWS_ACCESS_KEY_ID     = "AKIA..."
 #   AWS_SECRET_ACCESS_KEY = "..."
 # }
+
+# To switch Cloud Run to Supabase Storage while keeping the DB untouched:
+# storage_provider              = "supabase"
+# supabase_url                  = "https://rsdjnixgxqauonaofrwr.supabase.co"
+# supabase_storage_s3_endpoint  = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
+# supabase_storage_bucket       = "armadacms-files"
+# supabase_storage_region       = "eu-north-1"
+#
+# Then add the storage credentials directly in GCP Secret Manager
+# (NOT via secret_values — that would put them in Terraform state):
+#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_ACCESS_KEY_ID --data-file=-
+#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_SECRET_ACCESS_KEY --data-file=-

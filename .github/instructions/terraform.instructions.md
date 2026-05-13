@@ -9,12 +9,13 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 
 ## Root layout
 
-| Root           | HCP Terraform workspace | What it manages                                                       |
-| -------------- | ----------------------- | --------------------------------------------------------------------- |
-| `gcp/prod/`    | `armadacms-gcp-prod`    | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager          |
-| `aws/prod/`    | `armadacms-aws-prod`    | RDS PostgreSQL, S3 bucket, IAM upload user                            |
-| `gcp/staging/` | `armadacms-gcp-staging` | Cloud Run (staging), VPC egress, domain mapping, Cloud Build, Secrets |
-| `aws/staging/` | `armadacms-aws-staging` | Staging S3 bucket, IAM upload user (no RDS — uses Supabase)           |
+| Root             | HCP Terraform workspace   | What it manages                                                           |
+| ---------------- | ------------------------- | ------------------------------------------------------------------------- |
+| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager              |
+| `aws/prod/`      | `armadacms-aws-prod`      | RDS PostgreSQL, S3 bucket, IAM upload user                                |
+| `supabase/prod/` | `armadacms-supabase-prod` | Imported hosted Supabase production project and selected project settings |
+| `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run (staging), VPC egress, domain mapping, Cloud Build, Secrets     |
+| `aws/staging/`   | `armadacms-aws-staging`   | Staging S3 bucket, IAM upload user (no RDS — uses Supabase)               |
 
 Workspace naming pattern: `armadacms-<provider>-<environment>`.
 
@@ -30,6 +31,7 @@ The two roots share live values via `data "tfe_outputs"` — **do not hardcode o
 
 - `gcp/prod` reads `rds_host`, `rds_db_name`, `s3_bucket_name`, `s3_bucket_region` from `armadacms-aws-prod` → populates Cloud Run env vars.
 - `aws/prod` reads `static_egress_ip` from `armadacms-gcp-prod` → restricts the RDS security group and S3 IAM policy.
+- `supabase/prod` is currently standalone, but it is intended to become the future producer of production DB connection outputs once `gcp/prod` stops reading from `aws/prod`.
 
 For `data "tfe_outputs"` to work, **each workspace must be granted remote state read access to the other**. Configure this in HCP Terraform under each workspace's **Settings → Remote state sharing**. This is a one-time manual step and is required after creating a new workspace — it is not expressed in Terraform config.
 
@@ -37,7 +39,9 @@ For `data "tfe_outputs"` to work, **each workspace must be granted remote state 
 
 Runtime secrets for Cloud Run (DB password, JWT secret, Eventro credentials, AWS keys) are stored in **GCP Secret Manager** and injected as environment variables. They are referenced by name in `locals.secret_env_vars` in `gcp/prod/locals.tf`.
 
-**Never** put secret values in `.tf` or `.tfvars` files — they would end up in HCP Terraform state.
+**Workflow**: Terraform creates the Secret Manager resource (the empty shell). Secret _values_ are set **directly in GCP Secret Manager** — via the GCP console or `gcloud secrets versions add <secret-id> --data-file=-`. Terraform never writes secret values in practice: the `secret_values` variable is intentionally always left `{}` and the `google_secret_manager_secret_version` resource only fires when it is non-empty.
+
+**Never** put secret values in `.tf`, `.tfvars`, or HCP Terraform workspace variables — they would end up in Terraform state. To rotate a secret, add a new version directly in Secret Manager; Cloud Run picks it up on next deploy without a Terraform apply.
 
 ## Conventions
 

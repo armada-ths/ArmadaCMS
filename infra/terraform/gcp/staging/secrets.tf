@@ -2,7 +2,7 @@
 # in the same GCP project.
 
 resource "google_secret_manager_secret" "app" {
-  for_each = local.secret_env_vars
+  for_each = local.managed_secrets
 
   project   = var.project_id
   secret_id = each.value
@@ -15,6 +15,9 @@ resource "google_secret_manager_secret" "app" {
   depends_on = [google_project_service.enabled]
 }
 
+# Secret *values* are set directly in GCP Secret Manager (console or gcloud), NOT via Terraform.
+# This resource only fires when secret_values is non-empty, which it intentionally never is.
+# Keeping it avoids a manual import step if the escape hatch is ever needed.
 resource "google_secret_manager_secret_version" "app" {
   for_each = local.secret_value_keys
 
@@ -23,7 +26,7 @@ resource "google_secret_manager_secret_version" "app" {
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_secret_access" {
-  for_each = var.manage_secret_accessor_bindings ? local.secret_env_vars : {}
+  for_each = var.manage_secret_accessor_bindings ? local.managed_secrets : {}
 
   project   = var.project_id
   secret_id = google_secret_manager_secret.app[each.key].secret_id
