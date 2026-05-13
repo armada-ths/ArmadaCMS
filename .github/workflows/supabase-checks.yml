@@ -60,12 +60,16 @@ jobs:
 
   supabase-checks:
     runs-on: ubuntu-latest
-    needs: [validate-local-reset]
+    needs: [changes, validate-local-reset]
     if: always()
     steps:
       - name: All checks passed or skipped
         run: |
-          if [[ "${{ needs.validate-local-reset.result }}" == "failure" ]]; then
+          if [[ "${{ needs.changes.result }}" == "failure" || "${{ needs.changes.result }}" == "cancelled" ]]; then
+            echo "Changes detection job failed."
+            exit 1
+          fi
+          if [[ "${{ needs.validate-local-reset.result }}" == "failure" || "${{ needs.validate-local-reset.result }}" == "cancelled" ]]; then
             echo "Supabase checks failed."
             exit 1
           fi

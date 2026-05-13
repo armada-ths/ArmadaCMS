@@ -325,13 +325,13 @@ variable "storage_provider" {
 variable "supabase_url" {
   description = "Base URL of the Supabase project used for storage when storage_provider = supabase."
   type        = string
-  default     = "https://yfybmnqzclpmpncyfmdc.supabase.co"
+  default     = "https://rsdjnixgxqauonaofrwr.supabase.co"
 }
 
 variable "supabase_storage_s3_endpoint" {
   description = "Direct S3-compatible Supabase Storage endpoint used for uploads when storage_provider = supabase."
   type        = string
-  default     = "https://yfybmnqzclpmpncyfmdc.storage.supabase.co/storage/v1/s3"
+  default     = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
 }
 
 variable "supabase_storage_bucket" {

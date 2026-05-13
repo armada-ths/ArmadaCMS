@@ -40,10 +40,3 @@ ALTER TABLE ONLY public.timeline_dates
 
 ALTER TABLE ONLY public.timeline_dates
     ADD CONSTRAINT timeline_dates_pkey PRIMARY KEY (id);
-
--- Enable RLS to match the hardening migration already applied to all other app tables.
-ALTER TABLE public.timeline_dates ENABLE ROW LEVEL SECURITY;
-
--- The public site reads timeline dates without authentication.
-CREATE POLICY "Allow public SELECT on timeline_dates" ON public.timeline_dates
-    FOR SELECT USING (true);

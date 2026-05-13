@@ -1,8 +1,12 @@
 -- Rewrite S3 image URLs to Supabase Storage URLs.
 --
--- Run ONCE per environment, after all S3 files have been copied to the
--- Supabase Storage bucket, and BEFORE flipping STORAGE_PROVIDER=supabase
--- in HCP Terraform.
+-- Run ONCE per environment (staging DB, then production DB), after all S3
+-- files have been copied to the Supabase Storage bucket, and BEFORE flipping
+-- STORAGE_PROVIDER=supabase in HCP Terraform.
+--
+-- Both environments use the SAME Supabase project and bucket (armadacms-files)
+-- by design — Supabase Storage is not branched, so staging and production
+-- share one bucket and there is no cross-contamination risk.
 --
 -- Safe to re-run: REPLACE() on a string that no longer contains the old
 -- prefix is a no-op.
