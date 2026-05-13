@@ -295,3 +295,25 @@ variable "supabase_storage_region" {
   type        = string
   default     = "eu-north-1"
 }
+
+# ── Database overrides ────────────────────────────────────────────────────────
+# When non-empty these override the values read from the AWS Terraform state,
+# allowing a DB cutover without touching the AWS workspace.
+
+variable "db_host" {
+  description = "Override for DB_HOST. When empty, falls back to the RDS host from the AWS Terraform state."
+  type        = string
+  default     = ""
+}
+
+variable "db_user" {
+  description = "Override for DB_USER. When empty, uses 'postgres'."
+  type        = string
+  default     = ""
+}
+
+variable "db_name" {
+  description = "Override for DB_NAME. When empty, falls back to the RDS DB name from the AWS Terraform state."
+  type        = string
+  default     = ""
+}
