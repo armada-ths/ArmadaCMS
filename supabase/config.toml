@@ -1,0 +1,33 @@
+# ArmadaCMS Supabase local-development scaffold.
+#
+# Billing is now configured. Hosted branching (persistent staging branch and
+# ephemeral PR preview branches) is ready to be enabled as the next phase,
+# together with per-PR GCP preview services.
+#
+# Storage is enabled locally so we can evolve toward Supabase Storage, but the
+# ArmadaCMS application still uses MinIO/AWS-compatible uploads until the
+# backend storage abstraction is migrated.
+project_id = "armadacms"
+
+[db]
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+api_url = "http://127.0.0.1"
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.s3_protocol]
+enabled = true
+
+[auth]
+enabled = false

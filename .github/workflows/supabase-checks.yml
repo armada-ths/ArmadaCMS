@@ -1,0 +1,76 @@
+name: supabase checks
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-checks.yml"
+  pull_request:
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      supabase: ${{ steps.filter.outputs.supabase }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect Supabase changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            supabase:
+              - 'supabase/**'
+              - '.github/workflows/supabase-checks.yml'
+
+  validate-local-reset:
+    needs: changes
+    if: needs.changes.outputs.supabase == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.1
+
+      - name: Start local Supabase stack
+        run: supabase start
+
+      - name: Verify migrations reset cleanly
+        run: supabase db reset --local
+
+      - name: Show migration status
+        run: supabase migration list --local
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop
+
+  supabase-checks:
+    runs-on: ubuntu-latest
+    needs: [changes, validate-local-reset]
+    if: always()
+    steps:
+      - name: All checks passed or skipped
+        run: |
+          if [[ "${{ needs.changes.result }}" == "failure" || "${{ needs.changes.result }}" == "cancelled" ]]; then
+            echo "Changes detection job failed."
+            exit 1
+          fi
+          if [[ "${{ needs.validate-local-reset.result }}" == "failure" || "${{ needs.validate-local-reset.result }}" == "cancelled" ]]; then
+            echo "Supabase checks failed."
+            exit 1
+          fi
+          echo "All Supabase checks passed or were skipped (no Supabase changes)."

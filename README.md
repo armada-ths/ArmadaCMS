@@ -26,7 +26,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
 - **ORM**: [GORM](https://gorm.io/) (Postgres)
 - **Auth**: JWT (Bearer tokens)
-- **File storage**: MinIO (local dev), AWS S3 (staging/production)
+- **File storage**: provider-neutral upload service backed by MinIO/AWS S3 today, with Supabase Storage support via the S3-compatible endpoint
 - **Hot reload**: [Air](https://github.com/air-verse/air) (in Docker dev mode)
 
 ### Admin Frontend
@@ -40,8 +40,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 - **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
 - **Ingress**: HTTPS load balancing in front of Cloud Run
-- **Database**: PostgreSQL (AWS RDS)
-- **File storage**: AWS S3
+- **Database**: PostgreSQL — migrating from AWS RDS to Supabase (rehearsal complete; cutover pending)
+- **File storage**: AWS S3 (local dev: MinIO) — storage migration pending
 
 ## Prerequisites
 
@@ -173,11 +173,12 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    S3_PUBLIC_URL=http://localhost:9000
    ```
 
-6. **Set up file uploads (MinIO or AWS S3)**
+6. **Set up file uploads (MinIO, AWS S3, or Supabase Storage)**
 
-   File uploads (profile photos, exhibitor logos, event images) require an S3-compatible store. **For local development, MinIO is the recommended default.**
+   File uploads (profile photos, exhibitor logos, event images) now go through a provider-neutral storage service. **For local development, MinIO is the permanent default and will not be replaced.**
    - The Docker development stack already starts MinIO automatically and uses the `.env.example` default `S3_ENDPOINT=http://minio:9000`.
    - The production-style local verification flow also needs container-reachable endpoints such as `host.docker.internal` if you want to use locally started services.
+   - Supabase Storage is also supported for backend uploads through its S3-compatible endpoint once you generate storage access keys and configure the `SUPABASE_STORAGE_*` variables.
 
    MinIO listens on port `9000`, and the console is available at [http://localhost:9001](http://localhost:9001) with login `minioadmin` / `minioadmin`.
 
@@ -193,7 +194,20 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    `S3_ENDPOINT` is the address the Go server uses to reach MinIO. `S3_PUBLIC_URL` is the address the browser uses to load uploaded files. In Docker-based development, those values differ because the backend reaches MinIO at `minio:9000` while the browser uses `localhost:9000`.
 
-   If you want to use AWS S3 instead, comment out the MinIO block in `.env` and enable the AWS S3 settings from `.env.example`.
+   If you want to use AWS S3 instead, keep `STORAGE_PROVIDER=s3`, comment out the MinIO block in `.env`, and enable the AWS S3 settings from `.env.example`.
+
+   If you want to use Supabase Storage for backend uploads, set `STORAGE_PROVIDER=supabase` and configure:
+
+   ```env
+   SUPABASE_URL=https://<project-ref>.supabase.co
+   SUPABASE_STORAGE_S3_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+   SUPABASE_STORAGE_BUCKET=armadacms-files
+   SUPABASE_STORAGE_REGION=eu-north-1
+   SUPABASE_STORAGE_ACCESS_KEY_ID=
+   SUPABASE_STORAGE_SECRET_ACCESS_KEY=
+   ```
+
+   The backend will then upload through the S3-compatible endpoint (prefer the direct `*.storage.supabase.co` hostname for performance) and build public URLs using `https://<project-ref>.supabase.co/storage/v1/object/public/...`.
 
 7. **Verify the app is running**
 
@@ -202,6 +216,53 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173)
    - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(production-style local verification only)_
    - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+
+## Supabase migration groundwork
+
+The repository includes a `supabase/` scaffold for the AWS → Supabase migration. **Local development continues to use Docker Compose (Postgres + MinIO) and is not changing.** The Supabase CLI is used only as a migration management tool — for authoring, validating, and pushing schema changes to remote environments (production, staging, pre-production).
+
+- `supabase/config.toml` configures the Supabase CLI project for migration management.
+- `supabase/seed.sql` bootstraps deterministic roles and feature flags for remote environment resets and CI.
+- `supabase/migrations/` holds all checked-in SQL migrations applied to remote Supabase environments.
+- `docs/supabase-migration-inventory.md` is the operator checklist for the migration phases.
+- `docs/supabase-app-schema-inventory.md` captures the ArmadaCMS application tables and bootstrap data in the migration.
+
+### What is intentionally deferred
+
+- Hosted Supabase branching (including a persistent hosted `staging` branch)
+- Supabase PR preview branches
+- Per-PR GCP preview services
+
+Those features will be introduced in the next phase, as one coordinated preview-environment rollout.
+
+### Supabase CLI migration workflow
+
+The Supabase CLI is used to manage schema migrations for remote environments. It is **not** used for local development.
+
+1. Push pending migrations to a linked remote environment:
+   - `pnpx supabase db push`
+2. Validate that all migrations apply cleanly from scratch (uses a temporary local Supabase stack for verification only):
+   - `pnpx supabase db reset`
+3. Generate a new migration from schema changes:
+   - `pnpx supabase db diff -f <migration-name>`
+4. Link the CLI to a remote project:
+   - `pnpx supabase link --project-ref <project-ref>`
+
+The schema migration set is complete and validated:
+
+- `20260504083246_remote_schema.sql` — extensions and schema grants baseline
+- `20260504085048_armadacms_application_schema_snapshot.sql` — full ArmadaCMS application schema DDL
+- `20260504090108_harden_public_schema_access_and_rls.sql` — RLS + privilege hardening
+- `20260504092802_create_public_storage_bucket.sql` — Supabase Storage bucket
+- `20260513000000_fix_schema_gaps.sql` — schema gap fix (columns/table missing from snapshot vs RDS)
+
+A full end-to-end DB restore rehearsal was completed on 2026-05-13. Both the staging Supabase project (`yfybmnqzclpmpncyfmdc`) and the production project (`rsdjnixgxqauonaofrwr`) now contain a validated restore of the current RDS production data. See `docs/supabase-migration-inventory.md` for the validated restore procedure and expected row counts.
+
+`DB_ENABLE_AUTOMIGRATE` is the transition switch for GORM runtime schema management. It defaults to enabled for local Docker Compose. Supabase-managed environments (staging, production) should set `DB_ENABLE_AUTOMIGRATE=false` at cutover time, since schema changes will be applied exclusively through `supabase db push`.
+
+Bootstrap responsibilities are split intentionally: deterministic roles and feature flags are seeded from `supabase/seed.sql`, while the optional initial admin user remains in Go startup because it depends on environment variables.
+
+The next steps before production cutover are the storage migration rehearsal (S3 → Supabase Storage) and updating the GCP Cloud Run production environment to point at Supabase.
 
 ## VS Code workspace and launches
 
@@ -319,10 +380,11 @@ GitHub Actions workflows in `.github/workflows/`:
 
 ## Operations notes
 
-- Production traffic is served through Cloud Run, while PostgreSQL and file uploads remain on AWS-managed services.
+- Production traffic is served through Cloud Run. PostgreSQL and file uploads currently use AWS-managed services; the cutover to Supabase DB and Supabase Storage is in progress (DB rehearsal complete, storage migration and production cutover pending).
 - The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
 - Production database connections should use `DB_SSLMODE=require`.
 - Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
+- The standalone staging Supabase project (`yfybmnqzclpmpncyfmdc`) and production project (`rsdjnixgxqauonaofrwr`) both contain a validated restore of the current RDS data as of 2026-05-13.
 
 ## Infrastructure as code
 
