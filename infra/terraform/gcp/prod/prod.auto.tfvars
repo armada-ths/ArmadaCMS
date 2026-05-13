@@ -1,15 +1,15 @@
 project_id = "just-sunrise-491718-m9"
 region     = "europe-north2"
 
-storage_provider = "supabase"
-# Storage cutover: uncomment the block below and change storage_provider to "supabase"
-# after all S3 files have been copied and the URL rewrite SQL has been run.
-# Then add SUPABASE_STORAGE_ACCESS_KEY_ID and SUPABASE_STORAGE_SECRET_ACCESS_KEY
-# directly in GCP Secret Manager (NOT via HCP Terraform workspace variables).
-# supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
-# supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
-# supabase_storage_bucket      = "armadacms-files"
-# supabase_storage_region      = "eu-north-1"
+storage_provider             = "supabase"
+supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
+supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
+supabase_storage_bucket      = "armadacms-files"
+supabase_storage_region      = "eu-north-1"
+
+db_host = "db.rsdjnixgxqauonaofrwr.supabase.co"
+db_user = "postgres"
+db_name = "postgres"
 
 deploy_cloud_run_service = true
 deletion_protection      = true
