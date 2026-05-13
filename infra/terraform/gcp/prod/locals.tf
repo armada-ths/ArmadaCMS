@@ -35,12 +35,12 @@ locals {
 
   secret_env_vars = merge(
     {
-      DB_PASSWORD       = "DB_PASSWORD"
-      jwtsecret_laganda = "jwtsecret_laganda"
-      EVENTRO_API       = "EVENTRO_API"
-      EVENTRO_FAIR_ID   = "EVENTRO_FAIR_ID"
-      EVENTRO_ORG       = "EVENTRO_ORG"
-      REVALIDATION_SECRET   = "REVALIDATION_SECRET"
+      DB_PASSWORD         = "DB_PASSWORD"
+      jwtsecret_laganda   = "jwtsecret_laganda"
+      EVENTRO_API         = "EVENTRO_API"
+      EVENTRO_FAIR_ID     = "EVENTRO_FAIR_ID"
+      EVENTRO_ORG         = "EVENTRO_ORG"
+      REVALIDATION_SECRET = "REVALIDATION_SECRET"
     },
     var.storage_provider == "s3" ? {
       AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
@@ -51,6 +51,18 @@ locals {
       SUPABASE_STORAGE_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
     } : {},
   )
+
+  # All storage-provider secrets are kept in Secret Manager regardless of the
+  # active storage_provider. This prevents Terraform from destroying secret shells
+  # when switching providers, preserving rollback capability during cutover.
+  # Cloud Run only mounts secret_env_vars (the active set); this wider set is
+  # used only for google_secret_manager_secret resource management.
+  managed_secrets = merge(local.secret_env_vars, {
+    AWS_ACCESS_KEY_ID                  = "AWS_ACCESS_KEY_ID"
+    AWS_SECRET_ACCESS_KEY              = "AWS_SECRET_ACCESS_KEY"
+    SUPABASE_STORAGE_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
+    SUPABASE_STORAGE_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
+  })
 
   secret_value_keys = toset([
     for key in keys(nonsensitive(var.secret_values)) : key

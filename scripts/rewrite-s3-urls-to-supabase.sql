@@ -123,6 +123,8 @@ WHERE
 -- UNION ALL SELECT 'exhibitors.logo_freesize', COUNT(*) FROM public.exhibitors WHERE logo_freesize_url LIKE '%amazonaws.com%'
 -- UNION ALL SELECT 'exhibitors.map_img',       COUNT(*) FROM public.exhibitors WHERE map_img    LIKE '%amazonaws.com%'
 -- UNION ALL SELECT 'exhibitors.flyer',         COUNT(*) FROM public.exhibitors WHERE flyer      LIKE '%amazonaws.com%'
--- UNION ALL SELECT 'profiles.photo',           COUNT(*) FROM public.profiles  WHERE photo       LIKE '%amazonaws.com%';
+-- UNION ALL SELECT 'profiles.photo',           COUNT(*) FROM public.profiles  WHERE photo       LIKE '%amazonaws.com%'
+-- UNION ALL SELECT 'profiles.photo_url',       COUNT(*) FROM public.profiles  WHERE photo_url   LIKE '%amazonaws.com%'
+-- UNION ALL SELECT 'profiles.photo_file',      COUNT(*) FROM public.profiles  WHERE photo_file  LIKE '%amazonaws.com%';
 
 COMMIT;

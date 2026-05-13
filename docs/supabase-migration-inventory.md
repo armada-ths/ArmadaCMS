@@ -138,10 +138,10 @@ The standalone Supabase staging project (`yfybmnqzclpmpncyfmdc`) is being replac
 
 **Pending — update HCP Terraform `armadacms-gcp-staging` workspace variables:**
 
-| Variable                       | Old value                             | New value                             |
-| ------------------------------ | ------------------------------------- | ------------------------------------- |
-| `db_host`                      | `db.yfybmnqzclpmpncyfmdc.supabase.co` | `db.dqeikqjiztvmifmnbzbf.supabase.co` |
-| `secret_values["DB_PASSWORD"]` | `88CIA8KeW8BQmcGP`                    | `SrBXofKLsCxZEzMnpUEZtHviBnzLlXim`    |
+| Variable      | Old value                             | New value                                                                      |
+| ------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| `db_host`     | `db.yfybmnqzclpmpncyfmdc.supabase.co` | `db.dqeikqjiztvmifmnbzbf.supabase.co`                                          |
+| `DB_PASSWORD` | _(old staging branch password)_       | _(new staging branch password — set directly in GCP Secret Manager, not here)_ |
 
 (`db_user` and `db_name` stay `postgres`)
 

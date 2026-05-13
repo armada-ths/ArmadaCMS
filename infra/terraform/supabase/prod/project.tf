@@ -1,3 +1,8 @@
+import {
+  to = supabase_project.production
+  id = "rsdjnixgxqauonaofrwr"
+}
+
 resource "supabase_project" "production" {
   organization_id   = var.organization_id
   name              = var.project_name

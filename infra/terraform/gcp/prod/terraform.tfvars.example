@@ -55,7 +55,7 @@ lb_managed_certificate_domains = ["cms.example.com"]
 # supabase_storage_bucket       = "armadacms-files"
 # supabase_storage_region       = "eu-north-1"
 #
-# secret_values = {
-#   SUPABASE_STORAGE_ACCESS_KEY_ID     = "..."
-#   SUPABASE_STORAGE_SECRET_ACCESS_KEY = "..."
-# }
+# Then add the storage credentials directly in GCP Secret Manager
+# (NOT via secret_values — that would put them in Terraform state):
+#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_ACCESS_KEY_ID --data-file=-
+#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_SECRET_ACCESS_KEY --data-file=-

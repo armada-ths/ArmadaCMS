@@ -81,16 +81,18 @@ Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run
 When `storage_provider = "s3"`:
 
 1. Create a new access key for `armadacms-staging-s3` in the AWS console.
-2. Update `secret_values["AWS_ACCESS_KEY_ID"]` and `secret_values["AWS_SECRET_ACCESS_KEY"]`
-   in the HCP Terraform workspace variables and trigger a new run.
+2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
+   - `armadacms-staging-AWS_ACCESS_KEY_ID`
+   - `armadacms-staging-AWS_SECRET_ACCESS_KEY`
 3. Verify uploads work, then delete the old key.
 
 When `storage_provider = "supabase"`:
 
-1. Generate a new S3 access key pair in the Supabase dashboard for the staging project.
-2. Update `secret_values["SUPABASE_STORAGE_ACCESS_KEY_ID"]` and `secret_values["SUPABASE_STORAGE_SECRET_ACCESS_KEY"]`
-   in the HCP Terraform workspace variables and trigger a new run.
-3. Verify uploads work, then revoke the old Supabase storage key.
+1. Generate a new S3 access key pair in the Supabase dashboard.
+2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
+   - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
+   - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
+3. Verify uploads work, then revoke the old key.
 
 ## Storage cutover notes
 
@@ -98,13 +100,13 @@ To prepare the staging runtime for Supabase Storage:
 
 - Set `storage_provider = "supabase"`.
 - Use these committed defaults unless you need to override them:
-  - `supabase_url = "https://yfybmnqzclpmpncyfmdc.supabase.co"`
-  - `supabase_storage_s3_endpoint = "https://yfybmnqzclpmpncyfmdc.storage.supabase.co/storage/v1/s3"`
+  - `supabase_url = "https://rsdjnixgxqauonaofrwr.supabase.co"`
+  - `supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"`
   - `supabase_storage_bucket = "armadacms-files"`
   - `supabase_storage_region = "eu-north-1"`
-- Populate these secret values in HCP Terraform:
-  - `SUPABASE_STORAGE_ACCESS_KEY_ID`
-  - `SUPABASE_STORAGE_SECRET_ACCESS_KEY`
+- Add the secret values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
+  - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
+  - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
 
 ### Rotating the JWT secret
 

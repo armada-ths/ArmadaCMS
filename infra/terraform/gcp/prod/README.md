@@ -77,9 +77,9 @@ To prepare the production runtime for Supabase Storage without changing the data
 
 1. Set `storage_provider = "supabase"`.
 2. Keep the database settings as-is; this root still reads the production DB host and DB name from the AWS workspace.
-3. Populate these secret values in HCP Terraform:
-   - `SUPABASE_STORAGE_ACCESS_KEY_ID`
-   - `SUPABASE_STORAGE_SECRET_ACCESS_KEY`
+3. Add the secret values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
+   - `armadacms-SUPABASE_STORAGE_ACCESS_KEY_ID`
+   - `armadacms-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
 
 4. Use the committed defaults unless you need to override them:
    - `supabase_url = "https://rsdjnixgxqauonaofrwr.supabase.co"`

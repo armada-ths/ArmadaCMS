@@ -97,7 +97,7 @@ Everything else has committed non-secret defaults in `prod.auto.tfvars`.
 2. Add the sensitive environment variable `SUPABASE_ACCESS_TOKEN`.
 3. Add Terraform variable `organization_id` with the Supabase organization slug.
 4. Add sensitive Terraform variable `database_password` with the current DB password.
-5. Queue a run. The checked-in `import {}` blocks will import both the project and its settings into state on the first apply instead of trying to recreate them.
+5. Queue a run. The `import {}` block in `project.tf` will import the existing project into state on the first apply instead of trying to recreate it.
 
 ## Ongoing operations
 
