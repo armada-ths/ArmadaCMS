@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -238,8 +238,8 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		return "", fmt.Errorf("file with the name %s already exists", filename)
 	}
 
-	uploader := manager.NewUploader(client)
-	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+	tm := transfermanager.New(client)
+	_, err = tm.UploadObject(context.TODO(), &transfermanager.UploadObjectInput{
 		Bucket:      aws.String(target.bucket),
 		Key:         aws.String(filename),
 		Body:        file,
