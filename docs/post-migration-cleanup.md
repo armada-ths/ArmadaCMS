@@ -89,6 +89,10 @@ Once AWS decommission is done, delete these secrets from the GCP project (they w
 
 Also remove these from `managed_secrets` in both `locals.tf` files at the same time (or just collapse `managed_secrets` back into `secret_env_vars` per the Terraform cleanup note above).
 
+### Import blocks
+
+After the first successful apply of the `supabase/prod` root that imports the existing Supabase project into state, delete the `import {}` block from `infra/terraform/supabase/prod/project.tf`. The block is only needed for the initial import; after that it would be a no-op and could cause confusion if left in.
+
 ## Script update
 
 **`scripts/import-remote-db.ps1`** — currently documents cloning from a reachable PostgreSQL instance. Once RDS is decommissioned, update the script's comments to point at the Supabase pooler as the source rather than RDS. The script itself (pg_dump + psql) works against any PostgreSQL; only the example env var values need updating.
