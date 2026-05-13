@@ -238,9 +238,9 @@ variable "domain_mapping_hostname" {
 # ── Supabase database ─────────────────────────────────────────────────────────
 
 variable "db_host" {
-  description = "PostgreSQL database hostname (Supabase host for staging)."
+  description = "PostgreSQL database hostname (Supabase branch host for staging)."
   type        = string
-  default     = "db.yfybmnqzclpmpncyfmdc.supabase.co"
+  default     = "db.dqeikqjiztvmifmnbzbf.supabase.co"
 }
 
 variable "db_user" {

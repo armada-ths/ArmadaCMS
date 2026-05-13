@@ -38,8 +38,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 - **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
 - **Ingress**: HTTPS load balancing in front of Cloud Run
-- **Database**: PostgreSQL (AWS RDS)
-- **File storage**: AWS S3
+- **Database**: PostgreSQL — migrating from AWS RDS to Supabase (rehearsal complete; cutover pending)
+- **File storage**: AWS S3 (local dev: MinIO) — storage migration pending
 
 ## Prerequisites
 
@@ -246,17 +246,21 @@ The Supabase CLI is used to manage schema migrations for remote environments. It
 4. Link the CLI to a remote project:
    - `pnpx supabase link --project-ref <project-ref>`
 
-The repository already includes an initial baseline migration generated from the newly created hosted Supabase production project. The next schema milestone is to represent the ArmadaCMS application schema itself in checked-in SQL migrations.
+The schema migration set is complete and validated:
 
-That next milestone has now started: the repository also contains a first generated application schema snapshot in `supabase/migrations/20260504085048_armadacms_application_schema_snapshot.sql`, validated locally with reset/diff/lint. It should still be treated as a generated first cut and reviewed manually before we rely on it as the final long-term schema source of truth.
+- `20260504083246_remote_schema.sql` — extensions and schema grants baseline
+- `20260504085048_armadacms_application_schema_snapshot.sql` — full ArmadaCMS application schema DDL
+- `20260504090108_harden_public_schema_access_and_rls.sql` — RLS + privilege hardening
+- `20260504092802_create_public_storage_bucket.sql` — Supabase Storage bucket
+- `20260513000000_fix_schema_gaps.sql` — schema gap fix (columns/table missing from snapshot vs RDS)
 
-`DB_ENABLE_AUTOMIGRATE` is now the transition switch for GORM runtime schema management. It currently defaults to enabled for backward compatibility, but Supabase-managed environments should move toward `DB_ENABLE_AUTOMIGRATE=false` once checked-in migration parity is trusted.
+A full end-to-end DB restore rehearsal was completed on 2026-05-13. Both the staging Supabase project (`yfybmnqzclpmpncyfmdc`) and the production project (`rsdjnixgxqauonaofrwr`) now contain a validated restore of the current RDS production data. See `docs/supabase-migration-inventory.md` for the validated restore procedure and expected row counts.
 
-The initial local validation succeeded with `pnpx supabase start` followed by `pnpx supabase db reset --local`. Do not combine `--local` with `--linked=false`; the CLI treats those flag groups as mutually exclusive.
+`DB_ENABLE_AUTOMIGRATE` is the transition switch for GORM runtime schema management. It defaults to enabled for local Docker Compose. Supabase-managed environments (staging, production) should set `DB_ENABLE_AUTOMIGRATE=false` at cutover time, since schema changes will be applied exclusively through `supabase db push`.
 
-At this stage, ArmadaCMS still defaults to the current MinIO/AWS-compatible upload path, but the backend upload layer is now provider-neutral and can also target Supabase Storage through its S3-compatible endpoint. Bootstrap responsibilities are now split intentionally: deterministic roles and feature flags are seeded from `supabase/seed.sql`, while the optional initial admin user remains in Go startup because it depends on environment variables.
+Bootstrap responsibilities are split intentionally: deterministic roles and feature flags are seeded from `supabase/seed.sql`, while the optional initial admin user remains in Go startup because it depends on environment variables.
 
-The repository also now includes an initial storage bucket migration so local resets and future hosted environments can converge on the same default public bucket name and upload limits.
+The next steps before production cutover are the storage migration rehearsal (S3 → Supabase Storage) and updating the GCP Cloud Run production environment to point at Supabase.
 
 ## VS Code workspace and launches
 
@@ -360,11 +364,11 @@ This overwrites `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Co
 
 ## Operations notes
 
-- Production traffic is served through Cloud Run, while PostgreSQL and file uploads remain on AWS-managed services.
+- Production traffic is served through Cloud Run. PostgreSQL and file uploads currently use AWS-managed services; the cutover to Supabase DB and Supabase Storage is in progress (DB rehearsal complete, storage migration and production cutover pending).
 - The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
 - Production database connections should use `DB_SSLMODE=require`.
 - Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
-- During the early Supabase migration phases, the hosted staging environment still uses the standalone staging Supabase project rather than a hosted Supabase branch.
+- The standalone staging Supabase project (`yfybmnqzclpmpncyfmdc`) and production project (`rsdjnixgxqauonaofrwr`) both contain a validated restore of the current RDS data as of 2026-05-13.
 
 ## Infrastructure as code
 
