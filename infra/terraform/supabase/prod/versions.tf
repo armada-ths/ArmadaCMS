@@ -6,6 +6,10 @@ terraform {
       source  = "supabase/supabase"
       version = "~> 1.9"
     }
+    tfe = {
+      source  = "hashicorp/tfe"
+      version = "~> 0.61"
+    }
   }
 }
 
