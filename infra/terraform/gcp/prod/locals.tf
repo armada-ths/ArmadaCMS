@@ -73,10 +73,10 @@ locals {
 
   plain_env_vars = merge(
     {
-      DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.aws_prod.values["rds_host"])
+      DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
       DB_PORT                       = "5432"
-      DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : "postgres"
-      DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.aws_prod.values["rds_db_name"])
+      DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])
+      DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["db_name"])
       DB_SSLMODE                    = "require"
       STORAGE_PROVIDER              = var.storage_provider
       DB_MAX_OPEN_CONNS             = "10"

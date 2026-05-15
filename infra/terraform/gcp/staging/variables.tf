@@ -244,21 +244,21 @@ variable "domain_mapping_hostname" {
 # ── Supabase database ─────────────────────────────────────────────────────────
 
 variable "db_host" {
-  description = "PostgreSQL database hostname (Supabase branch host for staging)."
+  description = "Override for DB_HOST. When empty, reads staging_db_host from the armadacms-supabase-prod workspace output."
   type        = string
-  default     = "db.dqeikqjiztvmifmnbzbf.supabase.co"
+  default     = ""
 }
 
 variable "db_user" {
-  description = "PostgreSQL database user."
+  description = "Override for DB_USER. When empty, reads staging_db_user from the armadacms-supabase-prod workspace output."
   type        = string
-  default     = "postgres"
+  default     = ""
 }
 
 variable "db_name" {
-  description = "PostgreSQL database name."
+  description = "Override for DB_NAME. When empty, reads staging_db_name from the armadacms-supabase-prod workspace output."
   type        = string
-  default     = "postgres"
+  default     = ""
 }
 
 variable "initial_admin_username" {

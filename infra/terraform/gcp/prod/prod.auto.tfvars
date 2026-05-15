@@ -7,10 +7,6 @@ supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co
 supabase_storage_bucket      = "armadacms-files"
 supabase_storage_region      = "eu-north-1"
 
-db_host = "aws-1-eu-north-1.pooler.supabase.com"
-db_user = "postgres.rsdjnixgxqauonaofrwr"
-db_name = "postgres"
-
 deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"

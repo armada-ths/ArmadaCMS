@@ -33,6 +33,36 @@ output "db_user" {
   value       = var.database_user
 }
 
+output "pooler_host" {
+  description = "Supabase transaction pooler host consumed by gcp/prod via tfe_outputs."
+  value       = var.pooler_host
+}
+
+output "pooler_user" {
+  description = "Supabase transaction pooler user (postgres.<project_ref>) consumed by gcp/prod via tfe_outputs."
+  value       = local.pooler_user
+}
+
+output "staging_db_host" {
+  description = "Direct PostgreSQL host for the staging Supabase branch, consumed by gcp/staging via tfe_outputs."
+  value       = local.staging_db_host
+}
+
+output "staging_db_user" {
+  description = "PostgreSQL user for the staging Supabase branch."
+  value       = var.staging_db_user
+}
+
+output "staging_db_name" {
+  description = "PostgreSQL database name for the staging Supabase branch."
+  value       = var.staging_db_name
+}
+
+output "staging_project_ref" {
+  description = "Supabase project reference for the staging branch."
+  value       = var.staging_project_ref
+}
+
 output "pooler_urls" {
   description = "Supabase pooler connection strings keyed by pool mode. Sensitive because they may embed credentials depending on account configuration."
   value       = data.supabase_pooler.production.url

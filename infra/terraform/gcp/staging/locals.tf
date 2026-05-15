@@ -80,10 +80,10 @@ locals {
   # Storage without changing application code.
   plain_env_vars = merge(
     {
-      DB_HOST                       = var.db_host
+      DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
       DB_PORT                       = "5432"
-      DB_USER                       = var.db_user
-      DB_NAME                       = var.db_name
+      DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])
+      DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_name"])
       DB_SSLMODE                    = "require"
       STORAGE_PROVIDER              = var.storage_provider
       DB_MAX_OPEN_CONNS             = "5"

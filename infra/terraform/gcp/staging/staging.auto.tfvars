@@ -30,10 +30,6 @@ enable_vpc_egress = false
 enable_domain_mapping   = true
 domain_mapping_hostname = "staging.cms.armada.nu"
 
-db_host = "db.dqeikqjiztvmifmnbzbf.supabase.co"
-db_user = "postgres"
-db_name = "postgres"
-
 revalidation_url = "https://staging.armada.nu/api/revalidate"
 
 # Initial admin user seeded on first startup when the DB is empty.

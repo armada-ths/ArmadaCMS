@@ -36,12 +36,12 @@ Workspace pairs share live infrastructure values without hardcoding them:
 **Production:**
 
 - `aws/prod` reads the GCP NAT egress IP (`static_egress_ip`) from `armadacms-gcp-prod` to restrict the RDS security group and the S3 IAM policy to that IP.
-- `gcp/prod` reads `rds_host`, `rds_db_name`, `s3_bucket_name`, and `s3_bucket_region` from `armadacms-aws-prod` to populate Cloud Run environment variables.
-- `supabase/prod` currently has no upstream dependencies, but it exports the imported Supabase DB connection metadata that `gcp/prod` can consume later when production DB cutover moves off RDS.
+- `supabase/prod` reads the GCP NAT egress IP (`static_egress_ip`) from `armadacms-gcp-prod` to restrict direct DB access via `supabase_network_restrictions`. It exports `pooler_host`, `pooler_user`, and `db_name` consumed by `gcp/prod`.
+- `gcp/prod` reads `pooler_host`, `pooler_user`, `db_name` from `armadacms-supabase-prod` to populate Cloud Run DB environment variables, and reads `s3_bucket_name`, `s3_bucket_region` from `armadacms-aws-prod` when `storage_provider = "s3"`.
 
 **Staging:**
 
-- `gcp/staging` reads `s3_bucket_name` and `s3_bucket_region` from `armadacms-aws-staging` to populate Cloud Run environment variables. There is no reverse dependency — the staging AWS workspace does not read any GCP outputs.
+- `gcp/staging` reads `staging_db_host`, `staging_db_user`, `staging_db_name` from `armadacms-supabase-prod` (staging is a branch of the same Supabase project). It reads `s3_bucket_name` and `s3_bucket_region` from `armadacms-aws-staging` only when `storage_provider = "s3"`.
 
 All cross-workspace reads use `data "tfe_outputs"` blocks. Each consuming workspace must be granted remote state read access to the producing workspace — configure this in HCP Terraform under each workspace's **Settings → Remote state sharing**.
 
