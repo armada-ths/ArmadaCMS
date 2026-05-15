@@ -32,27 +32,33 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 
 ## Files
 
-| File                   | Purpose                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| `versions.tf`          | Provider version requirements (google, tfe)                                      |
-| `variables.tf`         | Configurable inputs                                                              |
-| `locals.tf`            | Derived names and Cloud Run env vars, including the storage-provider switch      |
-| `aws_state.tf`         | `data.tfe_outputs.aws_prod` — reads infrastructure values from the AWS workspace |
-| `services.tf`          | GCP API enablement                                                               |
-| `artifact_registry.tf` | Artifact Registry repository                                                     |
-| `iam.tf`               | Runtime service account and Cloud Build permissions                              |
-| `secrets.tf`           | Secret Manager secrets                                                           |
-| `networking.tf`        | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                |
-| `cloud_build.tf`       | GitHub-backed Cloud Build triggers                                               |
-| `cloud_run.tf`         | Cloud Run service                                                                |
-| `load_balancer.tf`     | External HTTPS load balancer, serverless NEG, proxies, forwarding rules          |
-| `outputs.tf`           | Useful outputs including `static_egress_ip` (consumed by the AWS workspace)      |
-| `prod.auto.tfvars`     | Committed non-secret production defaults                                         |
-| `backend.tf.example`   | HCP Terraform backend template                                                   |
+| File                   | Purpose                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `versions.tf`          | Provider version requirements (google, tfe)                                               |
+| `variables.tf`         | Configurable inputs                                                                       |
+| `locals.tf`            | Derived names and Cloud Run env vars, including the storage-provider switch               |
+| `aws_state.tf`         | `data.tfe_outputs.aws_prod` — reads S3 bucket values from the AWS workspace               |
+| `supabase_state.tf`    | `data.tfe_outputs.supabase_prod` — reads DB connection values from the Supabase workspace |
+| `services.tf`          | GCP API enablement                                                                        |
+| `artifact_registry.tf` | Artifact Registry repository                                                              |
+| `iam.tf`               | Runtime service account and Cloud Build permissions                                       |
+| `secrets.tf`           | Secret Manager secrets                                                                    |
+| `networking.tf`        | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                         |
+| `cloud_build.tf`       | GitHub-backed Cloud Build triggers                                                        |
+| `cloud_run.tf`         | Cloud Run service                                                                         |
+| `load_balancer.tf`     | External HTTPS load balancer, serverless NEG, proxies, forwarding rules                   |
+| `outputs.tf`           | Useful outputs including `static_egress_ip` (consumed by the AWS workspace)               |
+| `prod.auto.tfvars`     | Committed non-secret production defaults                                                  |
+| `backend.tf.example`   | HCP Terraform backend template                                                            |
 
 ## Workspace dependencies
 
-This root still consumes infrastructure outputs from `armadacms-aws-prod` for the production database, and for storage only while `storage_provider = "s3"`. It continues to export `static_egress_ip` for `aws/prod`.
+This root consumes outputs from:
+
+- `armadacms-supabase-prod` — `pooler_host`, `pooler_user`, `db_name` (always)
+- `armadacms-aws-prod` — `s3_bucket_name`, `s3_bucket_region` (only when `storage_provider = "s3"`)
+
+It continues to export `static_egress_ip` for `aws/prod` and `supabase/prod`.
 
 For the full cross-workspace wiring and remote state sharing setup, see [`../../README.md`](../../README.md).
 

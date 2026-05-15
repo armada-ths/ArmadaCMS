@@ -56,3 +56,35 @@ variable "api_max_rows" {
   type        = number
   default     = 1000
 }
+
+variable "cloud_run_nat_ip_override" {
+  description = "Override for the Cloud Run NAT outbound IP. Leave null (default) to read it automatically from the armadacms-gcp-prod HCP Terraform workspace output 'static_egress_ip'."
+  type        = string
+  default     = null
+}
+
+variable "pooler_host" {
+  description = "Supabase transaction pooler host for ArmadaCMS (e.g. aws-1-eu-north-1.pooler.supabase.com). Not derivable from project_ref — set in prod.auto.tfvars and exported so gcp/prod can read it via tfe_outputs."
+  type        = string
+}
+
+# ── Staging branch DB connection ──────────────────────────────────────────────
+# Staging is a branch of the same Supabase project. GCP staging can connect directly to the staging branch DB via IPv6, so no pooler is needed.
+# The staging branch connection details are stored as variables here and exported so gcp/staging can read them via tfe_outputs without hardcoding.
+
+variable "staging_project_ref" {
+  description = "Supabase project reference for the staging branch. Used to manage staging-specific settings (auth, PostgREST) and to derive staging_db_host (db.<ref>.supabase.co)."
+  type        = string
+}
+
+variable "staging_db_user" {
+  description = "PostgreSQL user for the staging Supabase branch."
+  type        = string
+  default     = "postgres"
+}
+
+variable "staging_db_name" {
+  description = "PostgreSQL database name for the staging Supabase branch."
+  type        = string
+  default     = "postgres"
+}

@@ -41,6 +41,7 @@ TLS termination instead).
 | `variables.tf`        | Configurable inputs                                                                |
 | `locals.tf`           | Derived names and Cloud Run env vars, including the storage-provider switch        |
 | `aws_state.tf`        | Optional `data.tfe_outputs.aws_staging` — only read when `storage_provider = "s3"` |
+| `supabase_state.tf`   | `data.tfe_outputs.supabase_prod` — reads staging branch DB connection values       |
 | `services.tf`         | GCP API enablement                                                                 |
 | `iam.tf`              | Runtime service account and Cloud Build permissions                                |
 | `secrets.tf`          | Secret Manager secrets                                                             |
@@ -54,7 +55,9 @@ TLS termination instead).
 
 ## Workspace dependencies
 
-This root reads S3 bucket name and region from `armadacms-aws-staging` only when `storage_provider = "s3"`. In that mode, the AWS staging workspace must grant this workspace read access under **Settings → Remote state sharing** (or "Share with all workspaces").
+This root reads `staging_db_host`, `staging_db_user`, and `staging_db_name` from `armadacms-supabase-prod` (staging is a branch of the same Supabase project as production). Grant `armadacms-gcp-staging` remote state read access to `armadacms-supabase-prod` under **Settings → Remote state sharing**.
+
+It also reads S3 bucket name and region from `armadacms-aws-staging` only when `storage_provider = "s3"`. In that mode, the AWS staging workspace must also grant this workspace read access.
 
 For the full cross-workspace wiring layout, see [`../../README.md`](../../README.md).
 

@@ -14,43 +14,48 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## What it manages
 
-| File                 | Resources / purpose                                              |
-| -------------------- | ---------------------------------------------------------------- |
-| `versions.tf`        | Terraform version and `supabase/supabase` provider               |
-| `variables.tf`       | Required org/password inputs plus non-secret project defaults    |
-| `locals.tf`          | Derived project URL, DB host, and managed API settings payload   |
-| `project.tf`         | Imports and manages `supabase_project.production`                |
-| `settings.tf`        | Reads pooler URLs for the imported production project            |
-| `outputs.tf`         | Exports project metadata and DB connection details               |
-| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project |
-| `backend.tf.example` | HCP Terraform backend template                                   |
+| File                      | Resources / purpose                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `versions.tf`             | Terraform version and `supabase/supabase` + `hashicorp/tfe` providers                                                |
+| `variables.tf`            | Required org/password inputs plus non-secret project defaults                                                        |
+| `locals.tf`               | Derived project URL, DB host, NAT CIDR, and managed API settings                                                     |
+| `gcp_state.tf`            | `data.tfe_outputs.gcp_prod` — reads `static_egress_ip` from the GCP workspace                                        |
+| `project.tf`              | Imports and manages `supabase_project.production`                                                                    |
+| `network_restrictions.tf` | `supabase_network_restrictions.production` — restricts direct DB access to Cloud Run NAT IP                          |
+| `settings.tf`             | `data.supabase_pooler` + `supabase_settings` — pooler URLs, Auth lockdown, PostgREST disable (prod + staging branch) |
+| `outputs.tf`              | Exports project metadata and DB connection details                                                                   |
+| `prod.auto.tfvars`        | Committed non-secret defaults for the current production project                                                     |
+| `backend.tf.example`      | HCP Terraform backend template                                                                                       |
 
 ## Architecture notes
 
 - This root is the Supabase equivalent of the old production database infrastructure root.
 - `prevent_destroy = true` is enabled on the imported production project resource.
-- ArmadaCMS currently talks to Postgres through its Go API and direct database connections,
-  not through Supabase REST or GraphQL endpoints.
-- The current `supabase/supabase` provider performs a REST-service health precheck before
-  updating `supabase_settings`. On this project that probe can false-fail even while the
-  dashboard shows the project as healthy, so this root does **not** currently manage the
-  `supabase_settings` resource at all.
-- `local.managed_api_settings` and the corresponding output remain in the root as a future
-  reference for the desired API posture, but they are not applied today.
+- ArmadaCMS connects to Postgres via its Go API using direct DB/pooler connections. It does
+  not use Supabase Auth, PostgREST, Realtime, or Edge Functions.
+- `supabase_settings` is used to lock down the unused services:
+  - **Auth**: `disable_signup = true` — prevents any user creation through Supabase Auth.
+  - **PostgREST (Data API)**: `db_schema = ""` — exposes no schemas through the REST/GraphQL
+    endpoints.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
-- The root exports `db_host`, `db_name`, `db_user`, and `pooler_urls` so the future
-  production runtime cutover can consume them through `data.tfe_outputs` instead of the
-  AWS RDS workspace.
+- The root exports pooler and staging branch connection details consumed by the GCP workspaces.
+- Network restrictions (IP allowlist) are managed via `supabase_network_restrictions`.
+  The allowed CIDR is read automatically from the `armadacms-gcp-prod` workspace output
+  `static_egress_ip`, keeping it in sync with the Cloud Run NAT IP without manual updates.
+  Requires Supabase Pro plan or above.
+- Staging is a branch of the same Supabase project. Its project_ref (`staging_project_ref`),
+  DB host, user, and name are stored as variables here and exported so `gcp/staging` can
+  read them via `tfe_outputs` without hardcoding. Staging-specific settings (auth lockdown,
+  PostgREST disable) are applied via a dedicated `supabase_settings.staging` resource.
 
 ## Workspace dependencies
 
-This root has no upstream Terraform workspace dependencies.
-
-Right now nothing else reads this workspace yet. Once `gcp/prod` is updated to consume
-Supabase DB outputs, grant `armadacms-gcp-prod` remote state read access under
-**Settings → Remote state sharing** in HCP Terraform.
+This root reads `static_egress_ip` from `armadacms-gcp-prod` to keep the DB network
+restriction in sync with the Cloud Run NAT IP. Grant `armadacms-supabase-prod` remote
+state read access to `armadacms-gcp-prod` under **Settings → Remote state sharing** in
+HCP Terraform.
 
 For the full cross-workspace layout, see [`../../README.md`](../../README.md).
 

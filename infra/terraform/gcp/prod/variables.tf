@@ -301,19 +301,19 @@ variable "supabase_storage_region" {
 # allowing a DB cutover without touching the AWS workspace.
 
 variable "db_host" {
-  description = "Override for DB_HOST. When empty, falls back to the RDS host from the AWS Terraform state."
+  description = "Override for DB_HOST. When empty, reads pooler_host from the armadacms-supabase-prod workspace output."
   type        = string
   default     = ""
 }
 
 variable "db_user" {
-  description = "Override for DB_USER. When empty, uses 'postgres'."
+  description = "Override for DB_USER. When empty, reads pooler_user from the armadacms-supabase-prod workspace output."
   type        = string
   default     = ""
 }
 
 variable "db_name" {
-  description = "Override for DB_NAME. When empty, falls back to the RDS DB name from the AWS Terraform state."
+  description = "Override for DB_NAME. When empty, reads db_name from the armadacms-supabase-prod workspace output."
   type        = string
   default     = ""
 }

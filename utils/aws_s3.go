@@ -11,10 +11,12 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -98,7 +100,19 @@ func UploadToS3(file multipart.File, header *multipart.FileHeader) (string, erro
 }
 
 func buildUploadedObjectName(originalFilename string) string {
-	cleanedName := strings.ReplaceAll(strings.TrimSpace(originalFilename), " ", "_")
+	// Keep only printable ASCII characters; replace spaces with underscores and
+	// drop anything else (non-ASCII, control chars) so the resulting S3 key is
+	// always a valid, unambiguous URL path segment.
+	var b strings.Builder
+	for _, r := range strings.TrimSpace(originalFilename) {
+		switch {
+		case r == ' ':
+			b.WriteByte('_')
+		case r < 128 && unicode.IsPrint(r) && r != '%' && r != '#' && r != '?':
+			b.WriteRune(r)
+		}
+	}
+	cleanedName := b.String()
 	if cleanedName == "" {
 		cleanedName = "upload"
 	}
@@ -224,13 +238,13 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		return "", fmt.Errorf("file with the name %s already exists", filename)
 	}
 
-	uploadInput := &s3.PutObjectInput{
+	tm := transfermanager.New(client)
+	_, err = tm.UploadObject(context.TODO(), &transfermanager.UploadObjectInput{
 		Bucket:      aws.String(target.bucket),
 		Key:         aws.String(filename),
 		Body:        file,
 		ContentType: aws.String(contentType),
-	}
-	_, err = client.PutObject(context.TODO(), uploadInput)
+	})
 	if err != nil {
 		return "", fmt.Errorf("unable to upload file to S3, %v", err)
 	}
