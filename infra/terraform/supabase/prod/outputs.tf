@@ -45,7 +45,7 @@ output "pooler_user" {
 
 output "staging_db_host" {
   description = "Direct PostgreSQL host for the staging Supabase branch, consumed by gcp/staging via tfe_outputs."
-  value       = local.staging_db_host
+  value       = var.staging_db_host
 }
 
 output "staging_db_user" {
@@ -56,11 +56,6 @@ output "staging_db_user" {
 output "staging_db_name" {
   description = "PostgreSQL database name for the staging Supabase branch."
   value       = var.staging_db_name
-}
-
-output "staging_project_ref" {
-  description = "Supabase project reference for the staging branch."
-  value       = var.staging_project_ref
 }
 
 output "pooler_urls" {

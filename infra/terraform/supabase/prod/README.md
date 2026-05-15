@@ -31,34 +31,17 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 - `prevent_destroy = true` is enabled on the imported production project resource.
 - ArmadaCMS connects to Postgres via its Go API using direct DB/pooler connections. It does
   not use Supabase Auth, PostgREST, Realtime, or Edge Functions.
-- `supabase_settings` manages these lockdowns for both production and the staging branch:
-  - **Network** (production only): `restrictions = ["<NAT_IP>/32"]` — limits direct DB
-    connections to the Cloud Run egress IP. Uses `network` block in `supabase_settings`,
-    which calls the Management API network-restrictions + apply endpoints automatically.
-  - **Auth**: `disable_signup = true` — prevents any user creation through Supabase Auth.
-  - **PostgREST**: `db_schema = ""` — exposes no schemas through the Data API.
-  - **Realtime**: cannot be managed via the Terraform provider (no `realtime` block). Disable
-    manually in the dashboard if needed.
-- The provider performs a REST-service health probe before applying `supabase_settings`. A
-  15-minute timeout is configured to survive slow probes on imported projects. If it still
-  times out, re-run — it usually succeeds on retry.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
-- The root exports pooler and staging branch connection details consumed by the GCP workspaces.
-- **Network restrictions** are managed via the `network` block in `supabase_settings` —
-  NOT as a separate resource type (which doesn't exist in the provider). The Cloud Run NAT IP
-  is read from `armadacms-gcp-prod` via `tfe_outputs` and the provider calls the
-  `/apply` endpoint automatically after updating.
-- Staging (`staging_project_ref`) has auth lockdown and PostgREST disabled. Network
-  restrictions are skipped for staging since it uses a direct IPv6 connection (no fixed IP).
+- The root exports pooler and staging DB connection details consumed by the GCP workspaces.
+- Staging is a separate Supabase project. Its DB host, user, and name are stored as
+  variables here and exported so `gcp/staging` can read them via `tfe_outputs` without
+  hardcoding.
 
 ## Workspace dependencies
 
-This root reads `static_egress_ip` from `armadacms-gcp-prod` to populate the DB network
-restrictions CIDR in `supabase_settings.production`. Grant `armadacms-supabase-prod`
-remote state read access to `armadacms-gcp-prod` under **Settings → Remote state sharing**
-in HCP Terraform.
+This root has no cross-workspace state dependencies.
 
 For the full cross-workspace layout, see [`../../README.md`](../../README.md).
 

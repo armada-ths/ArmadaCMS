@@ -16,4 +16,4 @@ pooler_host = "aws-1-eu-north-1.pooler.supabase.com"
 # Staging branch DB connection details.
 # gcp/staging doesn't use a pooler, since it supports direct DB connections via ipv6.
 # Consumed by gcp/staging via tfe_outputs.
-staging_project_ref = "dqeikqjiztvmifmnbzbf"
+staging_db_host = "db.dqeikqjiztvmifmnbzbf.supabase.co"

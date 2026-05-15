@@ -62,18 +62,12 @@ variable "pooler_host" {
   type        = string
 }
 
-variable "cloud_run_nat_ip_override" {
-  description = "Override for the Cloud Run NAT outbound IP used in network restrictions. Leave null to read automatically from the armadacms-gcp-prod workspace output 'static_egress_ip'."
-  type        = string
-  default     = null
-}
-
 # ── Staging branch DB connection ──────────────────────────────────────────────
 # Staging is a branch of the same Supabase project. GCP staging can connect directly to the staging branch DB via IPv6, so no pooler is needed.
 # The staging branch connection details are stored as variables here and exported so gcp/staging can read them via tfe_outputs without hardcoding.
 
-variable "staging_project_ref" {
-  description = "Supabase project reference for the staging branch. Used to manage staging-specific settings (auth, PostgREST) and to derive staging_db_host (db.<ref>.supabase.co)."
+variable "staging_db_host" {
+  description = "Direct PostgreSQL host for the staging Supabase branch. Set in prod.auto.tfvars and exported so gcp/staging can read it via tfe_outputs."
   type        = string
 }
 

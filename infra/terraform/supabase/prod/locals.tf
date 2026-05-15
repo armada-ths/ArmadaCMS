@@ -5,13 +5,6 @@ locals {
   # Pooler user follows the Supabase convention: postgres.<project_ref>
   pooler_user = "postgres.${var.project_ref}"
 
-  # Derived from staging_project_ref — same pattern as direct_db_host for production.
-  staging_db_host = "db.${var.staging_project_ref}.supabase.co"
-
-  # Cloud Run NAT IP as a /32 CIDR, used for DB network restrictions.
-  # Override with cloud_run_nat_ip_override for emergency access during NAT changes.
-  nat_cidr = "${coalesce(var.cloud_run_nat_ip_override, nonsensitive(data.tfe_outputs.gcp_prod.values["static_egress_ip"]))}/32"
-
   managed_api_settings = merge(
     {
       db_extra_search_path = var.api_db_extra_search_path
