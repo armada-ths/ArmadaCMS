@@ -14,16 +14,16 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## What it manages
 
-| File                 | Resources / purpose                                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `versions.tf`        | Terraform version and `supabase/supabase` provider                                                                   |
-| `variables.tf`       | Required org/password inputs plus non-secret project defaults                                                        |
-| `locals.tf`          | Derived project URL, DB host, pooler user, and staging DB host                                                       |
-| `project.tf`         | Imports and manages `supabase_project.production`                                                                    |
-| `settings.tf`        | `data.supabase_pooler` + `supabase_settings` — pooler URLs, Auth lockdown, PostgREST disable (prod + staging branch) |
-| `outputs.tf`         | Exports project metadata and DB connection details                                                                   |
-| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project                                                     |
-| `backend.tf.example` | HCP Terraform backend template                                                                                       |
+| File                 | Resources / purpose                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `versions.tf`        | Terraform version and `supabase/supabase` provider                                                            |
+| `variables.tf`       | Required org/password inputs plus non-secret project defaults                                                 |
+| `locals.tf`          | Derived project URL, DB host, pooler user, and staging DB host                                                |
+| `project.tf`         | Imports and manages `supabase_project.production`                                                             |
+| `settings.tf`        | `data.supabase_pooler` — pooler URLs; `supabase_settings` intentionally **not** managed (see comments inside) |
+| `outputs.tf`         | Exports project metadata and DB connection details                                                            |
+| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project                                              |
+| `backend.tf.example` | HCP Terraform backend template                                                                                |
 
 ## Architecture notes
 
@@ -31,22 +31,14 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 - `prevent_destroy = true` is enabled on the imported production project resource.
 - ArmadaCMS connects to Postgres via its Go API using direct DB/pooler connections. It does
   not use Supabase Auth, PostgREST, Realtime, or Edge Functions.
-- `supabase_settings` is used to lock down the unused services:
-  - **Auth**: `disable_signup = true` — prevents any user creation through Supabase Auth.
-  - **PostgREST (Data API)**: `db_schema = ""` — exposes no schemas through the REST/GraphQL
-    endpoints.
 - The provider requires `database_password` in configuration, but the Management API does
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
-- The root exports pooler and staging branch connection details consumed by the GCP workspaces.
-- **Network restrictions** (IP allowlist for direct DB access) cannot be managed via the
-  `supabase/supabase` Terraform provider — there is no such resource type. Set them manually
-  in the Supabase dashboard (Settings → Database → Network Restrictions) using the Cloud Run
-  NAT IP from the `armadacms-gcp-prod` workspace output `static_egress_ip`.
-- Staging is a branch of the same Supabase project. Its project_ref (`staging_project_ref`),
-  DB host, user, and name are stored as variables here and exported so `gcp/staging` can
-  read them via `tfe_outputs` without hardcoding. Staging-specific settings (auth lockdown,
-  PostgREST disable) are applied via a dedicated `supabase_settings.staging` resource.
+- The root exports pooler and staging DB connection details consumed by the GCP workspaces.
+- Supabase Storage configuration (`supabase_url`, `supabase_storage_s3_endpoint`, `supabase_storage_bucket`, `supabase_storage_region`) is also exported here so GCP workspaces read them via `tfe_outputs` — keeping all Supabase project metadata in one place.
+- Staging is a separate Supabase project. Its DB host, user, and name are stored as
+  variables here and exported so `gcp/staging` can read them via `tfe_outputs` without
+  hardcoding.
 
 ## Workspace dependencies
 
@@ -97,7 +89,7 @@ Everything else has committed non-secret defaults in `prod.auto.tfvars`.
 2. Add the sensitive environment variable `SUPABASE_ACCESS_TOKEN`.
 3. Add Terraform variable `organization_id` with the Supabase organization slug.
 4. Add sensitive Terraform variable `database_password` with the current DB password.
-5. Queue a run. The `import {}` block in `project.tf` will import the existing project into state on the first apply instead of trying to recreate it.
+5. Queue a run.
 
 ## Ongoing operations
 

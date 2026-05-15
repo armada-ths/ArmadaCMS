@@ -22,42 +22,35 @@ TLS termination instead).
 - Cloud Build updates the Cloud Run image via `cloudbuild.yaml` on every push to `staging`.
 - PostgreSQL is provided by a **Supabase project** (not RDS). Connection details are plain
   environment variables set in `staging.auto.tfvars`.
-- File storage is Terraform-selectable: keep `storage_provider = "s3"` for the current AWS S3 backend, or switch to `storage_provider = "supabase"` to inject the Supabase Storage env contract used by the backend migration work.
+- File storage uses Supabase Storage via its S3-compatible endpoint.
 - `invoker_iam_disabled = true` enables public access without an IAM binding.
-- Runtime secrets always include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, and `INITIAL_ADMIN_PASSWORD`, plus storage-provider-specific secrets:
-  - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` when `storage_provider = "s3"`
-  - `SUPABASE_STORAGE_ACCESS_KEY_ID` / `SUPABASE_STORAGE_SECRET_ACCESS_KEY` when `storage_provider = "supabase"`
-- Plain env vars always include DB settings plus `STORAGE_PROVIDER`; storage-provider-specific plain env vars are injected automatically:
-  - `S3_BUCKET`, `AWS_REGION` from `armadacms-aws-staging` when `storage_provider = "s3"`
-  - `SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION` when `storage_provider = "supabase"`
+- Runtime secrets always include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, `REVALIDATION_SECRET`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `SUPABASE_STORAGE_ACCESS_KEY_ID`, and `SUPABASE_STORAGE_SECRET_ACCESS_KEY`.
+- Plain env vars always include DB settings, `STORAGE_PROVIDER`, and Supabase Storage settings (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) — all read from the `armadacms-supabase-prod` workspace via `tfe_outputs`.
 - The Cloud Run container image is ignored by Terraform after the first deploy so
   Cloud Build can ship new revisions freely.
 
 ## Files
 
-| File                  | Purpose                                                                            |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `versions.tf`         | Provider version requirements (google, tfe)                                        |
-| `variables.tf`        | Configurable inputs                                                                |
-| `locals.tf`           | Derived names and Cloud Run env vars, including the storage-provider switch        |
-| `aws_state.tf`        | Optional `data.tfe_outputs.aws_staging` — only read when `storage_provider = "s3"` |
-| `supabase_state.tf`   | `data.tfe_outputs.supabase_prod` — reads staging branch DB connection values       |
-| `services.tf`         | GCP API enablement                                                                 |
-| `iam.tf`              | Runtime service account and Cloud Build permissions                                |
-| `secrets.tf`          | Secret Manager secrets                                                             |
-| `networking.tf`       | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                  |
-| `cloud_build.tf`      | GitHub-backed Cloud Build triggers for the `staging` branch and PRs targeting it   |
-| `cloud_run.tf`        | Cloud Run service                                                                  |
-| `domain_mapping.tf`   | Cloud Run custom domain mapping for `staging.cms.armada.nu`                        |
-| `outputs.tf`          | Useful outputs (service account emails, image URI, secret IDs)                     |
-| `staging.auto.tfvars` | Committed non-secret staging defaults                                              |
-| `backend.tf.example`  | HCP Terraform backend template                                                     |
+| File                  | Purpose                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `versions.tf`         | Provider version requirements (google, tfe)                                                              |
+| `variables.tf`        | Configurable inputs                                                                                      |
+| `locals.tf`           | Derived names and Cloud Run env vars                                                                     |
+| `supabase_state.tf`   | `data.tfe_outputs.supabase_prod` — reads staging branch DB connection values and Supabase Storage config |
+| `services.tf`         | GCP API enablement                                                                                       |
+| `iam.tf`              | Runtime service account and Cloud Build permissions                                                      |
+| `secrets.tf`          | Secret Manager secrets                                                                                   |
+| `networking.tf`       | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                                        |
+| `cloud_build.tf`      | GitHub-backed Cloud Build triggers for the `staging` branch and PRs targeting it                         |
+| `cloud_run.tf`        | Cloud Run service                                                                                        |
+| `domain_mapping.tf`   | Cloud Run custom domain mapping for `staging.cms.armada.nu`                                              |
+| `outputs.tf`          | Useful outputs (service account emails, image URI, secret IDs)                                           |
+| `staging.auto.tfvars` | Committed non-secret staging defaults                                                                    |
+| `backend.tf.example`  | HCP Terraform backend template                                                                           |
 
 ## Workspace dependencies
 
-This root reads `staging_db_host`, `staging_db_user`, and `staging_db_name` from `armadacms-supabase-prod` (staging is a branch of the same Supabase project as production). Grant `armadacms-gcp-staging` remote state read access to `armadacms-supabase-prod` under **Settings → Remote state sharing**.
-
-It also reads S3 bucket name and region from `armadacms-aws-staging` only when `storage_provider = "s3"`. In that mode, the AWS staging workspace must also grant this workspace read access.
+This root reads `staging_db_host`, `staging_db_user`, `staging_db_name`, and all Supabase Storage values from `armadacms-supabase-prod` (staging is a branch of the same Supabase project as production). Grant `armadacms-gcp-staging` remote state read access to `armadacms-supabase-prod` under **Settings → Remote state sharing**.
 
 For the full cross-workspace wiring layout, see [`../../README.md`](../../README.md).
 
@@ -81,32 +74,16 @@ Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run
 
 ### Rotating storage credentials
 
-When `storage_provider = "s3"`:
-
-1. Create a new access key for `armadacms-staging-s3` in the AWS console.
-2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
-   - `armadacms-staging-AWS_ACCESS_KEY_ID`
-   - `armadacms-staging-AWS_SECRET_ACCESS_KEY`
-3. Verify uploads work, then delete the old key.
-
-When `storage_provider = "supabase"`:
-
 1. Generate a new S3 access key pair in the Supabase dashboard.
 2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
    - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
    - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
 3. Verify uploads work, then revoke the old key.
 
-## Storage cutover notes
-
 To prepare the staging runtime for Supabase Storage:
 
-- Set `storage_provider = "supabase"`.
-- Use these committed defaults unless you need to override them:
-  - `supabase_url = "https://rsdjnixgxqauonaofrwr.supabase.co"`
-  - `supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"`
-  - `supabase_storage_bucket = "armadacms-files"`
-  - `supabase_storage_region = "eu-north-1"`
+- Set `storage_provider = "supabase"` (already committed in `staging.auto.tfvars`).
+- Storage configuration (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) is automatically read from the `armadacms-supabase-prod` workspace via `tfe_outputs`. No tfvars values are needed here.
 - Add the secret values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
   - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
   - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`

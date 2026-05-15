@@ -5,9 +5,6 @@ locals {
   # Pooler user follows the Supabase convention: postgres.<project_ref>
   pooler_user = "postgres.${var.project_ref}"
 
-  # Derived from staging_project_ref — same pattern as direct_db_host for production.
-  staging_db_host = "db.${var.staging_project_ref}.supabase.co"
-
   managed_api_settings = merge(
     {
       db_extra_search_path = var.api_db_extra_search_path

@@ -1,5 +1,5 @@
 resource "google_secret_manager_secret" "app" {
-  for_each = local.managed_secrets
+  for_each = local.secret_env_vars
 
   project   = var.project_id
   secret_id = each.value
@@ -23,7 +23,7 @@ resource "google_secret_manager_secret_version" "app" {
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_secret_access" {
-  for_each = var.manage_secret_accessor_bindings ? local.managed_secrets : {}
+  for_each = var.manage_secret_accessor_bindings ? local.secret_env_vars : {}
 
   project   = var.project_id
   secret_id = google_secret_manager_secret.app[each.key].secret_id

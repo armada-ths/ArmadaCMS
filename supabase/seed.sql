@@ -1,20 +1,14 @@
 -- ArmadaCMS local seed scaffold.
 --
--- Current bootstrap responsibilities are still split:
---   1. Supabase CLI applies this file during `supabase db reset`
---   2. ArmadaCMS startup still performs idempotent seeders for roles,
---      feature flags, and the optional initial admin user.
---
--- Keep this file safe and deterministic. It should only contain local/test data
--- that is acceptable in branch databases and on developer machines.
---
--- Preview branches (persistent staging and ephemeral PR branches) are ready to
--- be enabled in the next phase, together with per-PR GCP services.
+-- This file is applied by Supabase automatically on every push/merge to tracked
+-- branches, on `supabase db reset`, and when creating a new Supabase branch.
+-- It is safe and deterministic: it only contains local/test data acceptable in
+-- branch databases and on developer machines. It never runs against an existing
+-- production or staging branch.
 
 insert into public.roles (name, permissions)
 values
-	('admin', '["*"]'),
-	('member', '["profiles.list","profiles.show","profiles.create","profiles.edit","teams.list","teams.show"]')
+	('admin', '["*"]')
 on conflict (name) do update
 set permissions = excluded.permissions;
 
@@ -38,5 +32,14 @@ set
 	description = excluded.description,
 	enabled = excluded.enabled;
 
--- The initial admin user remains in Go startup for now because it depends on
--- environment variables and should not be committed as deterministic SQL seed data.
+-- Initial admin user (username: admin, password: admin).
+-- Uses pgcrypto bcrypt so the hash is compatible with Go\'s golang.org/x/crypto/bcrypt.
+-- Only inserted if no user with username \'admin\' already exists.
+insert into public.users (username, password, role_id)
+select
+	'admin',
+	crypt('admin', gen_salt('bf', 10)),
+	r.id
+from public.roles r
+where r.name = 'admin'
+on conflict (username) do nothing;

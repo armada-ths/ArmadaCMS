@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -325,42 +323,4 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// SeedInitialAdminUser creates a single admin user if no users exist and
-// INITIAL_ADMIN_USERNAME / INITIAL_ADMIN_PASSWORD env vars are set.
-// This lets a fresh staging (or dev) environment become usable without any
-// manual DB steps.
-func SeedInitialAdminUser(database *gorm.DB) error {
-	username := strings.TrimSpace(os.Getenv("INITIAL_ADMIN_USERNAME"))
-	password := strings.TrimSpace(os.Getenv("INITIAL_ADMIN_PASSWORD"))
-	if username == "" || password == "" {
-		return nil // env vars not configured; skip
-	}
-
-	var count int64
-	if err := database.Model(&models.User{}).Count(&count).Error; err != nil {
-		return fmt.Errorf("failed to count users: %w", err)
-	}
-	if count > 0 {
-		return nil // users already exist; skip seeding
-	}
-
-	var adminRole models.Role
-	if err := database.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-		log.Printf("Warning: admin role not found, seeding user without role")
-	}
-
-	user := models.User{
-		Username: username,
-		Password: utils.HashPassword(password),
-	}
-	if adminRole.ID != 0 {
-		user.RoleID = &adminRole.ID
-	}
-	if err := database.Create(&user).Error; err != nil {
-		return fmt.Errorf("failed to seed initial admin user: %w", err)
-	}
-	log.Printf("Seeded initial admin user: %s (role: admin)", username)
-	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -32,13 +31,6 @@ var allowedImageContentTypes = map[string]struct{}{
 	"image/gif":  {},
 }
 
-type StorageProvider string
-
-const (
-	StorageProviderS3       StorageProvider = "s3"
-	StorageProviderSupabase StorageProvider = "supabase"
-)
-
 type s3UploadTarget struct {
 	bucket          string
 	region          string
@@ -48,13 +40,14 @@ type s3UploadTarget struct {
 	secretAccessKey string
 }
 
-func getAWSRegion() string {
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		return "eu-north-1"
+func getS3Region() string {
+	if r := strings.TrimSpace(os.Getenv("S3_REGION")); r != "" {
+		return r
 	}
-
-	return region
+	if r := strings.TrimSpace(os.Getenv("AWS_REGION")); r != "" {
+		return r
+	}
+	return "eu-north-1"
 }
 
 func detectAndValidateImageContentType(file multipart.File) (string, error) {
@@ -87,16 +80,7 @@ func UploadImage(file multipart.File, header *multipart.FileHeader) (string, err
 		return "", err
 	}
 
-	target, err := resolveS3UploadTarget()
-	if err != nil {
-		return "", err
-	}
-
-	return uploadWithS3CompatibleBackend(file, filename, contentType, target)
-}
-
-func UploadToS3(file multipart.File, header *multipart.FileHeader) (string, error) {
-	return UploadImage(file, header)
+	return uploadWithS3CompatibleBackend(file, filename, contentType, resolveS3UploadTarget())
 }
 
 func buildUploadedObjectName(originalFilename string) string {
@@ -120,71 +104,15 @@ func buildUploadedObjectName(originalFilename string) string {
 	return fmt.Sprintf("%d_%s", time.Now().UnixNano(), cleanedName)
 }
 
-func getStorageProvider() StorageProvider {
-	provider := strings.TrimSpace(strings.ToLower(os.Getenv("STORAGE_PROVIDER")))
-	switch StorageProvider(provider) {
-	case StorageProviderSupabase:
-		return StorageProviderSupabase
-	case StorageProviderS3, "":
-		return StorageProviderS3
-	default:
-		log.Printf("unknown STORAGE_PROVIDER=%q, defaulting to s3", provider)
-		return StorageProviderS3
-	}
-}
-
-func resolveS3UploadTarget() (s3UploadTarget, error) {
-	switch getStorageProvider() {
-	case StorageProviderSupabase:
-		return resolveSupabaseUploadTarget()
-	default:
-		return resolveLegacyS3UploadTarget(), nil
-	}
-}
-
-func resolveLegacyS3UploadTarget() s3UploadTarget {
+func resolveS3UploadTarget() s3UploadTarget {
 	return s3UploadTarget{
 		bucket:          os.Getenv("S3_BUCKET"),
-		region:          getAWSRegion(),
+		region:          getS3Region(),
 		endpoint:        os.Getenv("S3_ENDPOINT"),
 		publicBaseURL:   strings.TrimRight(firstNonEmpty(os.Getenv("S3_PUBLIC_URL"), os.Getenv("S3_ENDPOINT")), "/"),
 		accessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
 		secretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
-}
-
-func resolveSupabaseUploadTarget() (s3UploadTarget, error) {
-	projectURL := strings.TrimRight(strings.TrimSpace(os.Getenv("SUPABASE_URL")), "/")
-	s3Endpoint := strings.TrimRight(strings.TrimSpace(os.Getenv("SUPABASE_STORAGE_S3_ENDPOINT")), "/")
-	bucket := strings.TrimSpace(os.Getenv("SUPABASE_STORAGE_BUCKET"))
-	accessKeyID := strings.TrimSpace(os.Getenv("SUPABASE_STORAGE_ACCESS_KEY_ID"))
-	secretAccessKey := strings.TrimSpace(os.Getenv("SUPABASE_STORAGE_SECRET_ACCESS_KEY"))
-	region := strings.TrimSpace(os.Getenv("SUPABASE_STORAGE_REGION"))
-
-	if projectURL == "" {
-		return s3UploadTarget{}, errors.New("SUPABASE_URL is required when STORAGE_PROVIDER=supabase")
-	}
-	if bucket == "" {
-		return s3UploadTarget{}, errors.New("SUPABASE_STORAGE_BUCKET is required when STORAGE_PROVIDER=supabase")
-	}
-	if accessKeyID == "" || secretAccessKey == "" {
-		return s3UploadTarget{}, errors.New("SUPABASE_STORAGE_ACCESS_KEY_ID and SUPABASE_STORAGE_SECRET_ACCESS_KEY are required when STORAGE_PROVIDER=supabase")
-	}
-	if region == "" {
-		region = "project_region"
-	}
-	if s3Endpoint == "" {
-		s3Endpoint = projectURL + "/storage/v1/s3"
-	}
-
-	return s3UploadTarget{
-		bucket:          bucket,
-		region:          region,
-		endpoint:        s3Endpoint,
-		publicBaseURL:   projectURL + "/storage/v1/object/public",
-		accessKeyID:     accessKeyID,
-		secretAccessKey: secretAccessKey,
-	}, nil
 }
 
 func uploadWithS3CompatibleBackend(file multipart.File, filename string, contentType string, target s3UploadTarget) (string, error) {
@@ -233,7 +161,6 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		Key:    aws.String(filename),
 	}
 	_, err = client.HeadObject(context.TODO(), headInput)
-	log.Println(filename)
 	if err == nil {
 		return "", fmt.Errorf("file with the name %s already exists", filename)
 	}
