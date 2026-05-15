@@ -14,18 +14,16 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## What it manages
 
-| File                      | Resources / purpose                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `versions.tf`             | Terraform version and `supabase/supabase` + `hashicorp/tfe` providers                                                |
-| `variables.tf`            | Required org/password inputs plus non-secret project defaults                                                        |
-| `locals.tf`               | Derived project URL, DB host, NAT CIDR, and managed API settings                                                     |
-| `gcp_state.tf`            | `data.tfe_outputs.gcp_prod` — reads `static_egress_ip` from the GCP workspace                                        |
-| `project.tf`              | Imports and manages `supabase_project.production`                                                                    |
-| `network_restrictions.tf` | `supabase_network_restrictions.production` — restricts direct DB access to Cloud Run NAT IP                          |
-| `settings.tf`             | `data.supabase_pooler` + `supabase_settings` — pooler URLs, Auth lockdown, PostgREST disable (prod + staging branch) |
-| `outputs.tf`              | Exports project metadata and DB connection details                                                                   |
-| `prod.auto.tfvars`        | Committed non-secret defaults for the current production project                                                     |
-| `backend.tf.example`      | HCP Terraform backend template                                                                                       |
+| File                 | Resources / purpose                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `versions.tf`        | Terraform version and `supabase/supabase` provider                                                                   |
+| `variables.tf`       | Required org/password inputs plus non-secret project defaults                                                        |
+| `locals.tf`          | Derived project URL, DB host, pooler user, and staging DB host                                                       |
+| `project.tf`         | Imports and manages `supabase_project.production`                                                                    |
+| `settings.tf`        | `data.supabase_pooler` + `supabase_settings` — pooler URLs, Auth lockdown, PostgREST disable (prod + staging branch) |
+| `outputs.tf`         | Exports project metadata and DB connection details                                                                   |
+| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project                                                     |
+| `backend.tf.example` | HCP Terraform backend template                                                                                       |
 
 ## Architecture notes
 
@@ -41,10 +39,10 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
 - The root exports pooler and staging branch connection details consumed by the GCP workspaces.
-- Network restrictions (IP allowlist) are managed via `supabase_network_restrictions`.
-  The allowed CIDR is read automatically from the `armadacms-gcp-prod` workspace output
-  `static_egress_ip`, keeping it in sync with the Cloud Run NAT IP without manual updates.
-  Requires Supabase Pro plan or above.
+- **Network restrictions** (IP allowlist for direct DB access) cannot be managed via the
+  `supabase/supabase` Terraform provider — there is no such resource type. Set them manually
+  in the Supabase dashboard (Settings → Database → Network Restrictions) using the Cloud Run
+  NAT IP from the `armadacms-gcp-prod` workspace output `static_egress_ip`.
 - Staging is a branch of the same Supabase project. Its project_ref (`staging_project_ref`),
   DB host, user, and name are stored as variables here and exported so `gcp/staging` can
   read them via `tfe_outputs` without hardcoding. Staging-specific settings (auth lockdown,
@@ -52,10 +50,7 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## Workspace dependencies
 
-This root reads `static_egress_ip` from `armadacms-gcp-prod` to keep the DB network
-restriction in sync with the Cloud Run NAT IP. Grant `armadacms-supabase-prod` remote
-state read access to `armadacms-gcp-prod` under **Settings → Remote state sharing** in
-HCP Terraform.
+This root has no cross-workspace state dependencies.
 
 For the full cross-workspace layout, see [`../../README.md`](../../README.md).
 

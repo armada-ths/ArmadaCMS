@@ -57,12 +57,6 @@ variable "api_max_rows" {
   default     = 1000
 }
 
-variable "cloud_run_nat_ip_override" {
-  description = "Override for the Cloud Run NAT outbound IP. Leave null (default) to read it automatically from the armadacms-gcp-prod HCP Terraform workspace output 'static_egress_ip'."
-  type        = string
-  default     = null
-}
-
 variable "pooler_host" {
   description = "Supabase transaction pooler host for ArmadaCMS (e.g. aws-1-eu-north-1.pooler.supabase.com). Not derivable from project_ref — set in prod.auto.tfvars and exported so gcp/prod can read it via tfe_outputs."
   type        = string
