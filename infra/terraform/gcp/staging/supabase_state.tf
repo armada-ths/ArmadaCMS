@@ -1,9 +1,10 @@
-# Read outputs from the Supabase production workspace so staging DB_HOST and
-# DB_USER are always in sync without manual updates in this workspace.
+# Read outputs from the Supabase production workspace so staging DB_HOST,
+# DB_USER, and Supabase Storage configuration are always in sync without
+# manual updates in this workspace.
 #
 # Staging is a branch of the same Supabase project managed by armadacms-supabase-prod.
 # The staging-specific outputs (staging_db_host, staging_db_user, staging_db_name)
-# are defined there alongside the production pooler values.
+# are defined there alongside the production pooler values and storage outputs.
 #
 # The tfe provider authenticates using the same HCP Terraform token that
 # runs this workspace — no extra credentials are needed.

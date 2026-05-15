@@ -1,12 +1,6 @@
 project_id = "just-sunrise-491718-m9"
 region     = "europe-north2"
 
-storage_provider             = "supabase"
-supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
-supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
-supabase_storage_bucket      = "armadacms-files"
-supabase_storage_region      = "eu-north-1"
-
 deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"

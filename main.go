@@ -102,10 +102,6 @@ func main() {
 		log.Printf("failed to seed feature flags: %v", err)
 	}
 
-	if err := controllers.SeedInitialAdminUser(db.DB); err != nil {
-		log.Printf("failed to seed initial admin user: %v", err)
-	}
-
 	wrappedMux := CreateMuxClient()
 	listenAddr := getListenAddr()
 	fmt.Println("Server running on http://localhost" + listenAddr)

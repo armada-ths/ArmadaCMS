@@ -4,12 +4,6 @@ environment  = "staging"
 service_name = "armadacms-staging"
 name_prefix  = "armadacms-staging"
 
-storage_provider             = "supabase"
-supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
-supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
-supabase_storage_bucket      = "armadacms-files"
-supabase_storage_region      = "eu-north-1"
-
 deploy_cloud_run_service = true
 deletion_protection      = false
 
@@ -32,13 +26,6 @@ domain_mapping_hostname = "staging.cms.armada.nu"
 
 revalidation_url = "https://staging.armada.nu/api/revalidate"
 
-# Initial admin user seeded on first startup when the DB is empty.
-# Set secret_values["INITIAL_ADMIN_PASSWORD"] in HCP Terraform to activate.
-# Once the account is created the env vars have no further effect.
-initial_admin_username = "admin"
-
-# The github-app-private-key secret already exists from the production
-# workspace — set manage_github_app_secret = false to reuse it.
 manage_github_app_secret = false
 
 enable_https_load_balancer = false

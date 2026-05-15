@@ -1,5 +1,6 @@
-# Read outputs from the Supabase production workspace so DB_HOST and DB_USER
-# are always in sync without manual updates in this workspace.
+# Read outputs from the Supabase production workspace so DB_HOST, DB_USER,
+# and Supabase Storage configuration are always in sync without manual updates
+# in this workspace.
 #
 # The tfe provider authenticates using the same HCP Terraform token that
 # runs this workspace — no extra credentials are needed.

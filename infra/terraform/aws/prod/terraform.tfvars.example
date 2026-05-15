@@ -1,8 +1,0 @@
-region           = "eu-north-1"
-environment      = "production"
-cloud_run_nat_ip = "34.51.249.94"
-
-# db_password is sensitive — do not commit it here.
-# Pass it via TF_VAR_db_password environment variable or as a sensitive
-# variable in HCP Terraform.
-# db_password = "..."

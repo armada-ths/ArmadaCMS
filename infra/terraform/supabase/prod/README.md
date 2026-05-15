@@ -35,6 +35,7 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
   **not** return it on import. You must provide the current password (or intentionally reset
   it in the dashboard first).
 - The root exports pooler and staging DB connection details consumed by the GCP workspaces.
+- Supabase Storage configuration (`supabase_url`, `supabase_storage_s3_endpoint`, `supabase_storage_bucket`, `supabase_storage_region`) is also exported here so GCP workspaces read them via `tfe_outputs` — keeping all Supabase project metadata in one place.
 - Staging is a separate Supabase project. Its DB host, user, and name are stored as
   variables here and exported so `gcp/staging` can read them via `tfe_outputs` without
   hardcoding.
@@ -88,7 +89,7 @@ Everything else has committed non-secret defaults in `prod.auto.tfvars`.
 2. Add the sensitive environment variable `SUPABASE_ACCESS_TOKEN`.
 3. Add Terraform variable `organization_id` with the Supabase organization slug.
 4. Add sensitive Terraform variable `database_password` with the current DB password.
-5. Queue a run. The `import {}` block in `project.tf` will import the existing project into state on the first apply instead of trying to recreate it.
+5. Queue a run.
 
 ## Ongoing operations
 

@@ -82,3 +82,31 @@ variable "staging_db_name" {
   type        = string
   default     = "postgres"
 }
+
+# ── Supabase Storage ─────────────────────────────────────────────────────────────
+# Exported so gcp/prod and gcp/staging can read them via tfe_outputs,
+# keeping storage configuration in one place.
+
+variable "supabase_url" {
+  description = "Base HTTPS URL of the Supabase project (e.g. https://<ref>.supabase.co). Exported to GCP workspaces via tfe_outputs."
+  type        = string
+  default     = "https://rsdjnixgxqauonaofrwr.supabase.co"
+}
+
+variable "supabase_storage_s3_endpoint" {
+  description = "S3-compatible Supabase Storage endpoint for server-side uploads (e.g. https://<ref>.storage.supabase.co/storage/v1/s3). Exported to GCP workspaces via tfe_outputs."
+  type        = string
+  default     = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
+}
+
+variable "supabase_storage_bucket" {
+  description = "Supabase Storage bucket used by ArmadaCMS for file uploads. Exported to GCP workspaces via tfe_outputs."
+  type        = string
+  default     = "armadacms-files"
+}
+
+variable "supabase_storage_region" {
+  description = "AWS-style region name reported to the S3-compatible client (e.g. eu-north-1). Exported to GCP workspaces via tfe_outputs."
+  type        = string
+  default     = "eu-north-1"
+}
