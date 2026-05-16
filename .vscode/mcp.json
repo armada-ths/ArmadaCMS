@@ -1,0 +1,30 @@
+{
+  "servers": {
+    "Filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}"
+      ]
+    },
+    "ESLint": {
+      "type": "stdio",
+      "command": "npx",
+      "cwd": "${workspaceFolder}/frontend",
+      "args": ["-y", "@eslint/mcp@latest"]
+    },
+    "Playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "cwd": "${workspaceFolder}",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "microsoft/markitdown": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["markitdown-mcp@0.0.1a4"]
+    }
+  }
+}
