@@ -1,5 +1,11 @@
-import { List, Datagrid, TextField, EditButton, ListProps } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
+import {
+  List,
+  Datagrid,
+  TextField,
+  DeleteButton,
+  EditButton,
+  ListProps,
+} from "react-admin";
 
 export const TeamList = (props: ListProps) => {
   return (
@@ -7,7 +13,7 @@ export const TeamList = (props: ListProps) => {
       <Datagrid>
         <TextField source="team_name" />
         <EditButton />
-        <PermissionDeleteButton />
+        <DeleteButton />
       </Datagrid>
     </List>
   );

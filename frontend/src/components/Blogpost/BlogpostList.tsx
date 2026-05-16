@@ -3,10 +3,10 @@ import {
   Datagrid,
   TextField,
   DateField,
+  DeleteButton,
   EditButton,
   ListProps,
 } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const BlogpostList = (props: ListProps) => (
   <List {...props} sort={{ field: "createdAt", order: "DESC" }}>
@@ -16,7 +16,7 @@ export const BlogpostList = (props: ListProps) => (
       <TextField source="author" />
       <DateField source="createdAt" label="Created" />
       <EditButton />
-      <PermissionDeleteButton />
+      <DeleteButton />
     </Datagrid>
   </List>
 );

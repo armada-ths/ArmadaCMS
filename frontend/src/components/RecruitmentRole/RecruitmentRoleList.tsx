@@ -1,12 +1,12 @@
 import {
   Datagrid,
+  DeleteButton,
   EditButton,
   List,
   ListProps,
   ReferenceField,
   TextField,
 } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const RecruitmentRoleList = (props: ListProps) => (
   <List {...props}>
@@ -24,7 +24,7 @@ export const RecruitmentRoleList = (props: ListProps) => (
         <TextField source="name" />
       </ReferenceField>
       <EditButton />
-      <PermissionDeleteButton />
+      <DeleteButton />
     </Datagrid>
   </List>
 );

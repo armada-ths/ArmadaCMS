@@ -3,10 +3,10 @@ import {
   Datagrid,
   TextField,
   DateField,
+  DeleteButton,
   EditButton,
   ListProps,
 } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const EventList = (props: ListProps) => (
   <List {...props}>
@@ -19,7 +19,7 @@ export const EventList = (props: ListProps) => (
       <TextField source="registrationRequired" />
       <TextField source="show" />
       <EditButton />
-      <PermissionDeleteButton />
+      <DeleteButton />
     </Datagrid>
   </List>
 );
