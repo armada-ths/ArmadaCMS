@@ -331,13 +331,30 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 ## CI / CD
 
-GitHub Actions workflows in `.github/workflows/`:
+CI is split between GitHub Actions for repository checks and Google Cloud Build for container build/deploy automation.
 
-| Workflow                 | Trigger                                                  | What it does                                                       |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------ |
-| `go-checks.yml`          | Push to `main`/`staging` when Go files change, PRs       | `go vet`, `golangci-lint`, `go test -race`                         |
-| `frontend-checks.yml`    | Push to `main`/`staging` when frontend files change, PRs | `npm run lint:check`, `npm run type-check`, `npm run format:check` |
-| `keep-staging-alive.yml` | Weekly schedule                                          | `curl` to staging `/health` to prevent Supabase free-tier pause    |
+### GitHub Actions (CI)
+
+Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
+
+- `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
+- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `npm ci`, `npm run lint:check`, `npm run type-check`, and `npm run format:check`.
+- `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
+
+All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed.
+
+### Google Cloud Build / Cloud Run (CD)
+
+Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbuild.yaml), not by GitHub Actions.
+
+- Cloud Build builds the production container from `Dockerfile.prod`.
+- Images are pushed to Artifact Registry.
+- Non-PR builds can deploy the resulting image to the configured Cloud Run service.
+- PR builds can build and push preview-tagged images without deploying them.
+- For merged changes, the pipeline can reuse an already-built PR image when available instead of rebuilding from scratch.
+- When GitHub App credentials are configured in the Cloud Build trigger environment, the pipeline also creates and updates GitHub deployment statuses.
+
+The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers, while `cloudbuild.yaml` remains the source of truth for the build, image-promotion, and deployment steps the triggers execute.
 
 ## Operations notes
 
