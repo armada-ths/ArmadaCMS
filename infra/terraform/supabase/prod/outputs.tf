@@ -58,6 +58,26 @@ output "staging_db_name" {
   value       = var.staging_db_name
 }
 
+output "supabase_url" {
+  description = "Base HTTPS URL of the Supabase project, consumed by gcp/prod and gcp/staging via tfe_outputs."
+  value       = var.supabase_url
+}
+
+output "supabase_storage_s3_endpoint" {
+  description = "S3-compatible Supabase Storage endpoint for server-side uploads, consumed by GCP workspaces via tfe_outputs."
+  value       = var.supabase_storage_s3_endpoint
+}
+
+output "supabase_storage_bucket" {
+  description = "Supabase Storage bucket name, consumed by GCP workspaces via tfe_outputs."
+  value       = var.supabase_storage_bucket
+}
+
+output "supabase_storage_region" {
+  description = "AWS-style region name for the S3-compatible storage client, consumed by GCP workspaces via tfe_outputs."
+  value       = var.supabase_storage_region
+}
+
 output "pooler_urls" {
   description = "Supabase pooler connection strings keyed by pool mode. Sensitive because they may embed credentials depending on account configuration."
   value       = data.supabase_pooler.production.url

@@ -3,11 +3,11 @@ import {
   Datagrid,
   TextField,
   DateField,
+  DeleteButton,
   EditButton,
   ListProps,
   ReferenceField,
 } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const UserList = (props: ListProps) => {
   return (
@@ -21,7 +21,7 @@ export const UserList = (props: ListProps) => {
         <DateField source="created_at" />
         <DateField source="updated_at" />
         <EditButton />
-        <PermissionDeleteButton />
+        <DeleteButton />
       </Datagrid>
     </List>
   );

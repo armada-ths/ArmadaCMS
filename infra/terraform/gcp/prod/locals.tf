@@ -33,36 +33,16 @@ locals {
     ] : [],
   ))
 
-  secret_env_vars = merge(
-    {
-      DB_PASSWORD         = "DB_PASSWORD"
-      jwtsecret_laganda   = "jwtsecret_laganda"
-      EVENTRO_API         = "EVENTRO_API"
-      EVENTRO_FAIR_ID     = "EVENTRO_FAIR_ID"
-      EVENTRO_ORG         = "EVENTRO_ORG"
-      REVALIDATION_SECRET = "REVALIDATION_SECRET"
-    },
-    var.storage_provider == "s3" ? {
-      AWS_ACCESS_KEY_ID     = "AWS_ACCESS_KEY_ID"
-      AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
-    } : {},
-    var.storage_provider == "supabase" ? {
-      SUPABASE_STORAGE_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
-      SUPABASE_STORAGE_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
-    } : {},
-  )
-
-  # All storage-provider secrets are kept in Secret Manager regardless of the
-  # active storage_provider. This prevents Terraform from destroying secret shells
-  # when switching providers, preserving rollback capability during cutover.
-  # Cloud Run only mounts secret_env_vars (the active set); this wider set is
-  # used only for google_secret_manager_secret resource management.
-  managed_secrets = merge(local.secret_env_vars, {
-    AWS_ACCESS_KEY_ID                  = "AWS_ACCESS_KEY_ID"
-    AWS_SECRET_ACCESS_KEY              = "AWS_SECRET_ACCESS_KEY"
-    SUPABASE_STORAGE_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
-    SUPABASE_STORAGE_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
-  })
+  secret_env_vars = {
+    DB_PASSWORD           = "DB_PASSWORD"
+    jwtsecret_laganda     = "jwtsecret_laganda"
+    EVENTRO_API           = "EVENTRO_API"
+    EVENTRO_FAIR_ID       = "EVENTRO_FAIR_ID"
+    EVENTRO_ORG           = "EVENTRO_ORG"
+    REVALIDATION_SECRET   = "REVALIDATION_SECRET"
+    AWS_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
+    AWS_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
+  }
 
   secret_value_keys = toset([
     for key in keys(nonsensitive(var.secret_values)) : key
@@ -71,32 +51,24 @@ locals {
 
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
-  plain_env_vars = merge(
-    {
-      DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
-      DB_PORT                       = "5432"
-      DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])
-      DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["db_name"])
-      DB_SSLMODE                    = "require"
-      STORAGE_PROVIDER              = var.storage_provider
-      DB_MAX_OPEN_CONNS             = "10"
-      DB_MAX_IDLE_CONNS             = "5"
-      DB_CONN_MAX_LIFETIME_MINUTES  = "30"
-      DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
-      AUDIT_LOG_RETENTION_DAYS      = "7"
-      REVALIDATION_URL              = var.revalidation_url
-    },
-    var.storage_provider == "s3" ? {
-      S3_BUCKET  = nonsensitive(data.tfe_outputs.aws_prod.values["s3_bucket_name"])
-      AWS_REGION = nonsensitive(data.tfe_outputs.aws_prod.values["s3_bucket_region"])
-    } : {},
-    var.storage_provider == "supabase" ? {
-      SUPABASE_URL                 = var.supabase_url
-      SUPABASE_STORAGE_S3_ENDPOINT = var.supabase_storage_s3_endpoint
-      SUPABASE_STORAGE_BUCKET      = var.supabase_storage_bucket
-      SUPABASE_STORAGE_REGION      = var.supabase_storage_region
-    } : {},
-  )
+  plain_env_vars = {
+    DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
+    DB_PORT                       = "5432"
+    DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])
+    DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["db_name"])
+    DB_SSLMODE                    = "require"
+    DB_ENABLE_AUTOMIGRATE         = "false"
+    S3_ENDPOINT                   = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
+    S3_PUBLIC_URL                 = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"
+    S3_BUCKET                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
+    S3_REGION                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_region"])
+    DB_MAX_OPEN_CONNS             = "10"
+    DB_MAX_IDLE_CONNS             = "5"
+    DB_CONN_MAX_LIFETIME_MINUTES  = "30"
+    DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
+    AUDIT_LOG_RETENTION_DAYS      = "7"
+    REVALIDATION_URL              = var.revalidation_url
+  }
 
   cloud_build_service_account_email     = trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
   default_compute_service_account_email = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"

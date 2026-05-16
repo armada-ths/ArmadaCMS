@@ -1,12 +1,12 @@
 import {
   DateField,
   Datagrid,
+  DeleteButton,
   EditButton,
   List,
   ListProps,
   TextField,
 } from "react-admin";
-import { PermissionDeleteButton } from "../shared/PermissionDeleteButton";
 
 export const RecruitmentPeriodList = (props: ListProps) => (
   <List {...props}>
@@ -17,7 +17,7 @@ export const RecruitmentPeriodList = (props: ListProps) => (
       <DateField source="startDate" showTime={false} />
       <DateField source="endDate" showTime={false} />
       <EditButton />
-      <PermissionDeleteButton />
+      <DeleteButton />
     </Datagrid>
   </List>
 );
