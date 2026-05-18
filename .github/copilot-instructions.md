@@ -34,7 +34,7 @@ This runs the Go API, React-Admin frontend, Postgres, and MinIO together with ho
 
 Default credentials: host `localhost`, db `armadacms`, user/password `postgres`. Copy `.env.example` → `.env`.
 
-`npm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
+`pnpm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
 **Tests**: Go unit tests are available (notably in `auth/` and `utils/`). Run `go test -race -count=1 ./...` locally for backend changes. There is no end-to-end/integration test suite yet, so still verify relevant API behavior manually (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
 

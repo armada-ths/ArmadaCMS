@@ -1,6 +1,7 @@
 import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
 import { refreshTokens } from "./axiosInstance";
+import globalApi from "./globalApi";
 
 /**
  * Decode a JWT payload without verification (browser-side).
@@ -84,10 +85,18 @@ export const authProvider: AuthProvider = {
     if (!token) {
       throw new Error("No identity found");
     }
-    const claims = decodeJwtPayload(token);
+    const response = await fetch(`${globalApi()}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch identity");
+    }
+    const user = await response.json();
+    const firstName = (user.name as string)?.trim().split(/\s+/)[0];
+    const displayName = firstName || (user.username as string) || "User";
     return {
-      id: claims.user_id as number,
-      fullName: (claims.role as string) ?? "User",
+      id: user.id as number,
+      fullName: displayName,
     };
   },
 

@@ -47,7 +47,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 - [Docker](https://www.docker.com/) and Docker Compose _(required for local development)_
 - [Go 1.24+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
-- [Node.js 20+](https://nodejs.org/) and npm _(optional, for running frontend tooling directly)_
+- [Node.js 24+](https://nodejs.org/) and pnpm _(optional, for running frontend tooling directly)_
 
 ## Getting Started
 
@@ -64,18 +64,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    cp .env.example .env
    ```
 
-   For the Docker development stack, the defaults in `.env.example` already point to the bundled Postgres and MinIO services:
-
-   ```env
-   DB_HOST=postgres
-   DB_PORT=5432
-   DB_USER=postgres
-   DB_PASSWORD=postgres
-   DB_NAME=armadacms
-   DB_SSLMODE=disable
-   ```
-
-   See `.env.example` for the full list of variables, including MinIO and Supabase Storage settings.
+   The defaults are pre-configured for the local Docker stack. See `.env.example` for the full list of variables.
 
 3. **Start the local development stack**
 
@@ -91,20 +80,11 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    docker compose -f docker-compose.dev.yml up
    ```
 
-   Postgres defaults:
-   - Host (from containers): `postgres`
-   - Host (from your machine): `localhost`
-   - Port: `5432`
-   - Database: `armadacms`
-   - User: `postgres`
-   - Password: `postgres`
+   Local connection (e.g. for a DB GUI): `postgres:postgres@localhost:5432/armadacms`
 
-   MinIO defaults:
-   - API: `http://localhost:9000`
-   - Console: `http://localhost:9001`
-   - Login: `minioadmin` / `minioadmin`
+   MinIO console: [http://localhost:9001](http://localhost:9001) (login: `minioadmin` / `minioadmin`)
 
-   To stop the stack later without deleting data:
+   To stop the stack without deleting data:
 
    ```bash
    docker compose -f docker-compose.dev.yml stop
@@ -116,89 +96,21 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    docker compose -f docker-compose.dev.yml down
    ```
 
-4. **Optionally clone a remote database into your local Postgres**
+4. **Optionally clone a remote database**
 
-   If you want realistic local data, the repo includes a PowerShell import script that can clone any reachable PostgreSQL database, for example staging or a temporarily allowlisted production instance.
-
-   Start the Postgres container from the dev stack first if it is not already running:
-
-   ```bash
-   docker compose -f docker-compose.dev.yml up -d postgres
-   ```
-
-   Add these values to your local `.env` first:
-
-   ```env
-   SOURCE_DB_HOST=
-   SOURCE_DB_PORT=5432
-   SOURCE_DB_USER=
-   SOURCE_DB_PASSWORD=
-   SOURCE_DB_NAME=
-   SOURCE_DB_SSLMODE=require
-   SOURCE_DB_TOOLS_IMAGE=postgres:17
-   ```
-
-   Then run:
+   `scripts/import-remote-db.ps1` clones a remote PostgreSQL database into the local Postgres container, replacing the local `armadacms` database. Fill in the `SOURCE_DB_*` vars in `.env` (see `.env.example`), then run:
 
    ```powershell
    ./scripts/import-remote-db.ps1
    ```
 
-   The script:
-   - dumps the remote PostgreSQL database using a Dockerized `pg_dump`
-   - drops and recreates your local `armadacms` database
-   - imports the dump into the local Docker Postgres container
+   The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
 
-   Notes:
-   - The `pg_dump` client must be the same major version as the source database, or newer. Since both staging and production use PostgreSQL 17 (via Supabase), the default clone tooling uses `postgres:17`.
-   - The remote database has to be reachable from your machine. For Supabase, you can temporarily allowlist your current IP under **Project Settings → Networking → Network restrictions** in the Supabase dashboard.
-   - The script replaces your local database completely.
-   - Cloning production means copying real data locally, so handle that dump carefully and prefer staging where possible.
-
-5. **Optionally verify the production-style container locally**
-
-   This is slower than the development stack above, but closer to what runs in production:
-
-   ```bash
-   docker compose up --build
-   ```
-
-   The Go app is served on `http://localhost:8080`, with the admin frontend bundled at `/admin/`.
-
-   This workflow is mainly for production verification, not day-to-day local development. If you want it to talk to locally started Postgres and MinIO on Docker Desktop, use `host.docker.internal` instead of `localhost`, for example:
-
-   ```env
-   DB_HOST=host.docker.internal
-   S3_ENDPOINT=http://host.docker.internal:9000
-   S3_PUBLIC_URL=http://localhost:9000
-   ```
-
-6. **Set up file uploads**
-
-   File uploads (profile photos, exhibitor logos, event images) use an S3-compatible storage service configured through generic `S3_*` env vars. Both MinIO (local dev) and Supabase Storage (staging/production) use the same vars.
-   - The Docker development stack starts MinIO automatically with the defaults already in `.env.example`.
-   - MinIO listens on port `9000`, and the console is available at [http://localhost:9001](http://localhost:9001) with login `minioadmin` / `minioadmin`.
-
-   For Docker-based workflows, make sure your `.env` has the MinIO block active (it is enabled by default in `.env.example`):
-
-   ```env
-   S3_BUCKET=armada-dev
-   S3_ENDPOINT=http://minio:9000
-   S3_PUBLIC_URL=http://localhost:9000
-   AWS_ACCESS_KEY_ID=minioadmin
-   AWS_SECRET_ACCESS_KEY=minioadmin
-   ```
-
-   `S3_ENDPOINT` is the address the Go server uses to reach MinIO. `S3_PUBLIC_URL` is the address the browser uses to load uploaded files. In Docker-based development, those values differ because the backend reaches MinIO at `minio:9000` while the browser uses `localhost:9000`.
-
-   For staging/production (Supabase Storage), Terraform injects the same `S3_*` vars pointing at Supabase's S3-compatible endpoint.
-
-7. **Verify the app is running**
+5. **Verify the app is running**
 
    Once the development stack is running, the following URLs are available:
    - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
-   - **Admin UI (Vite dev)**: [http://localhost:5173](http://localhost:5173)
-   - **Admin UI (production build)**: [http://localhost:8080/admin/](http://localhost:8080/admin/) _(production-style local verification only)_
+   - **Admin UI**: [http://localhost:5173](http://localhost:5173)
    - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
 
 ## Database migrations
@@ -217,7 +129,7 @@ To create a new migration, generate a diff against the current remote schema:
 pnpx supabase db diff -f <migration-name>
 ```
 
-You can also validate that all migrations apply cleanly from scratch:
+To validate that all migrations apply cleanly from scratch:
 
 ```bash
 pnpx supabase db reset
@@ -331,20 +243,36 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 ## CI / CD
 
-GitHub Actions workflows in `.github/workflows/`:
+CI is handled by GitHub Actions and CD by Google Cloud Build.
 
-| Workflow                 | Trigger                                                  | What it does                                                       |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------ |
-| `go-checks.yml`          | Push to `main`/`staging` when Go files change, PRs       | `go vet`, `golangci-lint`, `go test -race`                         |
-| `frontend-checks.yml`    | Push to `main`/`staging` when frontend files change, PRs | `npm run lint:check`, `npm run type-check`, `npm run format:check` |
-| `keep-staging-alive.yml` | Weekly schedule                                          | `curl` to staging `/health` to prevent Supabase free-tier pause    |
+### GitHub Actions (CI)
+
+Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
+
+- `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
+- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, and `pnpm run format:check`.
+- `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
+
+All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed.
+
+### Google Cloud Build (CD)
+
+Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbuild.yaml).
+
+- Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
+- Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
+- PR builds build and push a preview-tagged image without deploying.
+- For merged changes, the pipeline reuses the already-built PR image instead of rebuilding from scratch.
+- The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
+
+The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers, while `cloudbuild.yaml` remains the source of truth for the build, image-promotion, and deployment steps the triggers execute.
 
 ## Operations notes
 
-- Production traffic is served through Cloud Run. PostgreSQL uses Supabase; file uploads use Supabase Storage.
-- The backend expects Cloud Run to provide `PORT` in production and falls back to `8080` locally.
-- Production database connections should use `DB_SSLMODE=require`.
-- Cloud Run instance scaling should stay aligned with PostgreSQL connection limits; tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together.
+- Production runs on Cloud Run with Supabase (PostgreSQL) and Supabase Storage for file uploads.
+- The server reads `PORT` from the environment and falls back to `8080`.
+- Production database connections use `DB_SSLMODE=require`.
+- Tune `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and Cloud Run max instances together to stay within Postgres connection limits.
 
 ## Infrastructure as code
 
