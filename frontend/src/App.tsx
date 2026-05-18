@@ -5,7 +5,6 @@ import {
   Menu,
   Resource,
   Layout,
-  CustomRoutes,
   UserMenu,
 } from "react-admin";
 import { dataProvider } from "./dataProvider";
@@ -54,55 +53,20 @@ import { RecruitmentRoleEdit } from "./components/RecruitmentRole/RecruitmentRol
 import { AuditLogList } from "./components/AuditLog/AuditLogList";
 import { AuditLogShow } from "./components/AuditLog/AuditLogShow";
 import { CustomLoginPage } from "./components/CustomLoginPage";
-import { EventroSync } from "./components/EventroSync/EventroSync";
 import { BlogpostList } from "./components/Blogpost/BlogpostList";
 import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
 import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
 import { ChangePasswordButton } from "./components/ChangePasswordButton";
-
-import { Icon } from "@mui/material";
-import { usePermissions } from "react-admin";
+import { Dashboard } from "./components/Dashboard/Dashboard";
+import { DashboardMenuItem } from "react-admin";
 import { ReactNode } from "react";
-import { Route, Navigate } from "react-router";
 
-const hasPerm = (perms: string[], required: string) =>
-  perms.some((p) => p === "*" || p === required);
-
-const RequirePermission = ({
-  permission,
-  children,
-}: {
-  permission: string;
-  children: ReactNode;
-}) => {
-  const { permissions, isPending } = usePermissions();
-  if (isPending) return null;
-  const perms: string[] = Array.isArray(permissions) ? permissions : [];
-  return hasPerm(perms, permission) ? (
-    <>{children}</>
-  ) : (
-    <Navigate to="/" replace />
-  );
-};
-
-export const MyMenu = () => {
-  const { permissions } = usePermissions();
-  const perms: string[] = Array.isArray(permissions) ? permissions : [];
-  const canAccessEventroSync = hasPerm(perms, "eventrosync.access");
-
-  return (
-    <Menu>
-      <Menu.ResourceItems />
-      {canAccessEventroSync && (
-        <Menu.Item
-          to="/admin/eventrosync"
-          primaryText="Eventro sync"
-          leftIcon={<Icon />}
-        />
-      )}
-    </Menu>
-  );
-};
+export const MyMenu = () => (
+  <Menu>
+    <DashboardMenuItem primaryText="Dashboard" />
+    <Menu.ResourceItems />
+  </Menu>
+);
 
 const MyUserMenu = () => (
   <UserMenu>
@@ -126,6 +90,7 @@ export const App = () => (
     authProvider={authProvider}
     layout={MyLayout}
     loginPage={CustomLoginPage}
+    dashboard={Dashboard}
   >
     <Resource
       name="customusers"
@@ -235,16 +200,5 @@ export const App = () => (
       create={BlogpostCreate}
       edit={BlogpostEdit}
     />
-
-    <CustomRoutes>
-      <Route
-        path="/eventrosync"
-        element={
-          <RequirePermission permission="eventrosync.access">
-            <EventroSync />
-          </RequirePermission>
-        }
-      />
-    </CustomRoutes>
   </Admin>
 );

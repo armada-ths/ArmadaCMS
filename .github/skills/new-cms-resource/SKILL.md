@@ -1,7 +1,7 @@
 ---
 name: new-cms-resource
-description: 'Create or update an ArmadaCMS resource end to end. Use for new Go REST resources, admin CRUD screens, React-Admin resource registration, AutoMigrate wiring, audit-helper write paths, multipart upload resources, Swagger updates, and cache revalidation tag setup when the resource feeds armada.nu.'
-argument-hint: '[resource name] [public/private] [has uploads?] [revalidates armada.nu?]'
+description: "Create or update an ArmadaCMS resource end to end. Use for new Go REST resources, admin CRUD screens, React-Admin resource registration, AutoMigrate wiring, audit-helper write paths, multipart upload resources, Swagger updates, and cache revalidation tag setup when the resource feeds armada.nu."
+argument-hint: "[resource name] [public/private] [has uploads?] [revalidates armada.nu?]"
 ---
 
 # New CMS Resource
@@ -123,7 +123,7 @@ Do not consider the resource done until you have checked all relevant items:
 Run the checks that match the scope of the change:
 
 - Backend: `go test -race -count=1 ./...`
-- Admin frontend in `frontend/`: `npm run lint:check`, `npm run type-check`, `npm run format:check`
+- Admin frontend in `frontend/`: `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`
 - If Docker wiring or local environment behavior changed, verify with `docker compose -f docker-compose.dev.yml up --build`
 
 ## Common Pitfalls

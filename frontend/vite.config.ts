@@ -55,44 +55,22 @@ export default defineConfig(({ mode }) => ({
     },
   },
 
-  // ✅ Adds @ alias and keeps your React Admin debug aliases
+  // ✅ Adds @ alias and deduplicates shared packages.
+  // dedupe ensures pnpm's strict isolation never produces two separate
+  // module instances of react-router (which would break react-admin's
+  // router context on Linux where pnpm uses real symlinks).
   resolve: {
+    dedupe: [
+      "react",
+      "react-dom",
+      "react-router",
+      "react-router-dom",
+      "react-hook-form",
+    ],
     alias: {
       "@": path.resolve(__dirname, "src"),
-      ...getAliasesToDebugInProduction(),
     },
   },
 
   base: "./",
 }));
-
-function getAliasesToDebugInProduction() {
-  return {
-    "react-admin": path.resolve(__dirname, "./node_modules/react-admin/src"),
-    "ra-core": path.resolve(__dirname, "./node_modules/ra-core/src"),
-    "ra-ui-materialui": path.resolve(
-      __dirname,
-      "./node_modules/ra-ui-materialui/src",
-    ),
-    "ra-i18n-polyglot": path.resolve(
-      __dirname,
-      "./node_modules/ra-i18n-polyglot/src",
-    ),
-    "ra-language-english": path.resolve(
-      __dirname,
-      "./node_modules/ra-language-english/src",
-    ),
-    "ra-data-json-server": path.resolve(
-      __dirname,
-      "./node_modules/ra-data-json-server/src",
-    ),
-    "ra-data-simple-rest": path.resolve(
-      __dirname,
-      "./node_modules/ra-data-simple-rest/src",
-    ),
-    "ra-data-fakerest": path.resolve(
-      __dirname,
-      "./node_modules/ra-data-fakerest/src",
-    ),
-  };
-}
