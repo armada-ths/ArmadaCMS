@@ -14,7 +14,7 @@ Also check:
 - Register new DB models in `main.go` auto-migration.
 - If a resource handles uploads, update `frontend/src/dataProvider.ts` so the admin app sends `FormData`.
 - Regenerate Swagger docs when routes or annotations change.
-- Validate backend changes with `go test -race -count=1 ./...`, and admin UI changes in `frontend/` with `npm run lint:check`, `npm run type-check`, and `npm run format:check`.
+- Validate backend changes with `go test -race -count=1 ./...`, and admin UI changes in `frontend/` with `pnpm run lint:check`, `pnpm run type-check`, and `pnpm run format:check`.
 - Use the documented validation commands before finishing work.
 
 When in doubt, follow `.github/copilot-instructions.md` over this summary.

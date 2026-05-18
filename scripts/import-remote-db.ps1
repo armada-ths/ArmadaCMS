@@ -115,9 +115,35 @@ $dumpArgs = @(
     '--if-exists',
     '--no-owner',
     '--no-privileges',
+    '--exclude-schema=vault',
+    '--exclude-schema=pgsodium',
     '--file', "/dump/$dumpFileName"
 )
 Invoke-Docker -Arguments $dumpArgs
+
+# Strip Supabase-specific content that is not available in vanilla PostgreSQL.
+# - Remove extension registration lines for Supabase-platform-only extensions.
+# - Filter statement blocks that reference Supabase-specific schemas (vault, pgsodium).
+#   These appear as policies/triggers/functions in the public schema that the platform injects.
+$supabaseOnlyExtensions = @('supabase_vault', 'pgsodium', 'pg_net')
+$supabaseOnlySchemas = @('vault', 'pgsodium')
+Write-Host "Stripping Supabase-specific extensions and schema references from dump..." -ForegroundColor Cyan
+$dumpContent = [System.IO.File]::ReadAllText($dumpFilePath, [System.Text.Encoding]::UTF8)
+
+# Remove single-line extension declarations
+foreach ($ext in $supabaseOnlyExtensions) {
+    $dumpContent = $dumpContent -replace "(?m)^CREATE EXTENSION( IF NOT EXISTS)? $ext\b[^\r\n]*(\r?\n)?", ''
+    $dumpContent = $dumpContent -replace "(?m)^COMMENT ON EXTENSION $ext\b[^\r\n]*(\r?\n)?", ''
+}
+
+# Split on blank lines to get individual statement blocks, then drop any block
+# that references a Supabase-specific schema (e.g. vault.secrets in an RLS policy).
+$schemaPattern = ($supabaseOnlySchemas | ForEach-Object { [regex]::Escape($_) + '\.' }) -join '|'
+$blocks = $dumpContent -split '(?:\r?\n){2,}'
+$blocks = $blocks | Where-Object { $_ -notmatch $schemaPattern }
+$dumpContent = $blocks -join "`n`n"
+
+[System.IO.File]::WriteAllText($dumpFilePath, $dumpContent, [System.Text.Encoding]::UTF8)
 
 Write-Host "Copying dump into local Postgres container..." -ForegroundColor Cyan
 Invoke-Docker -Arguments @('cp', $dumpFilePath, ($localContainer + ':' + $containerDumpPath))
