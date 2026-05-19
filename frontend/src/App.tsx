@@ -1,23 +1,24 @@
+import { ReactNode } from "react";
+import { Box, Stack } from "@mui/material";
 import {
   Admin,
   AppBar,
+  DashboardMenuItem,
+  Layout,
   Logout,
   Menu,
   Resource,
-  Layout,
+  TitlePortal,
   UserMenu,
 } from "react-admin";
-import { dataProvider } from "./dataProvider";
-import { UserList } from "./components/User/UserList";
-import { UserCreate } from "./components/User/UserCreate";
-import { UserEdit } from "./components/User/UserEdit";
-import { ProfileList } from "./components/Profile/ProfileList";
-import { ProfileCreate } from "./components/Profile/ProfileCreate";
-import { ProfileEdit } from "./components/Profile/ProfileEdit";
-import { TeamList } from "./components/Team/TeamList";
-import { TeamCreate } from "./components/Team/TeamCreate";
-import { TeamEdit } from "./components/Team/TeamEdit";
-import { authProvider } from "./context/authProvider";
+import { AuditLogList } from "./components/AuditLog/AuditLogList";
+import { AuditLogShow } from "./components/AuditLog/AuditLogShow";
+import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
+import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
+import { BlogpostList } from "./components/Blogpost/BlogpostList";
+import { ChangePasswordButton } from "./components/ChangePasswordButton";
+import { CustomLoginPage } from "./components/CustomLoginPage";
+import { Dashboard } from "./components/Dashboard/Dashboard";
 import { EmploymentCreate } from "./components/Employment/EmploymentCreate";
 import { EmploymentEdit } from "./components/Employment/EmploymentEdit";
 import { EmploymentList } from "./components/Employment/EmploymentList";
@@ -27,42 +28,61 @@ import { EventList } from "./components/Event/EventList";
 import { ExhibitorCreate } from "./components/Exhibitor/ExhibitorCreate";
 import { ExhibitorEdit } from "./components/Exhibitor/ExhibitorEdit";
 import { ExhibitorList } from "./components/Exhibitor/ExhibitorList";
+import { FairDateCreate } from "./components/FairDate/FairDateCreate";
+import { FairDateEdit } from "./components/FairDate/FairDateEdit";
+import { FairDateList } from "./components/FairDate/FairDateList";
+import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
+import { FeatureFlagList } from "./components/FeatureFlag/FeatureFlagList";
+import { HighlightCardCreate } from "./components/HighlightCard/HighlightCardCreate";
+import { HighlightCardEdit } from "./components/HighlightCard/HighlightCardEdit";
+import { HighlightCardList } from "./components/HighlightCard/HighlightCardList";
 import { IndustryCreate } from "./components/Industry/IndustryCreate";
 import { IndustryEdit } from "./components/Industry/IndustryEdit";
 import { IndustryList } from "./components/Industry/IndustryList";
+import { ProfileCreate } from "./components/Profile/ProfileCreate";
+import { ProfileEdit } from "./components/Profile/ProfileEdit";
+import { ProfileList } from "./components/Profile/ProfileList";
 import { ProgramCreate } from "./components/Program/ProgramCreate";
 import { ProgramEdit } from "./components/Program/ProgramEdit";
 import { ProgramList } from "./components/Program/ProgramList";
-import { FairDateList } from "./components/FairDate/FairDateList";
-import { FairDateCreate } from "./components/FairDate/FairDateCreate";
-import { FairDateEdit } from "./components/FairDate/FairDateEdit";
-import { FeatureFlagList } from "./components/FeatureFlag/FeatureFlagList";
-import { FeatureFlagEdit } from "./components/FeatureFlag/FeatureFlagEdit";
-import { HighlightCardList } from "./components/HighlightCard/HighlightCardList";
-import { HighlightCardCreate } from "./components/HighlightCard/HighlightCardCreate";
-import { HighlightCardEdit } from "./components/HighlightCard/HighlightCardEdit";
-import { RoleList } from "./components/Role/RoleList";
-import { RoleCreate } from "./components/Role/RoleCreate";
-import { RoleEdit } from "./components/Role/RoleEdit";
-import { RecruitmentPeriodList } from "./components/RecruitmentPeriod/RecruitmentPeriodList";
 import { RecruitmentPeriodCreate } from "./components/RecruitmentPeriod/RecruitmentPeriodCreate";
 import { RecruitmentPeriodEdit } from "./components/RecruitmentPeriod/RecruitmentPeriodEdit";
-import { RecruitmentRoleList } from "./components/RecruitmentRole/RecruitmentRoleList";
+import { RecruitmentPeriodList } from "./components/RecruitmentPeriod/RecruitmentPeriodList";
 import { RecruitmentRoleCreate } from "./components/RecruitmentRole/RecruitmentRoleCreate";
 import { RecruitmentRoleEdit } from "./components/RecruitmentRole/RecruitmentRoleEdit";
-import { AuditLogList } from "./components/AuditLog/AuditLogList";
-import { AuditLogShow } from "./components/AuditLog/AuditLogShow";
-import { CustomLoginPage } from "./components/CustomLoginPage";
-import { BlogpostList } from "./components/Blogpost/BlogpostList";
-import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
-import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
-import { ChangePasswordButton } from "./components/ChangePasswordButton";
-import { Dashboard } from "./components/Dashboard/Dashboard";
-import { DashboardMenuItem } from "react-admin";
-import { ReactNode } from "react";
+import { RecruitmentRoleList } from "./components/RecruitmentRole/RecruitmentRoleList";
+import { RoleCreate } from "./components/Role/RoleCreate";
+import { RoleEdit } from "./components/Role/RoleEdit";
+import { RoleList } from "./components/Role/RoleList";
+import { TeamCreate } from "./components/Team/TeamCreate";
+import { TeamEdit } from "./components/Team/TeamEdit";
+import { TeamList } from "./components/Team/TeamList";
+import { UserCreate } from "./components/User/UserCreate";
+import { UserEdit } from "./components/User/UserEdit";
+import { UserList } from "./components/User/UserList";
+import { ArmadaBrandLockup } from "./components/Branding";
+import { authProvider } from "./context/authProvider";
+import { dataProvider } from "./dataProvider";
+import { armadaDarkTheme, armadaTheme } from "./theme";
 
 export const MyMenu = () => (
-  <Menu>
+  <Menu
+    sx={{
+      "& .RaMenuItemLink-root": {
+        borderRadius: 1,
+        marginBlock: 0,
+        marginInline: 0.5,
+      },
+      "& .RaMenuItemLink-active": {
+        backgroundColor: "primary.main",
+        color: "primary.contrastText",
+        fontWeight: 700,
+      },
+      "& .RaMenuItemLink-icon": {
+        minWidth: 36,
+      },
+    }}
+  >
     <DashboardMenuItem primaryText="Dashboard" />
     <Menu.ResourceItems />
   </Menu>
@@ -75,10 +95,61 @@ const MyUserMenu = () => (
   </UserMenu>
 );
 
-const MyAppBar = () => <AppBar userMenu={<MyUserMenu />} />;
+const MyAppBar = () => (
+  <AppBar
+    userMenu={<MyUserMenu />}
+    sx={{
+      "& .RaAppBar-toolbar": {
+        gap: 2,
+      },
+    }}
+  >
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={2}
+      sx={{ flex: 1, minWidth: 0 }}
+    >
+      <ArmadaBrandLockup compact />
+      <Box
+        sx={{
+          minWidth: 0,
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: { xs: "flex-end", md: "center" },
+          "& .RaAppBar-title": {
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "rgba(255, 255, 255, 0.82)",
+          },
+          "& .RaAppBar-title h6, & .RaAppBar-title span": {
+            fontFamily: '"Bebas Neue", "Oswald", "Arial Narrow", sans-serif',
+            fontSize: { xs: "1rem", md: "1.15rem" },
+            letterSpacing: "0.08em",
+          },
+        }}
+      >
+        <TitlePortal />
+      </Box>
+    </Stack>
+  </AppBar>
+);
 
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
-  <Layout menu={MyMenu} appBar={MyAppBar}>
+  <Layout
+    menu={MyMenu}
+    appBar={MyAppBar}
+    sx={{
+      "& .RaLayout-content": {
+        backgroundColor: "transparent",
+      },
+      "& .RaLayout-contentWithSidebar": {
+        backgroundColor: "transparent",
+      },
+    }}
+  >
     {children}
   </Layout>
 );
@@ -91,6 +162,8 @@ export const App = () => (
     layout={MyLayout}
     loginPage={CustomLoginPage}
     dashboard={Dashboard}
+    theme={armadaTheme}
+    darkTheme={armadaDarkTheme}
   >
     <Resource
       name="customusers"
