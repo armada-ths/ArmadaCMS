@@ -7,10 +7,10 @@ export type PermissionGroup = {
 };
 
 /** The special-cased permission that lives outside the main ArrayInput. */
-const CHANGE_OWN_PASSWORD_PERM = "customusers.changeownpassword";
+export const CHANGE_OWN_PASSWORD_PERM = "customusers.changeownpassword";
 
 export const PERMISSION_ACTIONS = [
-  { id: "*", name: "All actions (*)" },
+  { id: "*", name: "All actions" },
   { id: "list", name: "List" },
   { id: "show", name: "Show" },
   { id: "create", name: "Create" },
@@ -18,11 +18,16 @@ export const PERMISSION_ACTIONS = [
   { id: "delete", name: "Delete" },
 ];
 
+/** Individual (non-wildcard) action IDs — used to expand/collapse the "all actions" shorthand. */
+export const NON_WILDCARD_ACTION_IDS = PERMISSION_ACTIONS.filter(
+  (a) => a.id !== "*",
+).map((a) => a.id);
+
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
 
   return [
-    { id: "*", name: "All resources (*)" },
+    { id: "*", name: "All resources" },
     ...Object.entries(resourceDefinitions).map(([resource, definition]) => ({
       id: resource,
       name: definition.options?.label ?? resource,
@@ -31,9 +36,10 @@ export const useResourceChoices = () => {
 };
 
 /**
- * Converts stored permission strings from the API into the form's internal shape:
- * groups by resource into { resource, actions[] } and extracts the standalone
- * changeownpassword flag.
+ * Converts stored permission strings from the API into the form's internal shape.
+ * Groups by resource into { resource, actions[] } and extracts the standalone
+ * changeownpassword flag. When a wildcard action ("resource.*" or "*") is found,
+ * all individual action IDs are included so every checkbox appears ticked.
  */
 export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
@@ -48,7 +54,8 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     }
 
     if (p === "*") {
-      groupMap.set("*", ["*"]);
+      // Global wildcard — expand so every checkbox is ticked
+      groupMap.set("*", ["*", ...NON_WILDCARD_ACTION_IDS]);
       continue;
     }
 
@@ -61,9 +68,15 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
 
     const resource = p.slice(0, dot);
     const action = p.slice(dot + 1);
-    const existing = groupMap.get(resource) ?? [];
-    existing.push(action);
-    groupMap.set(resource, existing);
+
+    if (action === "*") {
+      // resource.* — expand so every checkbox is ticked for this resource
+      groupMap.set(resource, ["*", ...NON_WILDCARD_ACTION_IDS]);
+    } else {
+      const existing = groupMap.get(resource) ?? [];
+      existing.push(action);
+      groupMap.set(resource, existing);
+    }
   }
 
   return {
@@ -78,7 +91,9 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
 
 /**
  * Expands the form's internal shape back to a flat string[] for the API.
- * Strips the changeOwnPassword field and folds it into permissions.
+ * When "*" is present in a group's actions, emits only the compact wildcard form
+ * (e.g. "resource.*") and skips the redundant individual entries.
+ * Strips changeOwnPassword from the payload and folds it into permissions.
  */
 export const transformRole = (data: {
   permissions?: PermissionGroup[];
@@ -93,10 +108,12 @@ export const transformRole = (data: {
 
   for (const group of data.permissions ?? []) {
     if (!group.resource || !group.actions?.length) continue;
-    for (const action of group.actions) {
-      if (group.resource === "*" && action === "*") {
-        permissions.push("*");
-      } else {
+
+    if (group.actions.includes("*")) {
+      // Compact: wildcard covers all individual actions
+      permissions.push(group.resource === "*" ? "*" : `${group.resource}.*`);
+    } else {
+      for (const action of group.actions) {
         permissions.push(`${group.resource}.${action}`);
       }
     }
