@@ -25,7 +25,26 @@ function getPermissionsFromToken(): string[] {
 }
 
 function hasPermission(permissions: string[], required: string): boolean {
-  return permissions.some((p) => p === "*" || p === required);
+  const dotIndex = required.indexOf(".");
+  const hasResourceAction = dotIndex !== -1;
+  const reqResource = hasResourceAction
+    ? required.slice(0, dotIndex)
+    : required;
+  const reqAction = hasResourceAction ? required.slice(dotIndex + 1) : "";
+
+  return permissions.some((p) => {
+    if (p === "*" || p === required) return true;
+    if (!hasResourceAction) return false;
+    const pDot = p.indexOf(".");
+    if (pDot === -1) return false;
+    const pResource = p.slice(0, pDot);
+    const pAction = p.slice(pDot + 1);
+    // "resource.*" grants all actions on that resource
+    if (pResource === reqResource && pAction === "*") return true;
+    // "*.action" grants that action on all resources
+    if (pResource === "*" && pAction === reqAction) return true;
+    return false;
+  });
 }
 
 export const authProvider: AuthProvider = {
