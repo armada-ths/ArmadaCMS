@@ -7,10 +7,11 @@ import {
 } from "react-admin";
 import { useFormContext, useWatch } from "react-hook-form";
 import {
-  CHANGE_OWN_PASSWORD_PERM,
-  NON_WILDCARD_ACTION_IDS,
+  getChangeOwnPasswordCoveringWildcards,
   PERMISSION_ACTIONS,
   PermissionGroup,
+  isChangeOwnPasswordCoveredByWildcard,
+  normalizeActionsSelection,
   useResourceChoices,
 } from "./rolePermissionUtils";
 
@@ -35,29 +36,19 @@ export const PermissionActionsInput = () => {
   const prevActionsRef = useRef<string[]>(currentActions);
 
   useLayoutEffect(() => {
-    const prev = prevActionsRef.current;
-    const prevHasWildcard = prev.includes("*");
-    const nowHasWildcard = currentActions.includes("*");
+    const previousActions = prevActionsRef.current;
+    const normalizedActions = normalizeActionsSelection(
+      previousActions,
+      currentActions,
+    );
 
-    if (!prevHasWildcard && nowHasWildcard) {
-      // "All actions" just turned on → also select all individual actions
-      setValue(actionsSource, ["*", ...NON_WILDCARD_ACTION_IDS], {
-        shouldDirty: true,
-      });
-    } else if (prevHasWildcard && !nowHasWildcard) {
-      // "All actions" just turned off → clear everything
-      setValue(actionsSource, [], { shouldDirty: true });
-    } else if (
-      prevHasWildcard &&
-      nowHasWildcard &&
-      currentActions.length < prev.length
+    if (
+      normalizedActions.length !== currentActions.length ||
+      normalizedActions.some(
+        (action, actionIndex) => action !== currentActions[actionIndex],
+      )
     ) {
-      // Wildcard still present but an individual action was unticked → remove wildcard
-      setValue(
-        actionsSource,
-        currentActions.filter((a) => a !== "*"),
-        { shouldDirty: true },
-      );
+      setValue(actionsSource, normalizedActions, { shouldDirty: true });
     }
 
     prevActionsRef.current = currentActions;
@@ -75,25 +66,6 @@ export const PermissionActionsInput = () => {
   );
 };
 
-/** Returns true if the current permissions already cover customusers.changeownpassword. */
-const isCoveredByWildcard = (permissions: PermissionGroup[]): boolean =>
-  permissions.some(({ resource, actions = [] }) => {
-    if (!resource) return false;
-    // Global wildcard (*) or customusers.* covers it
-    if (
-      actions.includes("*") &&
-      (resource === "*" || resource === "customusers")
-    )
-      return true;
-    // *.changeownpassword also covers it
-    if (
-      resource === "*" &&
-      actions.includes(CHANGE_OWN_PASSWORD_PERM.split(".")[1])
-    )
-      return true;
-    return false;
-  });
-
 /**
  * A toggle for the changeownpassword special permission.
  * Automatically becomes checked and disabled when a wildcard permission already
@@ -101,9 +73,12 @@ const isCoveredByWildcard = (permissions: PermissionGroup[]): boolean =>
  */
 export const ChangeOwnPasswordInput = () => {
   const { setValue } = useFormContext();
-  const permissions: PermissionGroup[] =
-    useWatch({ name: "permissions" }) ?? [];
-  const covered = isCoveredByWildcard(permissions);
+  const permissions: PermissionGroup[] = useWatch({
+    name: "permissions",
+    defaultValue: [],
+  });
+  const covered = isChangeOwnPasswordCoveredByWildcard(permissions);
+  const coveringWildcards = getChangeOwnPasswordCoveringWildcards(permissions);
 
   useEffect(() => {
     if (covered) {
@@ -116,6 +91,11 @@ export const ChangeOwnPasswordInput = () => {
       source="changeOwnPassword"
       label="Can change own password"
       disabled={covered}
+      helperText={
+        covered
+          ? `Granted by wildcard permission${coveringWildcards.length === 1 ? "" : "s"}: ${coveringWildcards.join(", ")}`
+          : undefined
+      }
     />
   );
 };

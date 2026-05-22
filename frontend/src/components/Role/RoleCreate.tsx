@@ -18,7 +18,7 @@ export const RoleCreate = (props: CreateProps) => (
       <TextInput label="Role name" source="name" fullWidth />
 
       <ArrayInput source="permissions" label="Permissions">
-        <SimpleFormIterator>
+        <SimpleFormIterator disableReordering>
           <PermissionActionsInput />
         </SimpleFormIterator>
       </ArrayInput>

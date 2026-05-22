@@ -101,42 +101,49 @@ export const App = () => (
     />
     <Resource
       name="profiles"
+      options={{ label: "Profiles" }}
       list={ProfileList}
       create={ProfileCreate}
       edit={ProfileEdit}
     />
     <Resource
       name="teams"
+      options={{ label: "Teams" }}
       list={TeamList}
       create={TeamCreate}
       edit={TeamEdit}
     />
     <Resource
       name="programs"
+      options={{ label: "Programs" }}
       list={ProgramList}
       create={ProgramCreate}
       edit={ProgramEdit}
     />
     <Resource
       name="industries"
+      options={{ label: "Industries" }}
       list={IndustryList}
       create={IndustryCreate}
       edit={IndustryEdit}
     />
     <Resource
       name="events"
+      options={{ label: "Events" }}
       list={EventList}
       create={EventCreate}
       edit={EventEdit}
     />
     <Resource
       name="exhibitors"
+      options={{ label: "Exhibitors" }}
       list={ExhibitorList}
       create={ExhibitorCreate}
       edit={ExhibitorEdit}
     />
     <Resource
       name="employments"
+      options={{ label: "Employments" }}
       list={EmploymentList}
       create={EmploymentCreate}
       edit={EmploymentEdit}
@@ -165,6 +172,7 @@ export const App = () => (
 
     <Resource
       name="roles"
+      options={{ label: "Roles" }}
       list={RoleList}
       create={RoleCreate}
       edit={RoleEdit}

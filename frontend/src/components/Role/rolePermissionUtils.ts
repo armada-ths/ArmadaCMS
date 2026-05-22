@@ -8,6 +8,8 @@ export type PermissionGroup = {
 
 /** The special-cased permission that lives outside the main ArrayInput. */
 export const CHANGE_OWN_PASSWORD_PERM = "customusers.changeownpassword";
+export const CHANGE_OWN_PASSWORD_ACTION =
+  CHANGE_OWN_PASSWORD_PERM.split(".")[1] ?? "";
 
 export const PERMISSION_ACTIONS = [
   { id: "*", name: "All actions" },
@@ -22,6 +24,90 @@ export const PERMISSION_ACTIONS = [
 export const NON_WILDCARD_ACTION_IDS = PERMISSION_ACTIONS.filter(
   (a) => a.id !== "*",
 ).map((a) => a.id);
+
+export const areAllIndividualActionsSelected = (actions: string[]) =>
+  NON_WILDCARD_ACTION_IDS.every((action) => actions.includes(action));
+
+export const normalizeActionsSelection = (
+  previousActions: string[],
+  nextActions: string[],
+) => {
+  const previousHadWildcard = previousActions.includes("*");
+  const nextHasWildcard = nextActions.includes("*");
+  const allIndividualsSelected = areAllIndividualActionsSelected(nextActions);
+
+  if (!previousHadWildcard && nextHasWildcard) {
+    return ["*", ...NON_WILDCARD_ACTION_IDS];
+  }
+
+  if (previousHadWildcard && !nextHasWildcard && allIndividualsSelected) {
+    return [];
+  }
+
+  if (
+    previousHadWildcard &&
+    nextHasWildcard &&
+    nextActions.length < previousActions.length
+  ) {
+    return nextActions.filter((action) => action !== "*");
+  }
+
+  if (!nextHasWildcard && allIndividualsSelected) {
+    return ["*", ...NON_WILDCARD_ACTION_IDS];
+  }
+
+  return nextActions;
+};
+
+export const isChangeOwnPasswordCoveredByWildcard = (
+  permissions: PermissionGroup[],
+) =>
+  permissions.some(({ resource, actions = [] }) => {
+    if (!resource) {
+      return false;
+    }
+
+    if (
+      actions.includes("*") &&
+      (resource === "*" || resource === "customusers")
+    ) {
+      return true;
+    }
+
+    if (resource === "*" && actions.includes(CHANGE_OWN_PASSWORD_ACTION)) {
+      return true;
+    }
+
+    return false;
+  });
+
+export const getChangeOwnPasswordCoveringWildcards = (
+  permissions: PermissionGroup[],
+) => {
+  const coveringWildcards = new Set<string>();
+
+  permissions.forEach(({ resource, actions = [] }) => {
+    if (!resource) {
+      return;
+    }
+
+    if (actions.includes("*")) {
+      if (resource === "*") {
+        coveringWildcards.add("*");
+      }
+
+      if (resource === "customusers") {
+        coveringWildcards.add("customusers.*");
+      }
+    }
+
+    if (resource === "*" && actions.includes(CHANGE_OWN_PASSWORD_ACTION)) {
+      coveringWildcards.add(`*.${CHANGE_OWN_PASSWORD_ACTION}`);
+    }
+  });
+
+  return Array.from(coveringWildcards);
+};
 
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
@@ -45,11 +131,11 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
 ) => {
   const groupMap = new Map<string, string[]>();
-  let changeOwnPassword = false;
+  let hasExplicitChangeOwnPassword = false;
 
   for (const p of record.permissions ?? []) {
     if (p === CHANGE_OWN_PASSWORD_PERM) {
-      changeOwnPassword = true;
+      hasExplicitChangeOwnPassword = true;
       continue;
     }
 
@@ -79,13 +165,19 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     }
   }
 
-  return {
-    ...record,
-    permissions: Array.from(groupMap.entries()).map(([resource, actions]) => ({
+  const permissions = Array.from(groupMap.entries()).map(
+    ([resource, actions]) => ({
       resource,
       actions,
-    })),
-    changeOwnPassword,
+    }),
+  );
+
+  return {
+    ...record,
+    permissions,
+    changeOwnPassword:
+      hasExplicitChangeOwnPassword ||
+      isChangeOwnPasswordCoveredByWildcard(permissions),
   };
 };
 
@@ -101,12 +193,15 @@ export const transformRole = (data: {
   [key: string]: unknown;
 }) => {
   const permissions: string[] = [];
+  const permissionGroups = data.permissions ?? [];
+  const changeOwnPasswordCoveredByWildcard =
+    isChangeOwnPasswordCoveredByWildcard(permissionGroups);
 
-  if (data.changeOwnPassword) {
+  if (data.changeOwnPassword && !changeOwnPasswordCoveredByWildcard) {
     permissions.push(CHANGE_OWN_PASSWORD_PERM);
   }
 
-  for (const group of data.permissions ?? []) {
+  for (const group of permissionGroups) {
     if (!group.resource || !group.actions?.length) continue;
 
     if (group.actions.includes("*")) {

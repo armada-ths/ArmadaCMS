@@ -22,7 +22,7 @@ export const RoleEdit = (props: EditProps) => (
       <TextInput label="Role name" source="name" fullWidth />
 
       <ArrayInput source="permissions" label="Permissions">
-        <SimpleFormIterator>
+        <SimpleFormIterator disableReordering>
           <PermissionActionsInput />
         </SimpleFormIterator>
       </ArrayInput>
