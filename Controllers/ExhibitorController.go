@@ -338,5 +338,5 @@ func DeleteExhibitor(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Exhibitor](w, r, "exhibitors", id, "exhibitor not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Industries").Preload("Programs").Preload("Employments")
-	}, "exhibitors")
+	}, nil, "exhibitors")
 }

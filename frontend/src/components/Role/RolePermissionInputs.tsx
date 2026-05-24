@@ -7,13 +7,22 @@ import {
 } from "react-admin";
 import { useFormContext, useWatch } from "react-hook-form";
 import {
-  getChangeOwnPasswordCoveringWildcards,
+  getSpecialPermCoveringWildcards,
+  isSpecialPermCoveredByWildcard,
   PERMISSION_ACTIONS,
   PermissionGroup,
-  isChangeOwnPasswordCoveredByWildcard,
+  SpecialPermission,
   normalizeActionsSelection,
   useResourceChoices,
 } from "./rolePermissionUtils";
+
+/** Set-based equality for action arrays: order-independent comparison. */
+const actionsAreEqual = (a: string[], b: string[]) => {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
+};
 
 /**
  * A single row inside the permissions ArrayInput.
@@ -42,12 +51,7 @@ export const PermissionActionsInput = () => {
       currentActions,
     );
 
-    if (
-      normalizedActions.length !== currentActions.length ||
-      normalizedActions.some(
-        (action, actionIndex) => action !== currentActions[actionIndex],
-      )
-    ) {
+    if (!actionsAreEqual(normalizedActions, currentActions)) {
       setValue(actionsSource, normalizedActions, { shouldDirty: true });
     }
 
@@ -67,33 +71,39 @@ export const PermissionActionsInput = () => {
 };
 
 /**
- * A toggle for the changeownpassword special permission.
+ * A toggle for a single special permission (defined in SPECIAL_PERMISSIONS).
  * Automatically becomes checked and disabled when a wildcard permission already
- * covers customusers.changeownpassword (e.g. "*", "customusers.*").
+ * covers it (e.g. "*", "resource.*", "*.action").
  */
-export const ChangeOwnPasswordInput = () => {
+export const SpecialPermissionInput = ({
+  spec,
+}: {
+  spec: SpecialPermission;
+}) => {
   const { setValue } = useFormContext();
   const permissions: PermissionGroup[] = useWatch({
     name: "permissions",
     defaultValue: [],
   });
-  const covered = isChangeOwnPasswordCoveredByWildcard(permissions);
-  const coveringWildcards = getChangeOwnPasswordCoveringWildcards(permissions);
+  const covered = isSpecialPermCoveredByWildcard(spec, permissions);
+  const coveringWildcards = getSpecialPermCoveringWildcards(spec, permissions);
 
   useEffect(() => {
     if (covered) {
-      setValue("changeOwnPassword", true, { shouldDirty: false });
+      setValue(spec.formField, true, { shouldDirty: false });
     }
-  }, [covered, setValue]);
+  }, [covered, setValue, spec.formField]);
 
   return (
     <BooleanInput
-      source="changeOwnPassword"
-      label="Can change own password"
+      source={spec.formField}
+      label={spec.label}
       disabled={covered}
       helperText={
         covered
-          ? `Granted by wildcard permission${coveringWildcards.length === 1 ? "" : "s"}: ${coveringWildcards.join(", ")}`
+          ? `Granted by wildcard permission${
+              coveringWildcards.length === 1 ? "" : "s"
+            }: ${coveringWildcards.join(", ")}`
           : undefined
       }
     />

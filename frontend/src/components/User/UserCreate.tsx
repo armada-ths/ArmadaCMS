@@ -3,8 +3,8 @@ import {
   CreateProps,
   SimpleForm,
   TextInput,
-  ReferenceInput,
-  SelectInput,
+  ReferenceArrayInput,
+  SelectArrayInput,
 } from "react-admin";
 
 export const UserCreate = (props: CreateProps) => {
@@ -15,9 +15,9 @@ export const UserCreate = (props: CreateProps) => {
         <TextInput label="Password" source="password" type="password" />
         <TextInput label="Name" source="name" />
         <TextInput label="Avatar" source="avatar" />
-        <ReferenceInput source="role_id" reference="roles">
-          <SelectInput label="Role" optionText="name" />
-        </ReferenceInput>
+        <ReferenceArrayInput source="role_ids" reference="roles">
+          <SelectArrayInput label="Roles" optionText="name" />
+        </ReferenceArrayInput>
       </SimpleForm>
     </Create>
   );

@@ -21,7 +21,7 @@ func TestValidateJWTSecretAcceptsConfiguredSecret(t *testing.T) {
 func TestGenerateAccessTokenReadsSecretAfterEnvIsSet(t *testing.T) {
 	t.Setenv("jwtsecret_laganda", "super-secret-value")
 
-	token, err := GenerateAccessToken(123, "admin", []string{"*"})
+	token, err := GenerateAccessToken(123, []string{"admin"}, []string{"*"})
 	if err != nil {
 		t.Fatalf("expected GenerateAccessToken to succeed, got error: %v", err)
 	}

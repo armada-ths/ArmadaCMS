@@ -346,5 +346,5 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 // @Router /events/{id} [delete]
 func DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil, "events")
+	writeDeleteResponseWithAudit[models.Event](w, r, "events", id, "event not found", nil, nil, "events")
 }

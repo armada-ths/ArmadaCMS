@@ -10,7 +10,7 @@ import (
 type contextKey string
 
 const userIDKey contextKey = "user_id"
-const roleKey contextKey = "role"
+const rolesKey contextKey = "roles"
 const permissionsKey contextKey = "permissions"
 
 func Middleware(next http.Handler) http.Handler {
@@ -44,9 +44,11 @@ func Middleware(next http.Handler) http.Handler {
 		// add user_id to request context
 		ctx := context.WithValue(r.Context(), userIDKey, uid)
 
-		// Extract role
-		if role, ok := (*claims)["role"].(string); ok {
-			ctx = context.WithValue(ctx, roleKey, role)
+		// Extract roles
+		if rolesRaw, ok := (*claims)["roles"]; ok {
+			if roles, ok := rolesRaw.([]string); ok {
+				ctx = context.WithValue(ctx, rolesKey, roles)
+			}
 		}
 
 		// Extract permissions
@@ -70,9 +72,9 @@ func GetPermissionsFromContext(r *http.Request) []string {
 	return perms
 }
 
-func GetRoleFromContext(r *http.Request) string {
-	role, _ := r.Context().Value(roleKey).(string)
-	return role
+func GetRolesFromContext(r *http.Request) []string {
+	roles, _ := r.Context().Value(rolesKey).([]string)
+	return roles
 }
 
 // HasPermission checks if the user's permissions include the required one.

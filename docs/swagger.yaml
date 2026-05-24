@@ -1,5 +1,12 @@
 basePath: /api/v1
 definitions:
+  controllers.changePasswordBody:
+    properties:
+      newPassword:
+        type: string
+      oldPassword:
+        type: string
+    type: object
   controllers.loginRequest:
     properties:
       password:
@@ -47,8 +54,10 @@ definitions:
         type: string
       password:
         type: string
-      role_id:
-        type: integer
+      role_ids:
+        items:
+          type: integer
+        type: array
       updated_at:
         type: string
       username:
@@ -438,10 +447,10 @@ definitions:
         type: integer
       name:
         type: string
-      role:
-        $ref: '#/definitions/models.Role'
-      role_id:
-        type: integer
+      roles:
+        items:
+          $ref: '#/definitions/models.Role'
+        type: array
       updated_at:
         type: string
       username:
@@ -790,10 +799,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "204":
           description: Deleted
-          schema:
-            type: string
         "404":
           description: Not found
           schema:
@@ -2179,6 +2186,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user
+      tags:
+      - auth
+  /me/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Old and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.changePasswordBody'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Password changed
+        "400":
+          description: Invalid body or missing fields
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Old password is incorrect
+          schema:
+            type: string
+        "500":
+          description: Update failed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Change own password
       tags:
       - auth
   /organization:

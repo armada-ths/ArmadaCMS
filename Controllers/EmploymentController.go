@@ -155,5 +155,5 @@ func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Employment](w, r, "employments", id, "employment not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Exhibitor")
-	}, "employments")
+	}, nil, "employments")
 }

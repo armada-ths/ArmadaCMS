@@ -178,18 +178,24 @@ ArmadaCMS/
 
 ## Testing
 
-ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`).
+ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and frontend unit tests using [vitest](https://vitest.dev/) (currently focused on `utils/`).
 
-- Run all tests locally:
+- Run all Go tests locally:
 
   ```bash
   go test -race -count=1 ./...
   ```
 
-- Run tests for specific packages:
+- Run tests for specific Go packages:
 
   ```bash
   go test ./auth/... ./utils/...
+  ```
+
+- Run frontend unit tests:
+
+  ```bash
+  cd frontend && pnpm run test
   ```
 
 ## API
@@ -250,7 +256,7 @@ CI is handled by GitHub Actions and CD by Google Cloud Build.
 Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
 
 - `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
-- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, and `pnpm run format:check`.
+- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
 - `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
 
 All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed.

@@ -51,7 +51,7 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 	return err
 }
 
-func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, revalidateTags ...string) {
+func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, beforeDelete func(tx *gorm.DB, entity *T) error, revalidateTags ...string) {
 	var entity T
 	query := db.DB
 	if buildQuery != nil {
@@ -68,6 +68,11 @@ func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request,
 	}
 
 	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if beforeDelete != nil {
+			if err := beforeDelete(tx, &entity); err != nil {
+				return err
+			}
+		}
 		result := tx.Delete(&entity)
 		if result.Error != nil {
 			return result.Error

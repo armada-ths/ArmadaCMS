@@ -2,6 +2,7 @@ import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
 import { refreshTokens } from "./axiosInstance";
 import globalApi from "./globalApi";
+import { hasPerm } from "../utils/permissions";
 
 /**
  * Decode a JWT payload without verification (browser-side).
@@ -22,29 +23,6 @@ function getPermissionsFromToken(): string[] {
   if (!token) return [];
   const claims = decodeJwtPayload(token);
   return (claims.permissions as string[]) ?? [];
-}
-
-function hasPermission(permissions: string[], required: string): boolean {
-  const dotIndex = required.indexOf(".");
-  const hasResourceAction = dotIndex !== -1;
-  const reqResource = hasResourceAction
-    ? required.slice(0, dotIndex)
-    : required;
-  const reqAction = hasResourceAction ? required.slice(dotIndex + 1) : "";
-
-  return permissions.some((p) => {
-    if (p === "*" || p === required) return true;
-    if (!hasResourceAction) return false;
-    const pDot = p.indexOf(".");
-    if (pDot === -1) return false;
-    const pResource = p.slice(0, pDot);
-    const pAction = p.slice(pDot + 1);
-    // "resource.*" grants all actions on that resource
-    if (pResource === reqResource && pAction === "*") return true;
-    // "*.action" grants that action on all resources
-    if (pResource === "*" && pAction === reqAction) return true;
-    return false;
-  });
 }
 
 export const authProvider: AuthProvider = {
@@ -125,8 +103,10 @@ export const authProvider: AuthProvider = {
 
   async canAccess({ action, resource }: { action: string; resource: string }) {
     const permissions = getPermissionsFromToken();
-    // Map React-Admin actions to our permission strings
-    const permissionKey = `${resource}.${action}`;
-    return hasPermission(permissions, permissionKey);
+    // React-Admin uses "list" and "show" internally; our permission system uses "view"
+    const mappedAction =
+      action === "list" || action === "show" ? "view" : action;
+    const permissionKey = `${resource}.${mappedAction}`;
+    return hasPerm(permissions, permissionKey);
   },
 };

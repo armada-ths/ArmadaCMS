@@ -8,13 +8,7 @@ body:
         ## Developer Task Details
         Please provide the details for this development task.
 
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Before submitting
-      options:
-        - label: I have searched the existing issues to avoid creating a duplicate.
-          required: true
+        > **Before submitting:** search the existing issues to avoid creating a duplicate.
 
   - type: input
     id: related-user-story

@@ -289,5 +289,5 @@ func UploadBlogImage(w http.ResponseWriter, r *http.Request) {
 // @Router /blogposts/{id} [delete]
 func DeleteBlogpost(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Blogpost](w, r, "blogposts", id, "Blogpost not found", nil, "blog-posts")
+	writeDeleteResponseWithAudit[models.Blogpost](w, r, "blogposts", id, "Blogpost not found", nil, nil, "blog-posts")
 }

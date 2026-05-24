@@ -84,7 +84,7 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	tokenStr := parts[1]
 
 	var rt models.RefreshToken
-	if err := db.DB.Preload("User.Role").Where(
+	if err := db.DB.Preload("User.Roles").Where(
 		"refresh_token = ? AND enabled = true AND valid_to > ?", tokenStr, time.Now(),
 	).First(&rt).Error; err != nil {
 		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
@@ -99,11 +99,17 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := rt.User
-	roleName := ""
-	var permissions []string
-	if user.Role != nil {
-		roleName = user.Role.Name
-		permissions = user.Role.Permissions
+	roleNames := make([]string, 0, len(user.Roles))
+	seen := make(map[string]struct{})
+	permissions := make([]string, 0)
+	for _, role := range user.Roles {
+		roleNames = append(roleNames, role.Name)
+		for _, p := range role.Permissions {
+			if _, exists := seen[p]; !exists {
+				seen[p] = struct{}{}
+				permissions = append(permissions, p)
+			}
+		}
 	}
 
 	newRefreshTokenStr, err := utils.GenerateRefreshToken()
@@ -125,7 +131,7 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := utils.GenerateAccessToken(int(rt.UserID), roleName, permissions)
+	accessToken, err := utils.GenerateAccessToken(int(rt.UserID), roleNames, permissions)
 	if err != nil {
 		http.Error(w, "token refresh failed", http.StatusInternalServerError)
 		return

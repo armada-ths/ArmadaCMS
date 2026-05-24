@@ -7,10 +7,10 @@ import {
   TextInput,
 } from "react-admin";
 import {
-  ChangeOwnPasswordInput,
   PermissionActionsInput,
+  SpecialPermissionInput,
 } from "./RolePermissionInputs";
-import { transformRole } from "./rolePermissionUtils";
+import { SPECIAL_PERMISSIONS, transformRole } from "./rolePermissionUtils";
 
 export const RoleCreate = (props: CreateProps) => (
   <Create {...props} transform={transformRole}>
@@ -23,7 +23,9 @@ export const RoleCreate = (props: CreateProps) => (
         </SimpleFormIterator>
       </ArrayInput>
 
-      <ChangeOwnPasswordInput />
+      {SPECIAL_PERMISSIONS.map((spec) => (
+        <SpecialPermissionInput key={spec.formField} spec={spec} />
+      ))}
     </SimpleForm>
   </Create>
 );
