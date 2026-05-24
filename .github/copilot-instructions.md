@@ -36,7 +36,7 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 
 `pnpm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
-**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). Run `go test -race -count=1 ./...` locally for backend changes. There is no end-to-end/integration test suite yet, so still verify relevant API behavior manually (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
+**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). Run `go test -race -count=1 ./...` locally for backend changes. Frontend unit tests live in `frontend/src/` alongside the source files and use **vitest** (`pnpm run test` in `frontend/`). There is no end-to-end/integration test suite yet, so still verify relevant API behavior manually (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
 
 **CI checks**: `.github/workflows/go-checks.yml` runs `go vet`, `golangci-lint`, and `go test -race -count=1 ./...` when Go files change (push to `main`/`staging` and pull requests).
 
@@ -100,6 +100,10 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | `VERCEL_AUTOMATION_BYPASS_SECRET`               | Bypass Vercel Deployment Protection on staging/preview (optional)           |
 | `DB_CONN_MAX_LIFETIME_MINUTES`                  | Postgres connection max lifetime (optional)                                 |
 | `DB_CONN_MAX_IDLE_TIME_MINUTES`                 | Postgres idle connection timeout (optional)                                 |
+
+## Cleanup discipline
+
+- When an approach fails, remove every artifact it produced — files created, config keys added, lockfile edits — before finishing the prompt. Do not leave dead configs, unused files, or failed workarounds in the codebase.
 
 ## Adding a new resource (checklist)
 

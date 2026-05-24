@@ -154,5 +154,5 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 // @Router /teams/{id} [delete]
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil, "organization")
+	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil, nil, "organization")
 }

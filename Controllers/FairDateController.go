@@ -165,5 +165,5 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 // @Router /fairdates/{id} [delete]
 func DeleteFairDateConfig(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.FairDateConfig](w, r, "fairdates", id, "fair date config not found", nil, "dates")
+	writeDeleteResponseWithAudit[models.FairDateConfig](w, r, "fairdates", id, "fair date config not found", nil, nil, "dates")
 }

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -21,7 +23,7 @@ type userBody struct {
 	Password  string    `json:"password"`
 	Name      string    `json:"name"`
 	Avatar    string    `json:"avatar"`
-	RoleID    *uint     `json:"role_id"`
+	RoleIDs   []uint    `json:"role_ids"`
 	UpdatedAt time.Time `json:"updated_at"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -55,7 +57,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
 	var users []models.User
-	query := db.DB.Model(&models.User{}).Preload("Role")
+	query := db.DB.Model(&models.User{}).Preload("Roles")
 
 	for k, v := range params.Filter {
 		query = query.Where(k+" = ?", v)
@@ -95,7 +97,7 @@ func GetUserByID(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 
 	var user models.User
-	if err := db.DB.Preload("Role").First(&user, id).Error; err != nil {
+	if err := db.DB.Preload("Roles").First(&user, id).Error; err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
@@ -128,13 +130,22 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		Password: userBody.Password,
 		Name:     userBody.Name,
 		Avatar:   userBody.Avatar,
-		RoleID:   userBody.RoleID,
 	}
 	user.Password = utils.HashPassword(userBody.Password)
+	roleIDs := userBody.RoleIDs
 	if err := createWithAudit(r, "customusers", &user, func(tx *gorm.DB) error {
-		return tx.Create(&user).Error
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		var roles []models.Role
+		if len(roleIDs) > 0 {
+			if err := tx.Find(&roles, roleIDs).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&user).Association("Roles").Replace(roles)
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Role").First(&user, user.ID).Error
+		return tx.Preload("Roles").First(&user, user.ID).Error
 	}); err != nil {
 		log.Println(err)
 		http.Error(w, "Create failed", http.StatusInternalServerError)
@@ -179,19 +190,28 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		newPassword = utils.HashPassword(userUpdateBody.Password)
 	}
 
-	updateUser := map[string]any{
+	updateMap := map[string]any{
 		"username": userUpdateBody.Username,
 		"password": newPassword,
 		"name":     userUpdateBody.Name,
 		"avatar":   userUpdateBody.Avatar,
-		"role_id":  userUpdateBody.RoleID,
 	}
+	roleIDs := userUpdateBody.RoleIDs
 
 	before := user
 	if err := updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
-		return tx.Model(&user).Updates(updateUser).Error
+		if err := tx.Model(&user).Updates(updateMap).Error; err != nil {
+			return err
+		}
+		var roles []models.Role
+		if len(roleIDs) > 0 {
+			if err := tx.Find(&roles, roleIDs).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&user).Association("Roles").Replace(roles)
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Role").First(&user, id).Error
+		return tx.Preload("Roles").First(&user, id).Error
 	}); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
@@ -206,15 +226,21 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Tags users
 // @Produce json
 // @Param id path int true "User ID"
-// @Success 200 {string} string "Deleted"
+// @Success 204 "Deleted"
 // @Failure 404 {string} string "Not found"
 // @Security BearerAuth
 // @Router /customusers/{id} [delete]
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.User](w, r, "customusers", id, "user not found", func(tx *gorm.DB) *gorm.DB {
-		return tx.Preload("Role")
-	})
+	writeDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
+		func(tx *gorm.DB) *gorm.DB { return tx.Preload("Roles") },
+		func(tx *gorm.DB, user *models.User) error {
+			// Revoke all refresh tokens so the user cannot obtain new access tokens.
+			return tx.Model(&models.RefreshToken{}).
+				Where("user_id = ?", user.ID).
+				Update("enabled", false).Error
+		},
+	)
 }
 
 // GetMe returns the current authenticated user's info including role/permissions.
@@ -234,18 +260,22 @@ func GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
-	if err := db.DB.Preload("Role").First(&user, userID).Error; err != nil {
+	if err := db.DB.Preload("Roles").First(&user, userID).Error; err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
 
-	role := "admin"
+	roleNames := make([]string, 0, len(user.Roles))
+	seen := make(map[string]struct{})
 	var permissions []string
-	if user.Role != nil {
-		role = user.Role.Name
-		permissions = user.Role.Permissions
-	} else {
-		permissions = []string{"*"}
+	for _, role := range user.Roles {
+		roleNames = append(roleNames, role.Name)
+		for _, p := range role.Permissions {
+			if _, exists := seen[p]; !exists {
+				seen[p] = struct{}{}
+				permissions = append(permissions, p)
+			}
+		}
 	}
 
 	resp := map[string]interface{}{
@@ -253,7 +283,7 @@ func GetMe(w http.ResponseWriter, r *http.Request) {
 		"username":    user.Username,
 		"name":        user.Name,
 		"avatar":      user.Avatar,
-		"role":        role,
+		"roles":       roleNames,
 		"permissions": permissions,
 	}
 
@@ -323,4 +353,40 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SeedAdminUser creates the initial admin user from INITIAL_ADMIN_USERNAME /
+// INITIAL_ADMIN_PASSWORD env vars, but only when no users exist yet.
+// It assigns the "admin" role automatically. Run SeedRoles first.
+func SeedAdminUser(database *gorm.DB) error {
+	username := strings.TrimSpace(os.Getenv("INITIAL_ADMIN_USERNAME"))
+	password := strings.TrimSpace(os.Getenv("INITIAL_ADMIN_PASSWORD"))
+	if username == "" || password == "" {
+		return nil
+	}
+
+	var adminRole models.Role
+	if err := database.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+		return fmt.Errorf("admin role not found (run SeedRoles first): %w", err)
+	}
+
+	var count int64
+	if err := database.Model(&models.User{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	user := models.User{
+		Username: username,
+		Password: utils.HashPassword(password),
+		Name:     "Admin",
+		Roles:    []models.Role{adminRole},
+	}
+	if err := database.Create(&user).Error; err != nil {
+		return fmt.Errorf("failed to seed admin user: %w", err)
+	}
+	log.Printf("Seeded admin user: %s", username)
+	return nil
 }

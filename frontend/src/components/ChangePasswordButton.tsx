@@ -14,9 +14,7 @@ import {
 import LockIcon from "@mui/icons-material/Lock";
 import { usePermissions, useNotify } from "react-admin";
 import axiosInstance from "../context/axiosInstance";
-
-const hasPerm = (perms: string[], required: string) =>
-  perms.some((p) => p === "*" || p === required);
+import { hasPerm } from "../utils/permissions";
 
 export const ChangePasswordButton = () => {
   const { permissions } = usePermissions();

@@ -150,5 +150,5 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 // @Router /industries/{id} [delete]
 func DeleteIndustry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil, "industries")
+	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil, nil, "industries")
 }

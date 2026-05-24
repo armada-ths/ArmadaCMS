@@ -156,7 +156,7 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 // @Router /roles/{id} [delete]
 func DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Role](w, r, "roles", id, "role not found", nil)
+	writeDeleteResponseWithAudit[models.Role](w, r, "roles", id, "role not found", nil, nil)
 }
 
 // SeedRoles creates the default roles if they don't exist yet.
@@ -165,17 +165,6 @@ func SeedRoles(database *gorm.DB) error {
 		{
 			Name:        "admin",
 			Permissions: models.Permissions{"*"},
-		},
-		{
-			Name: "member",
-			Permissions: models.Permissions{
-				"profiles.list",
-				"profiles.show",
-				"profiles.create",
-				"profiles.edit",
-				"teams.list",
-				"teams.show",
-			},
 		},
 	}
 

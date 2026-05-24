@@ -16,7 +16,7 @@ var ErrInvalidCredentials = errors.New("wrong username or password")
 func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) {
 
 	var user models.User
-	if err := db.DB.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
+	if err := db.DB.Preload("Roles").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvalidCredentials
 		}
@@ -27,12 +27,18 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		return nil, ErrInvalidCredentials
 	}
 
-	// Resolve role name and permissions for JWT
-	roleName := ""
+	// Collect role names and merge permissions from all assigned roles.
+	roleNames := make([]string, 0, len(user.Roles))
+	seen := make(map[string]struct{})
 	var permissions []string
-	if user.Role != nil {
-		roleName = user.Role.Name
-		permissions = user.Role.Permissions
+	for _, role := range user.Roles {
+		roleNames = append(roleNames, role.Name)
+		for _, p := range role.Permissions {
+			if _, exists := seen[p]; !exists {
+				seen[p] = struct{}{}
+				permissions = append(permissions, p)
+			}
+		}
 	}
 
 	refreshToken, err := utils.GenerateRefreshToken()
@@ -43,7 +49,7 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		return nil, errors.New("not authenticated (3)")
 	}
 
-	accessToken, _ := utils.GenerateAccessToken(int(user.ID), roleName, permissions)
+	accessToken, _ := utils.GenerateAccessToken(int(user.ID), roleNames, permissions)
 
 	return &models.Tokens{
 		AccessToken:  accessToken,

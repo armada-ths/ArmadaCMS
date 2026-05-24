@@ -168,5 +168,5 @@ func UpdateHighlightCard(w http.ResponseWriter, r *http.Request) {
 // @Router /highlightcards/{id} [delete]
 func DeleteHighlightCard(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.HighlightCard](w, r, "highlightcards", id, "highlight card not found", nil, "highlight-cards")
+	writeDeleteResponseWithAudit[models.HighlightCard](w, r, "highlightcards", id, "highlight card not found", nil, nil, "highlight-cards")
 }

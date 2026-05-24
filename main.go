@@ -98,6 +98,10 @@ func main() {
 		log.Printf("failed to seed roles: %v", err)
 	}
 
+	if err := controllers.SeedAdminUser(db.DB); err != nil {
+		log.Printf("failed to seed admin user: %v", err)
+	}
+
 	if err := controllers.SeedFeatureFlags(db.DB); err != nil {
 		log.Printf("failed to seed feature flags: %v", err)
 	}
@@ -238,15 +242,15 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/me/password", auth.RequirePermission("customusers.changeownpassword", controllers.ChangeOwnPassword)).Methods("PUT")
 
 	// Users — admin only
-	protectedAPI.HandleFunc("/customusers", auth.RequirePermission("customusers.list", controllers.GetUsers)).Methods("GET")
-	protectedAPI.HandleFunc("/customusers/{id}", auth.RequirePermission("customusers.show", controllers.GetUserByID)).Methods("GET")
+	protectedAPI.HandleFunc("/customusers", auth.RequirePermission("customusers.view", controllers.GetUsers)).Methods("GET")
+	protectedAPI.HandleFunc("/customusers/{id}", auth.RequirePermission("customusers.view", controllers.GetUserByID)).Methods("GET")
 	protectedAPI.HandleFunc("/customusers", auth.RequirePermission("customusers.create", controllers.CreateUser)).Methods("POST")
 	protectedAPI.HandleFunc("/customusers/{id}", auth.RequirePermission("customusers.edit", controllers.UpdateUser)).Methods("PUT")
 	protectedAPI.HandleFunc("/customusers/{id}", auth.RequirePermission("customusers.delete", controllers.DeleteUser)).Methods("DELETE")
 
 	// Roles — admin only
-	protectedAPI.HandleFunc("/roles", auth.RequirePermission("roles.list", controllers.GetRoles)).Methods("GET")
-	protectedAPI.HandleFunc("/roles/{id}", auth.RequirePermission("roles.show", controllers.GetRoleByID)).Methods("GET")
+	protectedAPI.HandleFunc("/roles", auth.RequirePermission("roles.view", controllers.GetRoles)).Methods("GET")
+	protectedAPI.HandleFunc("/roles/{id}", auth.RequirePermission("roles.view", controllers.GetRoleByID)).Methods("GET")
 	protectedAPI.HandleFunc("/roles", auth.RequirePermission("roles.create", controllers.CreateRole)).Methods("POST")
 	protectedAPI.HandleFunc("/roles/{id}", auth.RequirePermission("roles.edit", controllers.UpdateRole)).Methods("PUT")
 	protectedAPI.HandleFunc("/roles/{id}", auth.RequirePermission("roles.delete", controllers.DeleteRole)).Methods("DELETE")
@@ -335,21 +339,21 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/eventrorecruitments", auth.RequirePermission("eventrosync.access", controllers.FetchRecruitmentsEventro)).Methods("GET")
 	publicAPI.HandleFunc("/recruitment", controllers.GetRecruitment).Methods("GET")
 
-	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.list", controllers.GetRecruitmentPeriods)).Methods("GET")
-	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.show", controllers.GetRecruitmentPeriodByID)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.view", controllers.GetRecruitmentPeriods)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.view", controllers.GetRecruitmentPeriodByID)).Methods("GET")
 	protectedAPI.HandleFunc("/recruitmentperiods", auth.RequirePermission("recruitmentperiods.create", controllers.CreateRecruitmentPeriod)).Methods("POST")
 	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.edit", controllers.UpdateRecruitmentPeriod)).Methods("PUT")
 	protectedAPI.HandleFunc("/recruitmentperiods/{id}", auth.RequirePermission("recruitmentperiods.delete", controllers.DeleteRecruitmentPeriod)).Methods("DELETE")
 
-	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.list", controllers.GetRecruitmentRoles)).Methods("GET")
-	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.show", controllers.GetRecruitmentRoleByID)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.view", controllers.GetRecruitmentRoles)).Methods("GET")
+	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.view", controllers.GetRecruitmentRoleByID)).Methods("GET")
 	protectedAPI.HandleFunc("/recruitmentroles", auth.RequirePermission("recruitmentroles.create", controllers.CreateRecruitmentRole)).Methods("POST")
 	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.edit", controllers.UpdateRecruitmentRole)).Methods("PUT")
 	protectedAPI.HandleFunc("/recruitmentroles/{id}", auth.RequirePermission("recruitmentroles.delete", controllers.DeleteRecruitmentRole)).Methods("DELETE")
 
 	// audit logs — read-only
-	protectedAPI.HandleFunc("/auditlogs", auth.RequirePermission("auditlogs.list", controllers.GetAuditLogs)).Methods("GET")
-	protectedAPI.HandleFunc("/auditlogs/{id}", auth.RequirePermission("auditlogs.show", controllers.GetAuditLogByID)).Methods("GET")
+	protectedAPI.HandleFunc("/auditlogs", auth.RequirePermission("auditlogs.view", controllers.GetAuditLogs)).Methods("GET")
+	protectedAPI.HandleFunc("/auditlogs/{id}", auth.RequirePermission("auditlogs.view", controllers.GetAuditLogByID)).Methods("GET")
 
 	publicAPI.HandleFunc("/test", controllers.Test).Methods("GET")
 

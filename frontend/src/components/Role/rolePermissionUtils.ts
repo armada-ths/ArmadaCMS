@@ -6,15 +6,48 @@ export type PermissionGroup = {
   actions?: string[];
 };
 
-/** The special-cased permission that lives outside the main ArrayInput. */
-export const CHANGE_OWN_PASSWORD_PERM = "customusers.changeownpassword";
-export const CHANGE_OWN_PASSWORD_ACTION =
-  CHANGE_OWN_PASSWORD_PERM.split(".")[1] ?? "";
+/** Configuration for a special permission shown as a standalone toggle. */
+export type SpecialPermission = {
+  /** One or more full permission strings granted/revoked together, e.g. ["customusers.changeownpassword"] */
+  perms: string[];
+  /** Form field name for the boolean toggle, e.g. "changeOwnPassword" */
+  formField: string;
+  /** Label shown next to the toggle in the form */
+  label: string;
+  /**
+   * When set, this resource is hidden from the permissions ArrayInput dropdown
+   * because all its actions are fully managed by this standalone toggle.
+   */
+  exclusiveResource?: string;
+};
+
+/**
+ * All special permissions shown as standalone toggles outside the main
+ * permissions ArrayInput. To add a new one, append an entry here — no other
+ * changes to this file or the form components are needed.
+ */
+export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
+  {
+    perms: ["customusers.changeownpassword"],
+    formField: "changeOwnPassword",
+    label: "Can change own password",
+  },
+  {
+    perms: ["eventrosync.access"],
+    formField: "eventroSyncAccess",
+    label: "Can access Eventro sync on the dashboard",
+  },
+  {
+    perms: ["auditlogs.view"],
+    formField: "auditLogsAccess",
+    label: "Can view audit logs",
+    exclusiveResource: "auditlogs",
+  },
+];
 
 export const PERMISSION_ACTIONS = [
   { id: "*", name: "All actions" },
-  { id: "list", name: "List" },
-  { id: "show", name: "Show" },
+  { id: "view", name: "View" },
   { id: "create", name: "Create" },
   { id: "edit", name: "Edit" },
   { id: "delete", name: "Delete" },
@@ -36,12 +69,20 @@ export const normalizeActionsSelection = (
   const nextHasWildcard = nextActions.includes("*");
   const allIndividualsSelected = areAllIndividualActionsSelected(nextActions);
 
+  // Unknown actions are those not in the standard CRUD set (and not "*").
+  // They must be preserved through all toggle transitions.
+  const unknownNextActions = nextActions.filter(
+    (a) => a !== "*" && !NON_WILDCARD_ACTION_IDS.includes(a),
+  );
+
   if (!previousHadWildcard && nextHasWildcard) {
-    return ["*", ...NON_WILDCARD_ACTION_IDS];
+    // "All actions" just checked: expand and preserve unknowns.
+    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
   }
 
   if (previousHadWildcard && !nextHasWildcard && allIndividualsSelected) {
-    return [];
+    // "All actions" just unchecked: collapse CRUD, keep only unknowns.
+    return unknownNextActions;
   }
 
   if (
@@ -53,89 +94,103 @@ export const normalizeActionsSelection = (
   }
 
   if (!nextHasWildcard && allIndividualsSelected) {
-    return ["*", ...NON_WILDCARD_ACTION_IDS];
+    // All individual CRUD actions manually checked: auto-add wildcard, keep unknowns.
+    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
   }
 
   return nextActions;
 };
 
-export const isChangeOwnPasswordCoveredByWildcard = (
+/**
+ * Returns true if any permission group covers the given special permission
+ * via a wildcard ("*", "resource.*", or "*.action").
+ */
+const isSinglePermCoveredByWildcard = (
+  perm: string,
   permissions: PermissionGroup[],
-) =>
-  permissions.some(({ resource, actions = [] }) => {
-    if (!resource) {
-      return false;
-    }
+): boolean => {
+  const dot = perm.indexOf(".");
+  const resource = perm.slice(0, dot);
+  const action = perm.slice(dot + 1);
 
-    if (
-      actions.includes("*") &&
-      (resource === "*" || resource === "customusers")
-    ) {
-      return true;
-    }
-
-    if (resource === "*" && actions.includes(CHANGE_OWN_PASSWORD_ACTION)) {
-      return true;
-    }
-
+  return permissions.some(({ resource: r, actions = [] }) => {
+    if (!r) return false;
+    if (actions.includes("*") && (r === "*" || r === resource)) return true;
+    if (r === "*" && actions.includes(action)) return true;
     return false;
   });
+};
 
-export const getChangeOwnPasswordCoveringWildcards = (
+export const isSpecialPermCoveredByWildcard = (
+  spec: SpecialPermission,
   permissions: PermissionGroup[],
-) => {
+): boolean =>
+  spec.perms.every((p) => isSinglePermCoveredByWildcard(p, permissions));
+
+/**
+ * Returns the wildcard permission strings (e.g. "*", "resource.*", "*.action")
+ * that cover the given special permission, for use in helper text.
+ */
+export const getSpecialPermCoveringWildcards = (
+  spec: SpecialPermission,
+  permissions: PermissionGroup[],
+): string[] => {
   const coveringWildcards = new Set<string>();
 
-  permissions.forEach(({ resource, actions = [] }) => {
-    if (!resource) {
-      return;
-    }
+  for (const perm of spec.perms) {
+    const dot = perm.indexOf(".");
+    const resource = perm.slice(0, dot);
+    const action = perm.slice(dot + 1);
 
-    if (actions.includes("*")) {
-      if (resource === "*") {
-        coveringWildcards.add("*");
+    permissions.forEach(({ resource: r, actions = [] }) => {
+      if (!r) return;
+      if (actions.includes("*")) {
+        if (r === "*") coveringWildcards.add("*");
+        if (r === resource) coveringWildcards.add(`${resource}.*`);
       }
-
-      if (resource === "customusers") {
-        coveringWildcards.add("customusers.*");
+      if (r === "*" && !actions.includes("*") && actions.includes(action)) {
+        coveringWildcards.add(`*.${action}`);
       }
-    }
-
-    if (resource === "*" && actions.includes(CHANGE_OWN_PASSWORD_ACTION)) {
-      coveringWildcards.add(`*.${CHANGE_OWN_PASSWORD_ACTION}`);
-    }
-  });
+    });
+  }
 
   return Array.from(coveringWildcards);
 };
 
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
+  const exclusiveResources = new Set(
+    SPECIAL_PERMISSIONS.map((sp) => sp.exclusiveResource).filter(Boolean),
+  );
 
   return [
     { id: "*", name: "All resources" },
-    ...Object.entries(resourceDefinitions).map(([resource, definition]) => ({
-      id: resource,
-      name: definition.options?.label ?? resource,
-    })),
+    ...Object.entries(resourceDefinitions)
+      .filter(([resource]) => !exclusiveResources.has(resource))
+      .map(([resource, definition]) => ({
+        id: resource,
+        name: definition.options?.label ?? resource,
+      })),
   ];
 };
 
 /**
  * Converts stored permission strings from the API into the form's internal shape.
- * Groups by resource into { resource, actions[] } and extracts the standalone
- * changeownpassword flag. When a wildcard action ("resource.*" or "*") is found,
- * all individual action IDs are included so every checkbox appears ticked.
+ * Groups by resource into { resource, actions[] } and extracts each special
+ * permission into its own boolean form field. When a wildcard action
+ * ("resource.*" or "*") is found, all individual action IDs are included so
+ * every checkbox appears ticked.
  */
 export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
 ) => {
   const groupMap = new Map<string, string[]>();
-  let hasExplicitChangeOwnPassword = false;
+  const specialPermSet = new Set(SPECIAL_PERMISSIONS.flatMap((sp) => sp.perms));
+  const explicitSpecials = new Set<string>();
 
   for (const p of record.permissions ?? []) {
-    if (p === CHANGE_OWN_PASSWORD_PERM) {
-      hasExplicitChangeOwnPassword = true;
+    if (specialPermSet.has(p)) {
+      explicitSpecials.add(p);
       continue;
     }
 
@@ -160,45 +215,48 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
       groupMap.set(resource, ["*", ...NON_WILDCARD_ACTION_IDS]);
     } else {
       const existing = groupMap.get(resource) ?? [];
-      existing.push(action);
+      if (!existing.includes(action)) {
+        existing.push(action);
+      }
       groupMap.set(resource, existing);
     }
   }
 
   const permissions = Array.from(groupMap.entries()).map(
-    ([resource, actions]) => ({
-      resource,
-      actions,
-    }),
+    ([resource, actions]) => ({ resource, actions }),
   );
 
-  return {
-    ...record,
-    permissions,
-    changeOwnPassword:
-      hasExplicitChangeOwnPassword ||
-      isChangeOwnPasswordCoveredByWildcard(permissions),
-  };
+  const specialFieldValues: Record<string, boolean> = {};
+  for (const spec of SPECIAL_PERMISSIONS) {
+    specialFieldValues[spec.formField] =
+      spec.perms.some((p) => explicitSpecials.has(p)) ||
+      isSpecialPermCoveredByWildcard(spec, permissions);
+  }
+
+  return { ...record, permissions, ...specialFieldValues };
 };
 
 /**
  * Expands the form's internal shape back to a flat string[] for the API.
  * When "*" is present in a group's actions, emits only the compact wildcard form
  * (e.g. "resource.*") and skips the redundant individual entries.
- * Strips changeOwnPassword from the payload and folds it into permissions.
+ * Strips special permission form fields from the payload and folds them back
+ * into the permissions array.
  */
 export const transformRole = (data: {
   permissions?: PermissionGroup[];
-  changeOwnPassword?: boolean;
   [key: string]: unknown;
 }) => {
   const permissions: string[] = [];
   const permissionGroups = data.permissions ?? [];
-  const changeOwnPasswordCoveredByWildcard =
-    isChangeOwnPasswordCoveredByWildcard(permissionGroups);
 
-  if (data.changeOwnPassword && !changeOwnPasswordCoveredByWildcard) {
-    permissions.push(CHANGE_OWN_PASSWORD_PERM);
+  for (const spec of SPECIAL_PERMISSIONS) {
+    if (
+      data[spec.formField] &&
+      !isSpecialPermCoveredByWildcard(spec, permissionGroups)
+    ) {
+      permissions.push(...spec.perms);
+    }
   }
 
   for (const group of permissionGroups) {
@@ -214,7 +272,12 @@ export const transformRole = (data: {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { changeOwnPassword: _omit, permissions: _perms, ...rest } = data;
+  const omitKeys = new Set([
+    "permissions",
+    ...SPECIAL_PERMISSIONS.map((sp) => sp.formField),
+  ]);
+  const rest = Object.fromEntries(
+    Object.entries(data).filter(([k]) => !omitKeys.has(k)),
+  );
   return { ...rest, permissions };
 };

@@ -210,7 +210,7 @@ func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.RecruitmentPeriod](w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Roles").Preload("Roles.Team")
-	}, "recruitment")
+	}, nil, "recruitment")
 }
 
 func parseFlexibleDateTime(value *string) (*time.Time, error) {

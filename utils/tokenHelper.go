@@ -41,20 +41,24 @@ func GenerateRefreshToken() (string, error) {
 // combining application-specific fields with standard registered claims.
 type accessClaims struct {
 	UserID      int      `json:"user_id"`
-	Role        string   `json:"role"`
+	Roles       []string `json:"roles"`
 	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(userID int, role string, permissions []string) (string, error) {
+func GenerateAccessToken(userID int, roles []string, permissions []string) (string, error) {
 	jwtSecret, err := loadJWTSecret()
 	if err != nil {
 		return "", err
 	}
 
+	if roles == nil {
+		roles = []string{}
+	}
+
 	claims := accessClaims{
 		UserID:      userID,
-		Role:        role,
+		Roles:       roles,
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
@@ -88,7 +92,7 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 	if token.Valid {
 		result := jwt.MapClaims{
 			"user_id":     claims.UserID,
-			"role":        claims.Role,
+			"roles":       claims.Roles,
 			"permissions": claims.Permissions,
 		}
 		if claims.ExpiresAt != nil {

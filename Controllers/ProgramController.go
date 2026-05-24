@@ -150,5 +150,5 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 // @Router /programs/{id} [delete]
 func DeleteProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil, "programs")
+	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil, nil, "programs")
 }

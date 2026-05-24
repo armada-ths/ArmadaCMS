@@ -1,6 +1,6 @@
 name: User Story
 description: Create a new user story
-title: "As a [role], I want to [capability], so that [benefit]"
+title: "Short descriptive title"
 type: User Story
 body:
   - type: markdown
@@ -9,15 +9,7 @@ body:
         ## User Story Details
         Please provide the details for this user story.
 
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Before submitting
-      options:
-        - label: I have searched the existing issues to avoid creating a duplicate.
-          required: true
-        - label: This issue describes user or business value rather than implementation details.
-          required: true
+        > **Before submitting:** search the existing issues to avoid creating a duplicate and ensure this issue describes user or business value rather than implementation details.
 
   - type: textarea
     id: description
