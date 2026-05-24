@@ -2,6 +2,7 @@ import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
 import { refreshTokens } from "./axiosInstance";
 import globalApi from "./globalApi";
+import { hasPerm } from "../utils/permissions";
 
 /**
  * Decode a JWT payload without verification (browser-side).
@@ -22,10 +23,6 @@ function getPermissionsFromToken(): string[] {
   if (!token) return [];
   const claims = decodeJwtPayload(token);
   return (claims.permissions as string[]) ?? [];
-}
-
-function hasPermission(permissions: string[], required: string): boolean {
-  return permissions.some((p) => p === "*" || p === required);
 }
 
 export const authProvider: AuthProvider = {
@@ -106,8 +103,10 @@ export const authProvider: AuthProvider = {
 
   async canAccess({ action, resource }: { action: string; resource: string }) {
     const permissions = getPermissionsFromToken();
-    // Map React-Admin actions to our permission strings
-    const permissionKey = `${resource}.${action}`;
-    return hasPermission(permissions, permissionKey);
+    // React-Admin uses "list" and "show" internally; our permission system uses "view"
+    const mappedAction =
+      action === "list" || action === "show" ? "view" : action;
+    const permissionKey = `${resource}.${mappedAction}`;
+    return hasPerm(permissions, permissionKey);
   },
 };

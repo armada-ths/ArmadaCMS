@@ -8,8 +8,7 @@ type User struct {
 	Password  string    `gorm:"column:password;not null" json:"-"`
 	Name      string    `gorm:"column:name;not null;default:''" json:"name"`
 	Avatar    string    `gorm:"column:avatar" json:"avatar"`
-	RoleID    *uint     `gorm:"column:role_id" json:"role_id"`
-	Role      *Role     `gorm:"foreignKey:RoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"role,omitempty"`
+	Roles     []Role    `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID" json:"roles,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at;default:now()" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;default:now()" json:"updated_at"`
 }

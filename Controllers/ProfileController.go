@@ -299,5 +299,5 @@ func DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.Profile](w, r, "profiles", id, "profile not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Team")
-	}, "organization")
+	}, nil, "organization")
 }

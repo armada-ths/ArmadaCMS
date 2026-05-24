@@ -35,11 +35,16 @@ set
 -- Initial admin user (username: admin, password: admin).
 -- Uses pgcrypto bcrypt so the hash is compatible with Go\'s golang.org/x/crypto/bcrypt.
 -- Only inserted if no user with username \'admin\' already exists.
-insert into public.users (username, password, role_id)
+insert into public.users (username, password)
 select
 	'admin',
-	crypt('admin', gen_salt('bf', 10)),
-	r.id
-from public.roles r
-where r.name = 'admin'
-on conflict (username) do nothing;
+	crypt('admin', gen_salt('bf', 10))
+where not exists (select 1 from public.users where username = 'admin');
+
+-- Assign the admin role to the admin user (idempotent).
+insert into public.user_roles (user_id, role_id)
+select u.id, r.id
+from public.users u
+join public.roles r on r.name = 'admin'
+where u.username = 'admin'
+on conflict do nothing;

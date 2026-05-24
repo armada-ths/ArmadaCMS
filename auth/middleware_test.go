@@ -11,7 +11,7 @@ import (
 func TestMiddlewareAcceptsValidTokenAndSetsContext(t *testing.T) {
 	t.Setenv("jwtsecret_laganda", "middleware-test-secret")
 
-	token, err := utils.GenerateAccessToken(42, "admin", []string{"customusers.list"})
+	token, err := utils.GenerateAccessToken(42, []string{"admin"}, []string{"customusers.list"})
 	if err != nil {
 		t.Fatalf("failed generating token: %v", err)
 	}
@@ -54,6 +54,11 @@ func TestHasPermission(t *testing.T) {
 		{"missing permission", []string{"users.list"}, "users.delete", false},
 		{"empty permissions", []string{}, "users.list", false},
 		{"nil permissions", nil, "users.list", false},
+		{"resource wildcard grants matching resource", []string{"users.*"}, "users.delete", true},
+		{"resource wildcard does not grant other resource", []string{"users.*"}, "roles.delete", false},
+		{"action wildcard grants matching action", []string{"*.list"}, "users.list", true},
+		{"action wildcard does not grant other action", []string{"*.list"}, "users.delete", false},
+		{"resource wildcard grants all actions on that resource", []string{"profiles.*"}, "profiles.create", true},
 	}
 
 	for _, tc := range cases {

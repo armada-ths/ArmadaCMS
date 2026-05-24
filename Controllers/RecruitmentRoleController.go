@@ -192,5 +192,5 @@ func DeleteRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeDeleteResponseWithAudit[models.RecruitmentRole](w, r, "recruitmentroles", id, "recruitment role not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Team").Preload("Recruitment")
-	}, "recruitment")
+	}, nil, "recruitment")
 }

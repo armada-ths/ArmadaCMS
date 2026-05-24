@@ -166,7 +166,7 @@ func UpdateFeatureFlag(w http.ResponseWriter, r *http.Request) {
 // @Router /featureflags/{id} [delete]
 func DeleteFeatureFlag(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil, "feature-flags")
+	writeDeleteResponseWithAudit[models.FeatureFlag](w, r, "featureflags", id, "feature flag not found", nil, nil, "feature-flags")
 }
 
 func SeedFeatureFlags(dbConn *gorm.DB) error {

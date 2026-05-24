@@ -1,25 +1,31 @@
 import {
+  ArrayInput,
   Create,
   CreateProps,
   SimpleForm,
-  TextInput,
-  ArrayInput,
   SimpleFormIterator,
+  TextInput,
 } from "react-admin";
+import {
+  PermissionActionsInput,
+  SpecialPermissionInput,
+} from "./RolePermissionInputs";
+import { SPECIAL_PERMISSIONS, transformRole } from "./rolePermissionUtils";
 
 export const RoleCreate = (props: CreateProps) => (
-  <Create {...props}>
+  <Create {...props} transform={transformRole}>
     <SimpleForm>
-      <TextInput label="Name" source="name" />
+      <TextInput label="Role name" source="name" fullWidth />
+
       <ArrayInput source="permissions" label="Permissions">
-        <SimpleFormIterator inline>
-          <TextInput
-            source=""
-            label="Permission"
-            helperText="e.g. profiles.edit"
-          />
+        <SimpleFormIterator disableReordering>
+          <PermissionActionsInput />
         </SimpleFormIterator>
       </ArrayInput>
+
+      {SPECIAL_PERMISSIONS.map((spec) => (
+        <SpecialPermissionInput key={spec.formField} spec={spec} />
+      ))}
     </SimpleForm>
   </Create>
 );
