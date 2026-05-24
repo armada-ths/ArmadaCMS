@@ -104,7 +104,8 @@ export const authProvider: AuthProvider = {
   async canAccess({ action, resource }: { action: string; resource: string }) {
     const permissions = getPermissionsFromToken();
     // React-Admin uses "list" and "show" internally; our permission system uses "view"
-    const mappedAction = action === "list" || action === "show" ? "view" : action;
+    const mappedAction =
+      action === "list" || action === "show" ? "view" : action;
     const permissionKey = `${resource}.${mappedAction}`;
     return hasPerm(permissions, permissionKey);
   },
