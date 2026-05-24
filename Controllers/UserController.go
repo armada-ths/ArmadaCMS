@@ -267,7 +267,7 @@ func GetMe(w http.ResponseWriter, r *http.Request) {
 
 	roleNames := make([]string, 0, len(user.Roles))
 	seen := make(map[string]struct{})
-	var permissions []string
+	permissions := make([]string, 0)
 	for _, role := range user.Roles {
 		roleNames = append(roleNames, role.Name)
 		for _, p := range role.Permissions {

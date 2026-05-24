@@ -5,6 +5,7 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -30,7 +31,7 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 	// Collect role names and merge permissions from all assigned roles.
 	roleNames := make([]string, 0, len(user.Roles))
 	seen := make(map[string]struct{})
-	var permissions []string
+	permissions := make([]string, 0)
 	for _, role := range user.Roles {
 		roleNames = append(roleNames, role.Name)
 		for _, p := range role.Permissions {
@@ -49,7 +50,10 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 		return nil, errors.New("not authenticated (3)")
 	}
 
-	accessToken, _ := utils.GenerateAccessToken(int(user.ID), roleNames, permissions)
+	accessToken, err := utils.GenerateAccessToken(int(user.ID), roleNames, permissions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
 
 	return &models.Tokens{
 		AccessToken:  accessToken,
