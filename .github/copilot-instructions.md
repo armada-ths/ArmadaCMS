@@ -19,8 +19,6 @@ Deployed to **Google Cloud Run** (containerised). File storage: AWS S3.
 - **Production**: DB is AWS RDS PostgreSQL.
 - **Staging** (`staging.cms.armada.nu`): DB is Supabase PostgreSQL (no RDS).
 
-See [docs/cloud-run-migration-plan.md](../docs/cloud-run-migration-plan.md) for infra context.
-
 ## Developer workflows
 
 **Docker dev (recommended):**
