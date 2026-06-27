@@ -9,7 +9,7 @@
         "${workspaceFolder}"
       ]
     },
-    "ESLint": {
+    "ESLint (ArmadaCMS)": {
       "type": "stdio",
       "command": "npx",
       "cwd": "${workspaceFolder}/frontend",
@@ -21,7 +21,7 @@
       "cwd": "${workspaceFolder}",
       "args": ["-y", "@playwright/mcp@latest"]
     },
-    "microsoft/markitdown": {
+    "markitdown (ArmadaCMS)": {
       "type": "stdio",
       "command": "uvx",
       "args": ["markitdown-mcp@0.0.1a4"]

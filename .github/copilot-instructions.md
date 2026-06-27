@@ -101,6 +101,12 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | `DB_CONN_MAX_LIFETIME_MINUTES`                  | Postgres connection max lifetime (optional)                                 |
 | `DB_CONN_MAX_IDLE_TIME_MINUTES`                 | Postgres idle connection timeout (optional)                                 |
 
+## MCP configuration (`.vscode/mcp.json`)
+
+- This repo and `armada.nu/` are often opened together in one multi-root workspace. VS Code merges MCP servers from **all active scopes** (user `mcp.json`, the `.code-workspace` file, and every folder's `.vscode/mcp.json`). If the **same server name** appears in more than one active scope, VS Code logs `WARN Overwriting mcp server '<name>'` and re-collects on every change, which can spin into an **infinite collection loop** that freezes the renderer (~1 Hz whole-window stutter).
+- **Every MCP server name must be unique across all simultaneously-open scopes.** Suffix folder-scoped servers with the repo, e.g. `ESLint (ArmadaCMS)` / `ESLint (armada.nu)`, `markitdown (ArmadaCMS)` / `markitdown (armada.nu)`. Do not reuse a bare name (`ESLint`, `microsoft/markitdown`, `Chromatic`) that also exists in the other repo, the user config, or the workspace file.
+- Diagnose suspected loops via `Developer: Toggle Developer Tools` → Console: a line repeating roughly once per second is the tell.
+
 ## Cleanup discipline
 
 - When an approach fails, remove every artifact it produced — files created, config keys added, lockfile edits — before finishing the prompt. Do not leave dead configs, unused files, or failed workarounds in the codebase.
