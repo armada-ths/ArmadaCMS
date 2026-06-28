@@ -24,7 +24,11 @@
     "markitdown (ArmadaCMS)": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["markitdown-mcp@0.0.1a4"]
+      "args": ["markitdown-mcp@0.0.1a4"],
+      "env": {
+        "UV_HTTP_TIMEOUT": "600",
+        "UV_HTTP_MAX_RETRIES": "5"
+      }
     }
   }
 }
