@@ -7,12 +7,28 @@ import {
   ImageInput,
   ImageField,
   BooleanInput,
+  Toolbar,
+  SaveButton,
 } from "react-admin";
 import { MarkdownInput } from "../shared/MarkdownInput";
 import {
   IMAGE_INPUT_ACCEPT,
   validateImageUpload,
 } from "@/utils/imageUploadValidation";
+
+const BlogpostCreateToolbar = () => (
+  <Toolbar sx={{ gap: 1 }}>
+    <SaveButton
+      label="Publish"
+      transform={(data) => ({ ...data, published: true })}
+    />
+    <SaveButton
+      label="Save as draft"
+      variant="outlined"
+      transform={(data) => ({ ...data, published: false })}
+    />
+  </Toolbar>
+);
 
 export const BlogpostCreate = (props: CreateProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -27,7 +43,7 @@ export const BlogpostCreate = (props: CreateProps) => {
 
   return (
     <Create {...props}>
-      <SimpleForm>
+      <SimpleForm toolbar={<BlogpostCreateToolbar />}>
         <TextInput source="title" fullWidth />
         <TextInput source="author" fullWidth />
         <MarkdownInput source="text" label="Content (Markdown)" />

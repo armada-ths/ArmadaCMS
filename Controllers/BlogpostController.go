@@ -15,11 +15,27 @@ import (
 	"gorm.io/gorm"
 )
 
+func requestHasValidAccessToken(r *http.Request) bool {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return false
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return false
+	}
+
+	_, err := utils.VerifyAccessToken(parts[1])
+	return err == nil
+}
+
 // allowedBlogpostColumns maps client-supplied field names to safe column names.
 var allowedBlogpostColumns = map[string]string{
 	"id":         "id",
 	"title":      "title",
 	"author":     "author",
+	"published":  "published",
 	"createdat":  "created_at",
 	"created_at": "created_at",
 }
@@ -39,6 +55,10 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 
 	var items []models.Blogpost
 	query := db.DB.Model(&models.Blogpost{})
+
+	if !requestHasValidAccessToken(r) {
+		query = query.Where("published = ?", true)
+	}
 
 	for k, v := range params.Filter {
 		col, ok := allowedBlogpostColumns[strings.ToLower(k)]
@@ -91,6 +111,12 @@ func GetBlogpostByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Blogpost not found", http.StatusNotFound)
 		return
 	}
+
+	if !item.Published && !requestHasValidAccessToken(r) {
+		http.Error(w, "Blogpost not found", http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
 }
@@ -125,6 +151,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	item.Title = r.FormValue("title")
 	item.Text = r.FormValue("text")
 	item.Author = r.FormValue("author")
+	item.Published = r.FormValue("published") != "false"
 	item.ShowCoverInPost = r.FormValue("showCoverInPost") != "false"
 
 	imageUrl := r.FormValue("imageUrl")
@@ -194,6 +221,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		"title":              r.FormValue("title"),
 		"text":               r.FormValue("text"),
 		"author":             r.FormValue("author"),
+		"published":          r.FormValue("published") != "false",
 		"show_cover_in_post": r.FormValue("showCoverInPost") != "false",
 	}
 

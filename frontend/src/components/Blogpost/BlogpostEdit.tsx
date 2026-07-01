@@ -30,6 +30,7 @@ export const BlogpostEdit = (props: EditProps) => {
       <SimpleForm>
         <TextInput source="title" fullWidth />
         <TextInput source="author" fullWidth />
+        <BooleanInput source="published" label="Published" />
         <MarkdownInput source="text" label="Content (Markdown)" />
         <BooleanInput
           source="showCoverInPost"
