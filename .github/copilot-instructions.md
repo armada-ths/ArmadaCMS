@@ -14,12 +14,10 @@ Go REST API (Gorilla Mux, GORM, Postgres) + React-Admin SPA in one repo. The Go 
 - `/admin/` — serves the built React-Admin SPA from `frontend/dist`.
 - `/health` — healthcheck.
 
-Deployed to **Google Cloud Run** (containerised). File storage: AWS S3.
+Deployed to **Google Cloud Run** (containerised).
 
-- **Production**: DB is AWS RDS PostgreSQL.
-- **Staging** (`staging.cms.armada.nu`): DB is Supabase PostgreSQL (no RDS).
-
-See [docs/cloud-run-migration-plan.md](../docs/cloud-run-migration-plan.md) for infra context.
+- **Database**: Supabase PostgreSQL for both production and staging (staging uses a Supabase branch).
+- **File storage**: S3-compatible storage API — local MinIO in Docker dev, Supabase Storage's S3 endpoint in staging/production.
 
 ## Developer workflows
 
@@ -50,7 +48,7 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 
 **Local data**: `scripts/import-remote-db.ps1` clones a remote Postgres DB into the local container.
 
-**Terraform / HCP Terraform:** there are four roots (`gcp/prod`, `gcp/staging`, `aws/prod`, `aws/staging`). Avoid running `terraform plan` locally — the CLI-driven remote plan upload is slow. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for `validate`, `import`, or other targeted state operations. See [`infra/terraform/README.md`](../infra/terraform/README.md) and the per-root READMEs for workspace details.
+**Terraform / HCP Terraform:** active roots are `gcp/prod`, `gcp/staging`, and `supabase/prod`. Avoid running `terraform plan` locally — the CLI-driven remote plan upload is slow. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for `validate`, `import`, or other targeted state operations. See [`infra/terraform/README.md`](../infra/terraform/README.md) and the per-root READMEs for workspace details.
 
 ## Backend patterns
 
@@ -60,13 +58,13 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **Models** (`models/`): GORM structs with camelCase JSON tags. Many-to-many via GORM `many2many` tag. Not all files in `models/` are DB models — `person.go` and `token.go` are response shapes.
 - **Auto-migration**: every DB model must be registered in `db.DB.AutoMigrate(...)` in `main.go`.
 - **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`. All three helpers accept a variadic `revalidateTags ...string` trailing argument — on success they fire `go utils.RevalidateTag(tag)` for each tag to purge the public site's ISR cache (see _Cache revalidation_ below).
-- **File uploads**: controllers accepting files use `multipart/form-data`; files go to AWS S3 via `utils/aws_s3.go` (validates MIME, generates timestamped key).
+- **File uploads**: controllers accepting files use `multipart/form-data`; files go through the S3-compatible upload helper in `utils/aws_s3.go` (validates MIME, generates timestamped key). In staging/production this is configured against Supabase Storage's S3 endpoint.
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
 - **Session tokens**: access tokens expire in 15 minutes; the admin frontend holds a 7-day rotating refresh token in `localStorage`. `POST /api/v1/login` returns both. `GET /api/v1/refreshAccessToken` (public route, `X-RefreshAuthorization: Bearer <token>` header) rotates the refresh token and issues a new access token. Ensure `jwtsecret_laganda` differs between staging and production.
 - **Initial admin seeding**: on startup `SeedInitialAdminUser` runs once — it creates a user from `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` env vars only if no users exist yet. Remove or leave empty once real accounts are created.
 - **Eventro integration**: `Controllers/EventroController.go` proxies the external Eventro API (exhibitors/events/members/recruitments). Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the `EventroSync` admin page.
 - **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
-- **Blogpost** (`Controllers/BlogpostController.go`): full CRUD with S3 image upload (`multipart/form-data`) and a dedicated `POST /api/v1/blogimages` endpoint for inline markdown images. Revalidation tag: `"blog-posts"`.
+- **Blogpost** (`Controllers/BlogpostController.go`): full CRUD with S3-compatible image upload (`multipart/form-data`) and a dedicated `POST /api/v1/blogimages` endpoint for inline markdown images. Revalidation tag: `"blog-posts"`.
 - **Cache revalidation** (`utils/revalidate.go`): `RevalidateTag(tag)` POSTs `{ tag, secret }` to the public site's `/api/revalidate` endpoint (fire-and-forget, 5 s timeout). Requires `REVALIDATION_URL` and `REVALIDATION_SECRET`. On staging/preview, `VERCEL_AUTOMATION_BYPASS_SECRET` is sent as `x-vercel-protection-bypass` header. Silently skipped if env vars are unset. Tag names must match between Go controllers and the Next.js data hooks (see `armada.nu/.github/copilot-instructions.md` for the full tag inventory).
 - **Update normalization** (`Controllers/update_normalization_helpers.go`): `NormalizeOptionalStringPointers()` trims whitespace / nils empty strings; `BuildNormalizedSnakeCaseUpdateMap()` converts camelCase form fields to snake_case for GORM partial updates.
 
@@ -87,8 +85,9 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | ----------------------------------------------- | --------------------------------------------------------------------------- |
 | `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                                                         |
 | `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.**                           |
-| `S3_BUCKET`, `AWS_REGION`                       | S3 file storage (region default: `eu-north-1`)                              |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | S3 credentials (optional if IAM role in use)                                |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_PUBLIC_URL`     | S3-compatible storage target (MinIO locally, Supabase Storage in hosted envs) |
+| `S3_REGION`                                      | Optional S3 region override when required by the endpoint                    |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | Access credentials for the S3-compatible API (e.g. MinIO/Supabase storage keys) |
 | `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                                                   |
 | `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)                             |
 | `PORT`                                          | Server port (default: 8080)                                                 |
@@ -100,6 +99,12 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | `VERCEL_AUTOMATION_BYPASS_SECRET`               | Bypass Vercel Deployment Protection on staging/preview (optional)           |
 | `DB_CONN_MAX_LIFETIME_MINUTES`                  | Postgres connection max lifetime (optional)                                 |
 | `DB_CONN_MAX_IDLE_TIME_MINUTES`                 | Postgres idle connection timeout (optional)                                 |
+
+## MCP configuration (`.vscode/mcp.json`)
+
+- This repo and `armada.nu/` are often opened together in one multi-root workspace. VS Code merges MCP servers from **all active scopes** (user `mcp.json`, the `.code-workspace` file, and every folder's `.vscode/mcp.json`). If the **same server name** appears in more than one active scope, VS Code logs `WARN Overwriting mcp server '<name>'` and re-collects on every change, which can spin into an **infinite collection loop** that freezes the renderer (~1 Hz whole-window stutter).
+- **Every MCP server name must be unique across all simultaneously-open scopes.** Suffix folder-scoped servers with the repo, e.g. `ESLint (ArmadaCMS)` / `ESLint (armada.nu)`, `markitdown (ArmadaCMS)` / `markitdown (armada.nu)`. Do not reuse a bare name (`ESLint`, `microsoft/markitdown`, `Chromatic`) that also exists in the other repo, the user config, or the workspace file.
+- Diagnose suspected loops via `Developer: Toggle Developer Tools` → Console: a line repeating roughly once per second is the tell.
 
 ## Cleanup discipline
 
