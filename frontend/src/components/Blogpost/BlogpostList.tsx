@@ -2,6 +2,7 @@ import {
   List,
   Datagrid,
   TextField,
+  BooleanField,
   DateField,
   DeleteButton,
   EditButton,
@@ -14,6 +15,7 @@ export const BlogpostList = (props: ListProps) => (
       <TextField source="id" />
       <TextField source="title" />
       <TextField source="author" />
+      <BooleanField source="published" />
       <DateField source="createdAt" label="Created" />
       <EditButton />
       <DeleteButton />
