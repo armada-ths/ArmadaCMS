@@ -17,6 +17,7 @@ const endpoint = globalApi();
 
 interface MarkdownInputProps extends InputProps {
   label?: string;
+  enableImageFeatures?: boolean;
 }
 
 interface EditingImg {
@@ -87,7 +88,11 @@ function PreviewImage({
   );
 }
 
-export const MarkdownInput = ({ label, ...props }: MarkdownInputProps) => {
+export const MarkdownInput = ({
+  label,
+  enableImageFeatures = true,
+  ...props
+}: MarkdownInputProps) => {
   const {
     field: { value, onChange },
   } = useInput(props);
@@ -245,23 +250,27 @@ export const MarkdownInput = ({ label, ...props }: MarkdownInputProps) => {
         value={value || ""}
         onChange={(val) => onChange(val || "")}
         height={400}
-        previewOptions={{
-          components: {
-            img: (props) => {
-              const src = typeof props.src === "string" ? props.src : "";
-              const { alt, width, height } = parseImgAlt(props.alt ?? "");
-              return (
-                <PreviewImage
-                  src={src}
-                  alt={alt}
-                  width={width}
-                  height={height}
-                  onResize={openImgResize}
-                />
-              );
-            },
-          },
-        }}
+        previewOptions={
+          enableImageFeatures
+            ? {
+                components: {
+                  img: (props) => {
+                    const src = typeof props.src === "string" ? props.src : "";
+                    const { alt, width, height } = parseImgAlt(props.alt ?? "");
+                    return (
+                      <PreviewImage
+                        src={src}
+                        alt={alt}
+                        width={width}
+                        height={height}
+                        onResize={openImgResize}
+                      />
+                    );
+                  },
+                },
+              }
+            : undefined
+        }
         commands={[
           commands.bold,
           commands.italic,
@@ -279,78 +288,98 @@ export const MarkdownInput = ({ label, ...props }: MarkdownInputProps) => {
           commands.link,
           commands.quote,
           commands.code,
-          commands.divider,
-          imageUploadCommand,
+          ...(enableImageFeatures
+            ? [commands.divider, imageUploadCommand]
+            : []),
         ]}
         extraCommands={[commands.fullscreen]}
       />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
-      <p
-        style={{
-          fontSize: "0.75rem",
-          color: muiTheme.palette.text.secondary,
-          marginTop: "0.25em",
-        }}
-      >
-        Supports Markdown. Use the image button to upload and insert inline
-        images.
-      </p>
+      {enableImageFeatures && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: muiTheme.palette.text.secondary,
+              marginTop: "0.25em",
+            }}
+          >
+            Supports Markdown. Use the image button to upload and insert inline
+            images.
+          </p>
 
-      <Dialog open={!!editingImg} onClose={() => setEditingImg(null)}>
-        <DialogTitle>Resize image</DialogTitle>
-        <DialogContent>
-          <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Width (px)"
-              type="number"
-              value={editWidth}
-              onChange={(e) => {
-                const w = e.target.value;
-                setEditWidth(w);
-                if (Number(w) > 0) {
-                  const ratio =
-                    naturalRatio ??
-                    (editingImg ? editingImg.height / editingImg.width : null);
-                  if (ratio != null)
-                    setEditHeight(String(Math.round(Number(w) / ratio)));
-                }
-              }}
-              slotProps={{ htmlInput: { min: 1 } }}
-              size="small"
-            />
-            <TextField
-              label="Height (px)"
-              type="number"
-              value={editHeight}
-              onChange={(e) => {
-                const h = e.target.value;
-                setEditHeight(h);
-                if (Number(h) > 0) {
-                  const ratio =
-                    naturalRatio ??
-                    (editingImg ? editingImg.width / editingImg.height : null);
-                  if (ratio != null)
-                    setEditWidth(String(Math.round(Number(h) * ratio)));
-                }
-              }}
-              slotProps={{ htmlInput: { min: 1 } }}
-              size="small"
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingImg(null)}>Cancel</Button>
-          <Button variant="contained" onClick={applyImgResize}>
-            Apply
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Dialog open={!!editingImg} onClose={() => setEditingImg(null)}>
+            <DialogTitle>Resize image</DialogTitle>
+            <DialogContent>
+              <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                <TextField
+                  label="Width (px)"
+                  type="number"
+                  value={editWidth}
+                  onChange={(e) => {
+                    const w = e.target.value;
+                    setEditWidth(w);
+                    if (Number(w) > 0) {
+                      const ratio =
+                        naturalRatio ??
+                        (editingImg
+                          ? editingImg.height / editingImg.width
+                          : null);
+                      if (ratio != null)
+                        setEditHeight(String(Math.round(Number(w) / ratio)));
+                    }
+                  }}
+                  slotProps={{ htmlInput: { min: 1 } }}
+                  size="small"
+                />
+                <TextField
+                  label="Height (px)"
+                  type="number"
+                  value={editHeight}
+                  onChange={(e) => {
+                    const h = e.target.value;
+                    setEditHeight(h);
+                    if (Number(h) > 0) {
+                      const ratio =
+                        naturalRatio ??
+                        (editingImg
+                          ? editingImg.width / editingImg.height
+                          : null);
+                      if (ratio != null)
+                        setEditWidth(String(Math.round(Number(h) * ratio)));
+                    }
+                  }}
+                  slotProps={{ htmlInput: { min: 1 } }}
+                  size="small"
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setEditingImg(null)}>Cancel</Button>
+              <Button variant="contained" onClick={applyImgResize}>
+                Apply
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
+      )}
+      {!enableImageFeatures && (
+        <p
+          style={{
+            fontSize: "0.75rem",
+            color: muiTheme.palette.text.secondary,
+            marginTop: "0.25em",
+          }}
+        >
+          Supports Markdown formatting.
+        </p>
+      )}
     </div>
   );
 };
