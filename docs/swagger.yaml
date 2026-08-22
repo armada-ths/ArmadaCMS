@@ -1151,7 +1151,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
-      summary: Replace fair dates from Eventro
+      summary: Sync fair dates from Eventro
       tags:
       - eventro
   /eventrofairs:

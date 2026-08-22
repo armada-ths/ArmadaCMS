@@ -1016,7 +1016,7 @@ const docTemplate = `{
                 "tags": [
                     "eventro"
                 ],
-                "summary": "Replace fair dates from Eventro",
+                "summary": "Sync fair dates from Eventro",
                 "parameters": [
                     {
                         "type": "string",

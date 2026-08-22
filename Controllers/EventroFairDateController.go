@@ -32,7 +32,7 @@ const (
 )
 
 // FetchFairDatesEventro syncs fair date configurations from the selected Eventro fair timeline.
-// @Summary Replace fair dates from Eventro
+// @Summary Sync fair dates from Eventro
 // @Tags eventro
 // @Produce plain
 // @Param fairId query string true "Eventro fair instance ID"
