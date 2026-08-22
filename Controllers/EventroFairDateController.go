@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
+	"ArmadaCMS/main/db"
 	"errors"
 	"fmt"
 	"log"
@@ -12,6 +14,7 @@ import (
 	"unicode"
 
 	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
 
 	"gorm.io/gorm"
 )
@@ -66,29 +69,138 @@ func FetchFairDatesEventro(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = replaceAllWithAudit(
-		r,
-		"fairdates",
-		&item,
-		func(tx *gorm.DB) error {
-			return tx.Exec("LOCK TABLE fair_date_configs IN ACCESS EXCLUSIVE MODE").Error
-		},
-		func(tx *gorm.DB) error {
-			if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).
-				Delete(&models.FairDateConfig{}).Error; err != nil {
-				return err
-			}
-			return tx.Create(&item).Error
-		},
-		"dates",
-	)
+	group, err := startAuditGroup(r, "sync", "fairdates", fairID, map[string]any{"source": "eventro", "status": "running"})
 	if err != nil {
-		log.Printf("failed to replace fair dates from Eventro fair %s: %v", fair.ID, err)
+		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
+		return
+	}
+	stats, err := syncFairDateConfigWithAudit(audit.WithParent(r, group.ID), item)
+	if err != nil {
+		_ = finalizeAuditGroup(group.ID, "failed", map[string]any{"source": "eventro", "error": err.Error()})
+		log.Printf("failed to sync fair dates from Eventro fair %s: %v", fair.ID, err)
 		http.Error(w, "failed to sync Eventro fair dates", http.StatusInternalServerError)
 		return
 	}
+	if err := finalizeAuditGroup(group.ID, "completed", map[string]any{
+		"source":    "eventro",
+		"inserted":  stats.inserted,
+		"updated":   stats.updated,
+		"unchanged": stats.unchanged,
+		"deleted":   stats.deleted,
+		"failed":    0,
+	}); err != nil {
+		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
+		return
+	}
+	if stats.inserted+stats.updated+stats.deleted > 0 {
+		go utils.RevalidateTag("dates")
+	}
 
-	_, _ = fmt.Fprint(w, "Sync completed - replaced all fair dates")
+	log.Printf(
+		"✅ Fair date sync completed — inserted: %d, updated: %d, deleted: %d",
+		stats.inserted,
+		stats.updated,
+		stats.deleted,
+	)
+	_, _ = fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", stats.inserted, stats.updated)
+}
+
+type fairDateSyncStats struct {
+	inserted  int
+	updated   int
+	unchanged int
+	deleted   int
+}
+
+func syncFairDateConfigWithAudit(childRequest *http.Request, item models.FairDateConfig) (fairDateSyncStats, error) {
+	stats := fairDateSyncStats{}
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("LOCK TABLE fair_date_configs IN ACCESS EXCLUSIVE MODE").Error; err != nil {
+			return err
+		}
+
+		keepID, err := upsertFairDateConfigWithAudit(tx, childRequest, &item, &stats)
+		if err != nil {
+			return err
+		}
+
+		return deleteStaleFairDateConfigsWithAudit(tx, childRequest, keepID, &stats)
+	})
+	return stats, err
+}
+
+func upsertFairDateConfigWithAudit(tx *gorm.DB, childRequest *http.Request, item *models.FairDateConfig, stats *fairDateSyncStats) (uint, error) {
+	if item.EventroID == nil {
+		return 0, errors.New("eventro fair has no ID")
+	}
+
+	var existing models.FairDateConfig
+	findErr := tx.Where("eventro_id = ?", *item.EventroID).First(&existing).Error
+	if findErr != nil && findErr != gorm.ErrRecordNotFound {
+		return 0, findErr
+	}
+	if findErr == gorm.ErrRecordNotFound {
+		if err := tx.Create(item).Error; err != nil {
+			return 0, err
+		}
+		stats.inserted = 1
+		return item.ID, audit.LogCreate(tx, childRequest, "fairdates", item.ID, *item)
+	}
+
+	item.ID = existing.ID
+	if fairDateConfigsEqual(existing, *item) {
+		stats.unchanged = 1
+		return existing.ID, nil
+	}
+
+	before := existing
+	existing.EventroID = item.EventroID
+	existing.Description = item.Description
+	existing.FairDays = item.FairDays
+	existing.IRStart = item.IRStart
+	existing.IREnd = item.IREnd
+	existing.IRAcceptance = item.IRAcceptance
+	existing.FRStart = item.FRStart
+	existing.FREnd = item.FREnd
+	existing.EventsStart = item.EventsStart
+
+	if err := tx.Save(&existing).Error; err != nil {
+		return 0, err
+	}
+
+	stats.updated = 1
+	return existing.ID, audit.LogUpdate(tx, childRequest, "fairdates", existing.ID, before, existing)
+}
+
+func deleteStaleFairDateConfigsWithAudit(tx *gorm.DB, childRequest *http.Request, keepID uint, stats *fairDateSyncStats) error {
+	var stale []models.FairDateConfig
+	if err := tx.Where("id <> ?", keepID).Find(&stale).Error; err != nil {
+		return err
+	}
+
+	for i := range stale {
+		if err := tx.Delete(&stale[i]).Error; err != nil {
+			return err
+		}
+		if err := audit.LogDelete(tx, childRequest, "fairdates", stale[i].ID, stale[i]); err != nil {
+			return err
+		}
+	}
+
+	stats.deleted = len(stale)
+	return nil
+}
+
+func fairDateConfigsEqual(left, right models.FairDateConfig) bool {
+	return stringPointersEqual(left.EventroID, right.EventroID) &&
+		left.Description == right.Description &&
+		left.FairDays == right.FairDays &&
+		left.IRStart == right.IRStart &&
+		left.IREnd == right.IREnd &&
+		left.IRAcceptance == right.IRAcceptance &&
+		left.FRStart == right.FRStart &&
+		left.FREnd == right.FREnd &&
+		left.EventsStart == right.EventsStart
 }
 
 func mapEventroFairToFairDate(fair eventroFairResponse) (models.FairDateConfig, error) {
