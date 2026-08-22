@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
 
 	"gorm.io/gorm"
 )
@@ -60,11 +62,26 @@ type recruitmentResponse struct {
 // @Security BearerAuth
 // @Router /eventrorecruitments [get]
 func FetchRecruitmentsEventro(w http.ResponseWriter, r *http.Request) {
-	inserted, updated, err := syncRecruitmentsFromEventro()
+	group, err := startAuditGroup(r, "sync", "recruitment", "eventro-recruitments", map[string]any{"source": "eventro", "status": "running"})
 	if err != nil {
+		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
+		return
+	}
+	inserted, updated, failed, err := syncRecruitmentsFromEventro(audit.WithParent(r, group.ID))
+	if err != nil {
+		_ = finalizeAuditGroup(group.ID, "failed", map[string]any{"source": "eventro", "error": err.Error()})
 		log.Printf("❌ Recruitment sync failed: %v", err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
+	}
+	status := auditGroupStatus(inserted+updated, failed)
+	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "failed": failed}); err != nil {
+		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
+		return
+	}
+	if inserted+updated > 0 {
+		go utils.RevalidateTag("recruitment")
+		go utils.RevalidateTag("organization")
 	}
 
 	message := fmt.Sprintf("Sync completed — inserted: %d, updated: %d", inserted, updated)
@@ -104,7 +121,7 @@ func GetRecruitment(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func syncRecruitmentsFromEventro() (int, int, error) {
+func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	baseURL := "https://app.eventro.se/api/v1/recruitments/"
 
@@ -115,7 +132,7 @@ func syncRecruitmentsFromEventro() (int, int, error) {
 		url := fmt.Sprintf("%s?pageIndex=%d", baseURL, page)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to create Eventro request: %w", err)
+			return 0, 0, 0, fmt.Errorf("failed to create Eventro request: %w", err)
 		}
 
 		req.Header.Set("Authorization", "Bearer "+os.Getenv("EVENTRO_API"))
@@ -123,18 +140,18 @@ func syncRecruitmentsFromEventro() (int, int, error) {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to contact Eventro API: %w", err)
+			return 0, 0, 0, fmt.Errorf("failed to contact Eventro API: %w", err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			return 0, 0, fmt.Errorf("unexpected Eventro status: %s", resp.Status)
+			return 0, 0, 0, fmt.Errorf("unexpected Eventro status: %s", resp.Status)
 		}
 
 		var result eventroRecruitmentsResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 			resp.Body.Close()
-			return 0, 0, fmt.Errorf("failed to decode Eventro recruitments response: %w", err)
+			return 0, 0, 0, fmt.Errorf("failed to decode Eventro recruitments response: %w", err)
 		}
 
 		resp.Body.Close()
@@ -153,11 +170,19 @@ func syncRecruitmentsFromEventro() (int, int, error) {
 
 	inserted := 0
 	updated := 0
+	failed := 0
 
 	for _, incoming := range allRecruitments {
-		periodID, wasInserted, wasUpdated, err := upsertRecruitmentPeriod(incoming)
+		var periodID uint
+		var wasInserted, wasUpdated bool
+		err := db.DB.Transaction(func(tx *gorm.DB) error {
+			var err error
+			periodID, wasInserted, wasUpdated, err = upsertRecruitmentPeriod(tx, auditRequest, incoming)
+			return err
+		})
 		if err != nil {
 			log.Printf("❌ Failed upserting recruitment period %q (%s): %v", incoming.Name, incoming.ID, err)
+			failed++
 			continue
 		}
 
@@ -169,9 +194,15 @@ func syncRecruitmentsFromEventro() (int, int, error) {
 		}
 
 		for _, role := range incoming.RecruitmentPeriodRoles {
-			roleInserted, roleUpdated, roleErr := upsertRecruitmentRole(periodID, role)
+			var roleInserted, roleUpdated bool
+			roleErr := db.DB.Transaction(func(tx *gorm.DB) error {
+				var err error
+				roleInserted, roleUpdated, err = upsertRecruitmentRole(tx, auditRequest, periodID, role)
+				return err
+			})
 			if roleErr != nil {
 				log.Printf("❌ Failed upserting recruitment role %q (%s): %v", role.Role, role.ID, roleErr)
+				failed++
 				continue
 			}
 
@@ -184,10 +215,10 @@ func syncRecruitmentsFromEventro() (int, int, error) {
 		}
 	}
 
-	return inserted, updated, nil
+	return inserted, updated, failed, nil
 }
 
-func upsertRecruitmentPeriod(incoming eventroRecruitmentResponse) (uint, bool, bool, error) {
+func upsertRecruitmentPeriod(tx *gorm.DB, auditRequest *http.Request, incoming eventroRecruitmentResponse) (uint, bool, bool, error) {
 	eventroID := strings.TrimSpace(incoming.ID)
 	if eventroID == "" {
 		return 0, false, false, fmt.Errorf("missing Eventro recruitment id")
@@ -199,7 +230,7 @@ func upsertRecruitmentPeriod(incoming eventroRecruitmentResponse) (uint, bool, b
 	link := buildRecruitmentLink(eventroID)
 
 	var existing models.RecruitmentPeriod
-	err := db.DB.Where("eventro_id = ?", eventroID).First(&existing).Error
+	err := tx.Where("eventro_id = ?", eventroID).First(&existing).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return 0, false, false, err
@@ -213,8 +244,11 @@ func upsertRecruitmentPeriod(incoming eventroRecruitmentResponse) (uint, bool, b
 			EndDate:   endAt,
 		}
 
-		if createErr := db.DB.Create(&period).Error; createErr != nil {
+		if createErr := tx.Create(&period).Error; createErr != nil {
 			return 0, false, false, createErr
+		}
+		if auditErr := audit.LogCreate(tx, auditRequest, "recruitmentperiods", period.ID, period); auditErr != nil {
+			return 0, false, false, auditErr
 		}
 
 		return period.ID, true, false, nil
@@ -238,8 +272,15 @@ func upsertRecruitmentPeriod(incoming eventroRecruitmentResponse) (uint, bool, b
 	}
 
 	if len(updates) > 0 {
-		if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+		before := existing
+		if updateErr := tx.Model(&existing).Updates(updates).Error; updateErr != nil {
 			return 0, false, false, updateErr
+		}
+		if reloadErr := tx.First(&existing, existing.ID).Error; reloadErr != nil {
+			return 0, false, false, reloadErr
+		}
+		if auditErr := audit.LogUpdate(tx, auditRequest, "recruitmentperiods", existing.ID, before, existing); auditErr != nil {
+			return 0, false, false, auditErr
 		}
 		return existing.ID, false, true, nil
 	}
@@ -247,7 +288,7 @@ func upsertRecruitmentPeriod(incoming eventroRecruitmentResponse) (uint, bool, b
 	return existing.ID, false, false, nil
 }
 
-func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail) (bool, bool, error) {
+func upsertRecruitmentRole(tx *gorm.DB, auditRequest *http.Request, periodID uint, incoming eventroRecruitmentRoleDetail) (bool, bool, error) {
 	eventroRoleID := strings.TrimSpace(incoming.ID)
 	if eventroRoleID == "" {
 		return false, false, fmt.Errorf("missing Eventro recruitment role id")
@@ -256,13 +297,13 @@ func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail)
 	name := strings.TrimSpace(incoming.Role)
 	description := strings.TrimSpace(incoming.RoleDescription)
 	teamName := deriveRecruitmentRoleTeamName(incoming)
-	teamID, teamErr := findOrCreateTeamIDByName(teamName)
+	teamID, teamErr := findOrCreateTeamIDByName(tx, auditRequest, teamName)
 	if teamErr != nil {
 		return false, false, fmt.Errorf("failed resolving team for role %q: %w", name, teamErr)
 	}
 
 	var existing models.RecruitmentRole
-	err := db.DB.Where("eventro_role_id = ?", eventroRoleID).First(&existing).Error
+	err := tx.Where("eventro_role_id = ?", eventroRoleID).First(&existing).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return false, false, err
@@ -270,7 +311,7 @@ func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail)
 
 		// fallback dedupe: if same role name already exists for this recruitment period,
 		// reuse it instead of creating a new row
-		errByName := db.DB.
+		errByName := tx.
 			Where("recruitment_id = ?", periodID).
 			Where("LOWER(name) = ?", strings.ToLower(name)).
 			First(&existing).Error
@@ -295,8 +336,15 @@ func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail)
 			}
 
 			if len(updates) > 0 {
-				if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+				before := existing
+				if updateErr := tx.Model(&existing).Updates(updates).Error; updateErr != nil {
 					return false, false, updateErr
+				}
+				if reloadErr := tx.First(&existing, existing.ID).Error; reloadErr != nil {
+					return false, false, reloadErr
+				}
+				if auditErr := audit.LogUpdate(tx, auditRequest, "recruitmentroles", existing.ID, before, existing); auditErr != nil {
+					return false, false, auditErr
 				}
 				return false, true, nil
 			}
@@ -312,8 +360,11 @@ func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail)
 			Description:   description,
 		}
 
-		if createErr := db.DB.Create(&role).Error; createErr != nil {
+		if createErr := tx.Create(&role).Error; createErr != nil {
 			return false, false, createErr
+		}
+		if auditErr := audit.LogCreate(tx, auditRequest, "recruitmentroles", role.ID, role); auditErr != nil {
+			return false, false, auditErr
 		}
 
 		return true, false, nil
@@ -337,8 +388,15 @@ func upsertRecruitmentRole(periodID uint, incoming eventroRecruitmentRoleDetail)
 	}
 
 	if len(updates) > 0 {
-		if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+		before := existing
+		if updateErr := tx.Model(&existing).Updates(updates).Error; updateErr != nil {
 			return false, false, updateErr
+		}
+		if reloadErr := tx.First(&existing, existing.ID).Error; reloadErr != nil {
+			return false, false, reloadErr
+		}
+		if auditErr := audit.LogUpdate(tx, auditRequest, "recruitmentroles", existing.ID, before, existing); auditErr != nil {
+			return false, false, auditErr
 		}
 		return false, true, nil
 	}
@@ -385,22 +443,25 @@ func deriveRecruitmentRoleTeamName(role eventroRecruitmentRoleDetail) string {
 	return ""
 }
 
-func findOrCreateTeamIDByName(teamName string) (*uint, error) {
+func findOrCreateTeamIDByName(tx *gorm.DB, auditRequest *http.Request, teamName string) (*uint, error) {
 	trimmed := strings.TrimSpace(teamName)
 	if trimmed == "" {
 		return nil, nil
 	}
 
 	var team models.Team
-	err := db.DB.Where("LOWER(team_name) = ?", strings.ToLower(trimmed)).First(&team).Error
+	err := tx.Where("LOWER(team_name) = ?", strings.ToLower(trimmed)).First(&team).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return nil, err
 		}
 
 		team = models.Team{TeamName: trimmed}
-		if createErr := db.DB.Create(&team).Error; createErr != nil {
+		if createErr := tx.Create(&team).Error; createErr != nil {
 			return nil, createErr
+		}
+		if auditErr := audit.LogCreate(tx, auditRequest, "teams", team.ID, team); auditErr != nil {
+			return nil, auditErr
 		}
 	}
 

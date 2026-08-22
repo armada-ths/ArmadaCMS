@@ -6,16 +6,15 @@ import "strings"
 // It stores all dates as flat fields for easy editing in the admin GUI.
 type FairDateConfig struct {
 	ID           uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	EventroID    *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
 	Description  string  `gorm:"column:description;not null" json:"description"`
 	FairDays     string  `gorm:"column:fair_days;not null" json:"fairDays"` // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
-	TicketEnd    *string `gorm:"column:ticket_end" json:"ticketEnd"`        // Nullable
 	IRStart      string  `gorm:"column:ir_start;not null" json:"irStart"`
 	IREnd        string  `gorm:"column:ir_end;not null" json:"irEnd"`
 	IRAcceptance string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
 	FRStart      string  `gorm:"column:fr_start;not null" json:"frStart"`
 	FREnd        string  `gorm:"column:fr_end;not null" json:"frEnd"`
 	EventsStart  string  `gorm:"column:events_start;not null" json:"eventsStart"`
-	EventsEnd    string  `gorm:"column:events_end" json:"eventsEnd"`
 }
 
 // FairDate is the nested JSON structure returned by the public API.
@@ -25,9 +24,6 @@ type FairDate struct {
 		Description string   `json:"description"`
 		Days        []string `json:"days"`
 	} `json:"fair"`
-	Ticket struct {
-		End *string `json:"end"`
-	} `json:"ticket"`
 	IR struct {
 		Start      string `json:"start"`
 		End        string `json:"end"`
@@ -39,7 +35,6 @@ type FairDate struct {
 	} `json:"fr"`
 	Events struct {
 		Start string `json:"start"`
-		End   string `json:"end"`
 	} `json:"events"`
 }
 
@@ -51,8 +46,6 @@ func (c *FairDateConfig) ToFairDate() FairDate {
 	fd.Fair.Description = c.Description
 	fd.Fair.Days = splitDays(c.FairDays)
 
-	fd.Ticket.End = c.TicketEnd
-
 	fd.IR.Start = c.IRStart
 	fd.IR.End = c.IREnd
 	fd.IR.Acceptance = c.IRAcceptance
@@ -61,7 +54,6 @@ func (c *FairDateConfig) ToFairDate() FairDate {
 	fd.FR.End = c.FREnd
 
 	fd.Events.Start = c.EventsStart
-	fd.Events.End = c.EventsEnd
 
 	return fd
 }

@@ -62,7 +62,7 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
 - **Session tokens**: access tokens expire in 15 minutes; the admin frontend holds a 7-day rotating refresh token in `localStorage`. `POST /api/v1/login` returns both. `GET /api/v1/refreshAccessToken` (public route, `X-RefreshAuthorization: Bearer <token>` header) rotates the refresh token and issues a new access token. Ensure `jwtsecret_laganda` differs between staging and production.
 - **Initial admin seeding**: on startup `SeedInitialAdminUser` runs once — it creates a user from `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` env vars only if no users exist yet. Remove or leave empty once real accounts are created.
-- **Eventro integration**: Eventro controllers sync external exhibitors, events, members, and recruitments. Uses `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` env vars. Triggered from the dashboard's `EventroSyncCard`.
+- **Eventro integration**: Eventro controllers sync external fair dates, exhibitors, events, members, and recruitments. Uses `EVENTRO_API` and `EVENTRO_ORG` env vars. Fair-scoped syncs require the user to select an active fair instance in the dashboard's `EventroSyncCard`. Fair-date sync atomically replaces all existing fair-date rows from the selected fair's timeline.
 - **Feature flags**: `FeatureFlagController` seeds default flags on startup (`models/feature_flag.go`). Exhibitor signup open/closed state is computed on the frontend (`armada.nu`) based on IR/FR date windows from the dates API — it is **not** controlled by a feature flag.
 - **Blogpost** (`Controllers/BlogpostController.go`): full CRUD with S3-compatible image upload (`multipart/form-data`) and a dedicated `POST /api/v1/blogimages` endpoint for inline markdown images. Revalidation tag: `"blog-posts"`.
 - **Cache revalidation** (`utils/revalidate.go`): `RevalidateTag(tag)` POSTs `{ tag, secret }` to the public site's `/api/revalidate` endpoint (fire-and-forget, 5 s timeout). Requires `REVALIDATION_URL` and `REVALIDATION_SECRET`. On staging/preview, `VERCEL_AUTOMATION_BYPASS_SECRET` is sent as `x-vercel-protection-bypass` header. Silently skipped if env vars are unset. Tag names must match between Go controllers and the Next.js data hooks (see `armada.nu/.github/copilot-instructions.md` for the full tag inventory).
@@ -80,24 +80,24 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 
 All vars loaded from `.env` (see `.env.example`). Key vars:
 
-| Var                                             | Purpose                                                                     |
-| ----------------------------------------------- | --------------------------------------------------------------------------- |
-| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`       | Postgres connection                                                         |
-| `jwtsecret_laganda`                             | HMAC-SHA256 secret for JWT signing. **Required.**                           |
-| `S3_BUCKET`, `S3_ENDPOINT`, `S3_PUBLIC_URL`     | S3-compatible storage target (MinIO locally, Supabase Storage in hosted envs) |
-| `S3_REGION`                                      | Optional S3 region override when required by the endpoint                    |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`    | Access credentials for the S3-compatible API (e.g. MinIO/Supabase storage keys) |
-| `EVENTRO_API`, `EVENTRO_FAIR_ID`, `EVENTRO_ORG` | Eventro proxy integration                                                   |
-| `AUDIT_LOG_RETENTION_DAYS`                      | Prune audit logs older than N days (default: 7)                             |
-| `PORT`                                          | Server port (default: 8080)                                                 |
-| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`        | Postgres connection pool tuning (optional)                                  |
-| `INITIAL_ADMIN_USERNAME`                        | Username seeded on first startup (if DB empty)                              |
-| `INITIAL_ADMIN_PASSWORD`                        | Password for the seeded admin user (sensitive)                              |
-| `REVALIDATION_URL`                              | Public site revalidation endpoint (e.g. `https://armada.nu/api/revalidate`) |
-| `REVALIDATION_SECRET`                           | Shared secret for revalidation webhook auth                                 |
-| `VERCEL_AUTOMATION_BYPASS_SECRET`               | Bypass Vercel Deployment Protection on staging/preview (optional)           |
-| `DB_CONN_MAX_LIFETIME_MINUTES`                  | Postgres connection max lifetime (optional)                                 |
-| `DB_CONN_MAX_IDLE_TIME_MINUTES`                 | Postgres idle connection timeout (optional)                                 |
+| Var                                          | Purpose                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------- |
+| `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`    | Postgres connection                                                             |
+| `jwtsecret_laganda`                          | HMAC-SHA256 secret for JWT signing. **Required.**                               |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_PUBLIC_URL`  | S3-compatible storage target (MinIO locally, Supabase Storage in hosted envs)   |
+| `S3_REGION`                                  | Optional S3 region override when required by the endpoint                       |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Access credentials for the S3-compatible API (e.g. MinIO/Supabase storage keys) |
+| `EVENTRO_API`, `EVENTRO_ORG`                 | Eventro API authentication                                                      |
+| `AUDIT_LOG_RETENTION_DAYS`                   | Prune audit logs older than N days (default: 7)                                 |
+| `PORT`                                       | Server port (default: 8080)                                                     |
+| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`     | Postgres connection pool tuning (optional)                                      |
+| `INITIAL_ADMIN_USERNAME`                     | Username seeded on first startup (if DB empty)                                  |
+| `INITIAL_ADMIN_PASSWORD`                     | Password for the seeded admin user (sensitive)                                  |
+| `REVALIDATION_URL`                           | Public site revalidation endpoint (e.g. `https://armada.nu/api/revalidate`)     |
+| `REVALIDATION_SECRET`                        | Shared secret for revalidation webhook auth                                     |
+| `VERCEL_AUTOMATION_BYPASS_SECRET`            | Bypass Vercel Deployment Protection on staging/preview (optional)               |
+| `DB_CONN_MAX_LIFETIME_MINUTES`               | Postgres connection max lifetime (optional)                                     |
+| `DB_CONN_MAX_IDLE_TIME_MINUTES`              | Postgres idle connection timeout (optional)                                     |
 
 ## MCP configuration (`.vscode/mcp.json`)
 
@@ -113,9 +113,10 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 
 1. Create model in `models/` with GORM + camelCase JSON tags.
 2. Register in `db.DB.AutoMigrate(...)` in `main.go`.
-3. Create controller in `Controllers/` using `response_helpers.go` and **`audit_write_helpers.go`** for all writes.
-4. Add routes in `main.go` — public GETs in `publicAPI`, write routes in `protectedAPI` with `auth.RequirePermission("resource.action", handler)`.
-5. Create `List`, `Create`, `Edit` in `frontend/src/components/{Resource}/`.
-6. Register `<Resource>` in `frontend/src/App.tsx`.
-7. If file uploads: add to the multipart resource list in `frontend/src/dataProvider.ts`.
-8. If the resource is displayed on the public site, pass the matching cache tag to the audit helper (`revalidateTags ...string`) and ensure the same tag is used in the Next.js data hook.
+3. Write a SQL migration in `supabase/migrations/` for the schema change.
+4. Create controller in `Controllers/` using `response_helpers.go` and **`audit_write_helpers.go`** for all writes.
+5. Add routes in `main.go` — public GETs in `publicAPI`, write routes in `protectedAPI` with `auth.RequirePermission("resource.action", handler)`.
+6. Create `List`, `Create`, `Edit` in `frontend/src/components/{Resource}/`.
+7. Register `<Resource>` in `frontend/src/App.tsx`.
+8. If file uploads: add to the multipart resource list in `frontend/src/dataProvider.ts`.
+9. If the resource is displayed on the public site, pass the matching cache tag to the audit helper (`revalidateTags ...string`) and ensure the same tag is used in the Next.js data hook.

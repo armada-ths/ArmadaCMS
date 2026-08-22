@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
@@ -232,14 +233,25 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Router /customusers/{id} [delete]
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
+	writeGroupedDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
 		func(tx *gorm.DB) *gorm.DB { return tx.Preload("Roles") },
-		func(tx *gorm.DB, user *models.User) error {
-			// Revoke all refresh tokens so the user cannot obtain new access tokens.
-			return tx.Model(&models.RefreshToken{}).
-				Where("user_id = ?", user.ID).
-				Update("enabled", false).Error
+		func(tx *gorm.DB, user *models.User, childRequest *http.Request) error {
+			var tokens []models.RefreshToken
+			if err := tx.Where("user_id = ? AND enabled = ?", user.ID, true).Find(&tokens).Error; err != nil {
+				return err
+			}
+			for i := range tokens {
+				oldToken := newRefreshTokenAuditData(tokens[i])
+				if err := tx.Model(&tokens[i]).Update("enabled", false).Error; err != nil {
+					return err
+				}
+				if err := audit.LogUpdate(tx, childRequest, "refreshtokens", tokens[i].ID, oldToken, newRefreshTokenAuditData(tokens[i])); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
+		map[string]any{"operation": "delete_user_and_revoke_sessions"},
 	)
 }
 

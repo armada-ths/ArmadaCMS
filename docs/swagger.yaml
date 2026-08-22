@@ -7,6 +7,37 @@ definitions:
       oldPassword:
         type: string
     type: object
+  controllers.eventroFairResponse:
+    properties:
+      endDate:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      startDate:
+        type: string
+      timelineEntries:
+        items:
+          $ref: '#/definitions/controllers.eventroTimelineEntry'
+        type: array
+    type: object
+  controllers.eventroFairsResponse:
+    properties:
+      fairInstances:
+        items:
+          $ref: '#/definitions/controllers.eventroFairResponse'
+        type: array
+    type: object
+  controllers.eventroTimelineEntry:
+    properties:
+      date:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+    type: object
   controllers.loginRequest:
     properties:
       password:
@@ -73,7 +104,11 @@ definitions:
         type: integer
       actor_username:
         type: string
+      child_count:
+        type: integer
       created_at:
+        type: string
+      group_status:
         type: string
       http_method:
         type: string
@@ -83,6 +118,8 @@ definitions:
         type: string
       old_data:
         type: string
+      parent_id:
+        type: integer
       request_path:
         type: string
       resource_id:
@@ -100,6 +137,8 @@ definitions:
         type: integer
       imageUrl:
         type: string
+      published:
+        type: boolean
       showCoverInPost:
         type: boolean
       text:
@@ -202,8 +241,6 @@ definitions:
     properties:
       events:
         properties:
-          end:
-            type: string
           start:
             type: string
         type: object
@@ -232,17 +269,12 @@ definitions:
           start:
             type: string
         type: object
-      ticket:
-        properties:
-          end:
-            type: string
-        type: object
     type: object
   models.FairDateConfig:
     properties:
       description:
         type: string
-      eventsEnd:
+      eventroId:
         type: string
       eventsStart:
         type: string
@@ -260,9 +292,6 @@ definitions:
       irEnd:
         type: string
       irStart:
-        type: string
-      ticketEnd:
-        description: Nullable
         type: string
     type: object
   models.FeatureFlag:
@@ -477,7 +506,7 @@ paths:
         name: sort
         type: string
       - description: 'Filter. Supported keys: action, resource_type, resource_id,
-          actor_username, http_method, q (full-text)'
+          actor_username, http_method, group_status, parent_id, include_auth, q (full-text)'
         in: query
         name: filter
         type: string
@@ -1031,6 +1060,12 @@ paths:
       - employments
   /eventroevents:
     get:
+      parameters:
+      - description: Eventro fair instance ID
+        in: query
+        name: fairId
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1040,6 +1075,10 @@ paths:
             items:
               $ref: '#/definitions/models.Event'
             type: array
+        "400":
+          description: fairId query parameter is required
+          schema:
+            type: string
         "500":
           description: Failed to fetch from Eventro
           schema:
@@ -1051,6 +1090,12 @@ paths:
       - eventro
   /eventroexhibitors:
     get:
+      parameters:
+      - description: Eventro fair instance ID
+        in: query
+        name: fairId
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1060,6 +1105,10 @@ paths:
             items:
               $ref: '#/definitions/models.Exhibitor'
             type: array
+        "400":
+          description: fairId query parameter is required
+          schema:
+            type: string
         "500":
           description: Failed to fetch from Eventro
           schema:
@@ -1067,6 +1116,60 @@ paths:
       security:
       - BearerAuth: []
       summary: Sync & list exhibitors from Eventro
+      tags:
+      - eventro
+  /eventrofairdates:
+    get:
+      parameters:
+      - description: Eventro fair instance ID
+        in: query
+        name: fairId
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Sync completed
+          schema:
+            type: string
+        "400":
+          description: fairId query parameter is required
+          schema:
+            type: string
+        "422":
+          description: Eventro timeline could not be mapped
+          schema:
+            type: string
+        "500":
+          description: Sync failed
+          schema:
+            type: string
+        "502":
+          description: Failed to fetch from Eventro
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Replace fair dates from Eventro
+      tags:
+      - eventro
+  /eventrofairs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.eventroFairsResponse'
+        "502":
+          description: Failed to fetch from Eventro
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List active Eventro fair instances
       tags:
       - eventro
   /eventromembers:

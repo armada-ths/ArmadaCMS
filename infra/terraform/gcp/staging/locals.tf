@@ -39,7 +39,6 @@ locals {
     DB_PASSWORD                     = "${var.name_prefix}-DB_PASSWORD"
     jwtsecret_laganda               = "${var.name_prefix}-jwtsecret_laganda"
     EVENTRO_API                     = "${var.name_prefix}-EVENTRO_API"
-    EVENTRO_FAIR_ID                 = "${var.name_prefix}-EVENTRO_FAIR_ID"
     EVENTRO_ORG                     = "${var.name_prefix}-EVENTRO_ORG"
     REVALIDATION_SECRET             = "${var.name_prefix}-REVALIDATION_SECRET"
     VERCEL_AUTOMATION_BYPASS_SECRET = "${var.name_prefix}-VERCEL_AUTOMATION_BYPASS_SECRET"

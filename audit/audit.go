@@ -3,8 +3,10 @@ package audit
 import (
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/models"
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,6 +17,8 @@ import (
 )
 
 const defaultRetentionDays = 7
+
+type parentIDContextKey struct{}
 
 var pruneState struct {
 	sync.Mutex
@@ -33,7 +37,62 @@ func LogDelete(tx *gorm.DB, r *http.Request, resourceType string, resourceID any
 	return insert(tx, r, "delete", resourceType, resourceID, oldData, nil)
 }
 
+func WithParent(r *http.Request, parentID uint) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), parentIDContextKey{}, parentID))
+}
+
+func StartGroup(tx *gorm.DB, r *http.Request, action string, resourceType string, resourceID any, newData any) (*models.AuditLog, error) {
+	return StartGroupWithData(tx, r, action, resourceType, resourceID, nil, newData)
+}
+
+func StartGroupWithData(tx *gorm.DB, r *http.Request, action string, resourceType string, resourceID any, oldData any, newData any) (*models.AuditLog, error) {
+	entry := buildEntry(tx, r, action, resourceType, resourceID, oldData, newData)
+	entry.ParentID = nil
+	entry.GroupStatus = "running"
+
+	if err := tx.Create(&entry).Error; err != nil {
+		return nil, err
+	}
+	if err := maybePrune(tx); err != nil {
+		return nil, err
+	}
+
+	return &entry, nil
+}
+
+func FinalizeGroup(tx *gorm.DB, groupID uint, status string, newData any) error {
+	var childCount int64
+	if err := tx.Model(&models.AuditLog{}).Where("parent_id = ?", groupID).Count(&childCount).Error; err != nil {
+		return err
+	}
+
+	result := tx.Model(&models.AuditLog{}).
+		Where("id = ? AND parent_id IS NULL", groupID).
+		Updates(map[string]any{
+			"group_status": status,
+			"child_count":  childCount,
+			"new_data":     marshalJSON(newData),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func insert(tx *gorm.DB, r *http.Request, action string, resourceType string, resourceID any, oldData any, newData any) error {
+	entry := buildEntry(tx, r, action, resourceType, resourceID, oldData, newData)
+
+	if err := tx.Create(&entry).Error; err != nil {
+		return err
+	}
+
+	return maybePrune(tx)
+}
+
+func buildEntry(tx *gorm.DB, r *http.Request, action string, resourceType string, resourceID any, oldData any, newData any) models.AuditLog {
 	entry := models.AuditLog{
 		Action:       action,
 		ResourceType: resourceType,
@@ -42,6 +101,10 @@ func insert(tx *gorm.DB, r *http.Request, action string, resourceType string, re
 		HTTPMethod:   r.Method,
 		OldData:      marshalJSON(oldData),
 		NewData:      marshalJSON(newData),
+	}
+
+	if parentID, ok := r.Context().Value(parentIDContextKey{}).(uint); ok {
+		entry.ParentID = &parentID
 	}
 
 	if actorUserID, ok := auth.GetUserIDFromContext(r); ok {
@@ -55,11 +118,7 @@ func insert(tx *gorm.DB, r *http.Request, action string, resourceType string, re
 		}
 	}
 
-	if err := tx.Create(&entry).Error; err != nil {
-		return err
-	}
-
-	return maybePrune(tx)
+	return entry
 }
 
 func maybePrune(tx *gorm.DB) error {
@@ -73,9 +132,11 @@ func maybePrune(tx *gorm.DB) error {
 	pruneState.Unlock()
 
 	cutoff := now.AddDate(0, 0, -getRetentionDays())
-	if err := tx.Where("created_at < ?", cutoff).Delete(&models.AuditLog{}).Error; err != nil {
-		return err
+	result := tx.Where("created_at < ?", cutoff).Delete(&models.AuditLog{})
+	if result.Error != nil {
+		return result.Error
 	}
+	log.Printf("audit retention prune completed: cutoff=%s rows_deleted=%d", cutoff.Format(time.RFC3339), result.RowsAffected)
 
 	pruneState.Lock()
 	pruneState.lastRun = now

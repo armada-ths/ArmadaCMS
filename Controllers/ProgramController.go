@@ -150,5 +150,14 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 // @Router /programs/{id} [delete]
 func DeleteProgram(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Program](w, r, "programs", id, "program not found", nil, nil, "programs")
+	writeGroupedDeleteResponseWithAudit(w, r, "programs", id, "program not found", nil, func(tx *gorm.DB, program *models.Program, childRequest *http.Request) error {
+		var exhibitors []models.Exhibitor
+		if err := tx.Joins("JOIN exhibitor_programs ON exhibitor_programs.exhibitor_id = exhibitors.id").
+			Where("exhibitor_programs.program_id = ?", program.ID).
+			Preload("Industries").Preload("Programs").Preload("Employments").
+			Find(&exhibitors).Error; err != nil {
+			return err
+		}
+		return removeExhibitorAssociationWithAudit(tx, childRequest, exhibitors, "Programs", program)
+	}, map[string]any{"operation": "delete_program_and_unlink_exhibitors"}, "programs", "exhibitors")
 }

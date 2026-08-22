@@ -42,7 +42,6 @@ lb_managed_certificate_domains = ["cms.example.com"]
 #   DB_PASSWORD           = "super-secret-password"
 #   jwtsecret_laganda     = "very-long-random-secret"
 #   EVENTRO_API           = "https://eventro.example/api"
-#   EVENTRO_FAIR_ID       = "123"
 #   EVENTRO_ORG           = "armada"
 #   AWS_ACCESS_KEY_ID     = "AKIA..."
 #   AWS_SECRET_ACCESS_KEY = "..."
