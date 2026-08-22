@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 )
 
@@ -28,8 +29,21 @@ func ParseListParams(q url.Values) (ListParams, error) {
 
 	// Parse filter
 	filterRaw := q.Get("filter")
-	if err := json.Unmarshal([]byte(filterRaw), &params.Filter); err != nil {
+	var filters map[string]any
+	if err := json.Unmarshal([]byte(filterRaw), &filters); err != nil {
 		params.Filter = map[string]string{}
+	} else {
+		params.Filter = make(map[string]string, len(filters))
+		for key, value := range filters {
+			switch typedValue := value.(type) {
+			case string:
+				params.Filter[key] = typedValue
+			case float64:
+				params.Filter[key] = fmt.Sprintf("%v", typedValue)
+			case bool:
+				params.Filter[key] = fmt.Sprintf("%t", typedValue)
+			}
+		}
 	}
 
 	return params, nil

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
@@ -156,7 +157,28 @@ func UpdateRole(w http.ResponseWriter, r *http.Request) {
 // @Router /roles/{id} [delete]
 func DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Role](w, r, "roles", id, "role not found", nil, nil)
+	writeGroupedDeleteResponseWithAudit(w, r, "roles", id, "role not found", nil, func(tx *gorm.DB, role *models.Role, childRequest *http.Request) error {
+		var users []models.User
+		if err := tx.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+			Where("user_roles.role_id = ?", role.ID).
+			Preload("Roles").
+			Find(&users).Error; err != nil {
+			return err
+		}
+		for i := range users {
+			before := users[i]
+			if err := tx.Model(&users[i]).Association("Roles").Delete(role); err != nil {
+				return err
+			}
+			if err := tx.Preload("Roles").First(&users[i], users[i].ID).Error; err != nil {
+				return err
+			}
+			if err := audit.LogUpdate(tx, childRequest, "customusers", users[i].ID, before, users[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, map[string]any{"operation": "delete_role_and_unassign_users"})
 }
 
 // SeedRoles creates the default roles if they don't exist yet.

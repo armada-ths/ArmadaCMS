@@ -67,6 +67,10 @@ func GetUserIDFromContext(r *http.Request) (int, bool) {
 	return uid, ok
 }
 
+func WithUserID(r *http.Request, userID int) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), userIDKey, userID))
+}
+
 func GetPermissionsFromContext(r *http.Request) []string {
 	perms, _ := r.Context().Value(permissionsKey).([]string)
 	return perms

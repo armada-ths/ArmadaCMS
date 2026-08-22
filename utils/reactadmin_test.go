@@ -28,6 +28,21 @@ func TestParseListParamsParsesValidValues(t *testing.T) {
 	}
 }
 
+func TestParseListParamsPreservesNumericFilters(t *testing.T) {
+	q := url.Values{}
+	q.Set("filter", `{"parent_id":42,"enabled":true}`)
+
+	params, err := ParseListParams(q)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := map[string]string{"parent_id": "42", "enabled": "true"}
+	if !reflect.DeepEqual(params.Filter, expected) {
+		t.Fatalf("unexpected Filter: %#v", params.Filter)
+	}
+}
+
 func TestParseListParamsAppliesDefaultsForMissingValues(t *testing.T) {
 	params, err := ParseListParams(url.Values{})
 	if err != nil {

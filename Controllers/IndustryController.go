@@ -150,5 +150,14 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 // @Router /industries/{id} [delete]
 func DeleteIndustry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Industry](w, r, "industries", id, "industry not found", nil, nil, "industries")
+	writeGroupedDeleteResponseWithAudit(w, r, "industries", id, "industry not found", nil, func(tx *gorm.DB, industry *models.Industry, childRequest *http.Request) error {
+		var exhibitors []models.Exhibitor
+		if err := tx.Joins("JOIN exhibitor_industries ON exhibitor_industries.exhibitor_id = exhibitors.id").
+			Where("exhibitor_industries.industry_id = ?", industry.ID).
+			Preload("Industries").Preload("Programs").Preload("Employments").
+			Find(&exhibitors).Error; err != nil {
+			return err
+		}
+		return removeExhibitorAssociationWithAudit(tx, childRequest, exhibitors, "Industries", industry)
+	}, map[string]any{"operation": "delete_industry_and_unlink_exhibitors"}, "industries", "exhibitors")
 }

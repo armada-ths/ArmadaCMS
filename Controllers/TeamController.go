@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
@@ -154,5 +155,38 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 // @Router /teams/{id} [delete]
 func DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Team](w, r, "teams", id, "team not found", nil, nil, "organization")
+	writeGroupedDeleteResponseWithAudit(w, r, "teams", id, "team not found", nil, func(tx *gorm.DB, team *models.Team, childRequest *http.Request) error {
+		var profiles []models.Profile
+		if err := tx.Where("team_id = ?", team.ID).Find(&profiles).Error; err != nil {
+			return err
+		}
+		for i := range profiles {
+			before := profiles[i]
+			if err := tx.Model(&profiles[i]).Update("team_id", nil).Error; err != nil {
+				return err
+			}
+			profiles[i].TeamID = nil
+			profiles[i].Team = nil
+			if err := audit.LogUpdate(tx, childRequest, "profiles", profiles[i].ID, before, profiles[i]); err != nil {
+				return err
+			}
+		}
+
+		var roles []models.RecruitmentRole
+		if err := tx.Where("team_id = ?", team.ID).Find(&roles).Error; err != nil {
+			return err
+		}
+		for i := range roles {
+			before := roles[i]
+			if err := tx.Model(&roles[i]).Update("team_id", nil).Error; err != nil {
+				return err
+			}
+			roles[i].TeamID = nil
+			roles[i].Team = nil
+			if err := audit.LogUpdate(tx, childRequest, "recruitmentroles", roles[i].ID, before, roles[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, map[string]any{"operation": "delete_team_and_unassign_dependents"}, "organization", "recruitment")
 }
