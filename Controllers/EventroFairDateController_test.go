@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -224,5 +225,75 @@ func TestMapEventroFairToFairDateRejectsInvalidRecognizedDate(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("mapEventroFairToFairDate() error = nil, want invalid date error")
+	}
+}
+
+func TestFairDateConfigsEqual(t *testing.T) {
+	t.Parallel()
+
+	eventroID := "armada-2026"
+	base := models.FairDateConfig{
+		EventroID:    &eventroID,
+		Description:  "Armada 2026",
+		FairDays:     "2026-11-17,2026-11-18",
+		IRStart:      "2026-03-30",
+		IREnd:        "2026-05-22",
+		IRAcceptance: "2026-06-22",
+		FRStart:      "2026-08-17",
+		FREnd:        "2026-10-02",
+		EventsStart:  "2026-10-05",
+	}
+
+	tests := []struct {
+		name  string
+		left  models.FairDateConfig
+		right models.FairDateConfig
+		want  bool
+	}{
+		{
+			name:  "equal",
+			left:  base,
+			right: base,
+			want:  true,
+		},
+		{
+			name: "different eventro id",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				value := "armada-2027"
+				other.EventroID = &value
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different fair days",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.FairDays = "2026-11-17"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different events start",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.EventsStart = "2026-10-06"
+				return other
+			}(),
+			want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := fairDateConfigsEqual(test.left, test.right); got != test.want {
+				t.Fatalf("fairDateConfigsEqual() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }

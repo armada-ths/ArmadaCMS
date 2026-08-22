@@ -31,7 +31,7 @@ const (
 	milestoneEventsStart  fairDateMilestone = "events start"
 )
 
-// FetchFairDatesEventro replaces all fair date configurations with the selected Eventro fair timeline.
+// FetchFairDatesEventro syncs fair date configurations from the selected Eventro fair timeline.
 // @Summary Replace fair dates from Eventro
 // @Tags eventro
 // @Produce plain
@@ -97,12 +97,13 @@ func FetchFairDatesEventro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf(
-		"✅ Fair date sync completed — inserted: %d, updated: %d, deleted: %d",
+		"✅ Fair date sync completed — inserted: %d, updated: %d, unchanged: %d, deleted: %d",
 		stats.inserted,
 		stats.updated,
+		stats.unchanged,
 		stats.deleted,
 	)
-	_, _ = fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", stats.inserted, stats.updated)
+	_, _ = fmt.Fprint(w, "Sync completed - replaced all fair dates")
 }
 
 type fairDateSyncStats struct {
