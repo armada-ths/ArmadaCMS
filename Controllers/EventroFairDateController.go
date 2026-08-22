@@ -103,7 +103,7 @@ func FetchFairDatesEventro(w http.ResponseWriter, r *http.Request) {
 		stats.unchanged,
 		stats.deleted,
 	)
-	_, _ = fmt.Fprint(w, "Sync completed - replaced all fair dates")
+	_, _ = fmt.Fprint(w, "Sync completed")
 }
 
 type fairDateSyncStats struct {
