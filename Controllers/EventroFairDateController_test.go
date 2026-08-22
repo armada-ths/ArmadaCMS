@@ -268,11 +268,71 @@ func TestFairDateConfigsEqual(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "different description",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.Description = "Armada 2027"
+				return other
+			}(),
+			want: false,
+		},
+		{
 			name: "different fair days",
 			left: base,
 			right: func() models.FairDateConfig {
 				other := base
 				other.FairDays = "2026-11-17"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different ir start",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.IRStart = "2026-03-31"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different ir end",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.IREnd = "2026-05-23"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different ir acceptance",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.IRAcceptance = "2026-06-23"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different fr start",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.FRStart = "2026-08-18"
+				return other
+			}(),
+			want: false,
+		},
+		{
+			name: "different fr end",
+			left: base,
+			right: func() models.FairDateConfig {
+				other := base
+				other.FREnd = "2026-10-03"
 				return other
 			}(),
 			want: false,
