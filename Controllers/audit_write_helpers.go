@@ -78,49 +78,6 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 	return err
 }
 
-func replaceAllWithAudit[T any](r *http.Request, resourceType string, replacement *T, prepare func(tx *gorm.DB) error, persist func(tx *gorm.DB) error, revalidateTags ...string) error {
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if prepare != nil {
-			if err := prepare(tx); err != nil {
-				return err
-			}
-		}
-		var existing []T
-		if err := tx.Find(&existing).Error; err != nil {
-			return err
-		}
-		if err := persist(tx); err != nil {
-			return err
-		}
-		group, err := audit.StartGroup(tx, r, "sync", resourceType, getResourceID(replacement), map[string]any{
-			"created": 1,
-			"deleted": len(existing),
-		})
-		if err != nil {
-			return err
-		}
-		childRequest := audit.WithParent(r, group.ID)
-		for i := range existing {
-			if err := audit.LogDelete(tx, childRequest, resourceType, getResourceID(existing[i]), existing[i]); err != nil {
-				return err
-			}
-		}
-		if err := audit.LogCreate(tx, childRequest, resourceType, getResourceID(replacement), replacement); err != nil {
-			return err
-		}
-		return audit.FinalizeGroup(tx, group.ID, "completed", map[string]any{
-			"created": 1,
-			"deleted": len(existing),
-		})
-	})
-	if err == nil {
-		for _, tag := range revalidateTags {
-			go utils.RevalidateTag(tag)
-		}
-	}
-	return err
-}
-
 func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, beforeDelete func(tx *gorm.DB, entity *T) error, revalidateTags ...string) {
 	var entity T
 	query := db.DB
