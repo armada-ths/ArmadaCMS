@@ -177,8 +177,9 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
         <DialogContent>
           {selectingFor?.path === "/eventrofairdates" && !loadingFairs && (
             <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
-              This will permanently delete all existing fair date entries and
-              replace them with the selected Eventro timeline.
+              This will sync the selected Eventro timeline into the matching
+              fair date entry and permanently delete any other fair date
+              entries.
             </Alert>
           )}
           {loadingFairs ? (
