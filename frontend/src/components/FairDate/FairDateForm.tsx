@@ -20,8 +20,6 @@ const joinFairDays = (values: string[]): string =>
     .filter(Boolean)
     .join(",");
 
-const parseOptionalDate = (value?: string | null) => value || null;
-
 const FairDaysInput = () => {
   const {
     field,
@@ -112,12 +110,6 @@ export const FairDateForm = () => (
     <FairDaysInput />
 
     <DateInput
-      source="ticketEnd"
-      label="Ticket End Date"
-      helperText="Leave empty if no ticket deadline"
-      parse={parseOptionalDate}
-    />
-    <DateInput
       source="irStart"
       label="IR Start"
       helperText="Initial Registration start date"
@@ -146,12 +138,6 @@ export const FairDateForm = () => (
       source="eventsStart"
       label="Events Start"
       helperText="Events week start date"
-    />
-    <DateInput
-      source="eventsEnd"
-      label="Events End"
-      helperText="Events end date (leave empty if N/A)"
-      parse={parseOptionalDate}
     />
   </SimpleForm>
 );

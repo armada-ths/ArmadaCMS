@@ -19,6 +19,7 @@ const ACTION_LABELS: Record<string, string> = {
   create: "created",
   update: "updated",
   delete: "deleted",
+  sync: "synced",
 };
 
 interface AuditEntry {

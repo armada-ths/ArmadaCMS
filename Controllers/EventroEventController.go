@@ -1,17 +1,21 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
 )
 
 // ---------- Eventro API Models ----------
@@ -42,16 +46,21 @@ type eventroEventResponse struct {
 // @Summary Sync & list events from Eventro
 // @Tags eventro
 // @Produce json
+// @Param fairId query string true "Eventro fair instance ID"
 // @Success 200 {array} models.Event
+// @Failure 400 {string} string "fairId query parameter is required"
 // @Failure 500 {string} string "Failed to fetch from Eventro"
 // @Security BearerAuth
 // @Router /eventroevents [get]
 func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Timeout: 30 * time.Second}
-	fairID := os.Getenv("EVENTRO_FAIR_ID")
-	url := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/events/", fairID)
+	fairID, ok := requireEventroFairID(w, r)
+	if !ok {
+		return
+	}
+	endpoint := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/events/", url.PathEscape(fairID))
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		http.Error(w, "failed to create request", http.StatusInternalServerError)
 		return
@@ -80,33 +89,102 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 
 	inserted := 0
 	updated := 0
+	unchanged := 0
+	failed := 0
+	group, err := startAuditGroup(r, "sync", "events", fairID, map[string]any{"source": "eventro", "status": "running"})
+	if err != nil {
+		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
+		return
+	}
+	childRequest := audit.WithParent(r, group.ID)
 
 	for _, e := range result.Events {
 		ev := mapEventroToEvent(e)
+		created := false
+		changed := false
+		err := db.DB.Transaction(func(tx *gorm.DB) error {
+			var existing models.Event
+			findErr := tx.Where("eventro_id = ?", ev.EventroID).First(&existing).Error
+			if findErr != nil && findErr != gorm.ErrRecordNotFound {
+				return findErr
+			}
+			if findErr == nil &&
+				existing.Name == ev.Name &&
+				stringPointersEqual(existing.Description, ev.Description) &&
+				existing.EventStart.Equal(ev.EventStart) &&
+				existing.EventEnd.Equal(ev.EventEnd) &&
+				timesEqual(existing.RegistrationEnd, ev.RegistrationEnd) &&
+				intPointersEqual(existing.EventMaxCapacity, ev.EventMaxCapacity) {
+				return nil
+			}
 
-		result := db.DB.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "eventro_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "description", "event_start", "event_end",
-				"registration_end", "event_max_capacity",
-			}),
-		}).Create(&ev)
-
-		if result.Error != nil {
-			log.Printf("❌ Failed upserting event %s (%s): %v", e.ID, e.Name, result.Error)
+			result := tx.Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "eventro_id"}},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"name", "description", "event_start", "event_end",
+					"registration_end", "event_max_capacity",
+				}),
+			}).Create(&ev)
+			if result.Error != nil {
+				return result.Error
+			}
+			if err := tx.Where("eventro_id = ?", ev.EventroID).First(&ev).Error; err != nil {
+				return err
+			}
+			changed = true
+			created = findErr == gorm.ErrRecordNotFound
+			if created {
+				return audit.LogCreate(tx, childRequest, "events", ev.ID, ev)
+			}
+			return audit.LogUpdate(tx, childRequest, "events", ev.ID, existing, ev)
+		})
+		if err != nil {
+			log.Printf("❌ Failed upserting event %s (%s): %v", e.ID, e.Name, err)
+			failed++
 			continue
 		}
-
-		if result.RowsAffected == 1 {
+		if !changed {
+			unchanged++
+		} else if created {
 			inserted++
 		} else {
 			updated++
 		}
 	}
 
+	status := auditGroupStatus(inserted+updated+unchanged, failed)
+	summary := map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "unchanged": unchanged, "failed": failed}
+	if err := finalizeAuditGroup(group.ID, status, summary); err != nil {
+		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
+		return
+	}
+	if inserted+updated > 0 {
+		go utils.RevalidateTag("events")
+	}
 	log.Printf("✅ Event sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", inserted, updated)
+}
+
+func timesEqual(left, right *time.Time) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.Equal(*right)
+}
+
+func intPointersEqual(left, right *int) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
+}
+
+func stringPointersEqual(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
 }
 
 // ---------- Mapper ----------
