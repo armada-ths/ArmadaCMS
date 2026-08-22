@@ -48,7 +48,6 @@ var adminClientRouteSegments = map[string]struct{}{
 	"recruitmentperiods": {},
 	"recruitmentroles":   {},
 	"auditlogs":          {},
-	"eventrosync":        {},
 	"highlightcards":     {},
 	"blogposts":          {},
 	"login":              {},

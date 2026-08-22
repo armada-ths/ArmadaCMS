@@ -6,6 +6,7 @@ import {
   SimpleForm,
   TextInput,
 } from "react-admin";
+import { MarkdownInput } from "../shared/MarkdownInput";
 
 export const RecruitmentRoleEdit = (props: EditProps) => (
   <Edit {...props}>
@@ -17,12 +18,10 @@ export const RecruitmentRoleEdit = (props: EditProps) => (
       <ReferenceInput source="recruitmentId" reference="recruitmentperiods">
         <SelectInput optionText="name" />
       </ReferenceInput>
-      <TextInput
+      <MarkdownInput
         source="description"
-        multiline
-        fullWidth
-        minRows={5}
-        helperText="Supports Markdown formatting"
+        label="Description (Markdown)"
+        enableImageFeatures={false}
       />
     </SimpleForm>
   </Edit>
