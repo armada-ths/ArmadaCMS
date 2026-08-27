@@ -91,7 +91,7 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	NormalizeOptionalStringPointers(&item.TicketEnd)
+	item.EventroID = nil
 
 	if err := createWithAudit(r, "fairdates", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
@@ -132,11 +132,11 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 	updateMap := BuildNormalizedSnakeCaseUpdateMap(
 		rawUpdates,
+		nil,
 		map[string]struct{}{
-			"ticketEnd": {},
-		},
-		map[string]struct{}{
-			"id": {},
+			"id":         {},
+			"eventroId":  {},
+			"eventro_id": {},
 		},
 	)
 

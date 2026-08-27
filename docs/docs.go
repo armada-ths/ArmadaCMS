@@ -47,7 +47,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, q (full-text)",
+                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, q (full-text)",
                         "name": "filter",
                         "in": "query"
                     }
@@ -921,6 +921,15 @@ const docTemplate = `{
                     "eventro"
                 ],
                 "summary": "Sync \u0026 list events from Eventro",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Eventro fair instance ID",
+                        "name": "fairId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -929,6 +938,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.Event"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "fairId query parameter is required",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "500": {
@@ -954,6 +969,15 @@ const docTemplate = `{
                     "eventro"
                 ],
                 "summary": "Sync \u0026 list exhibitors from Eventro",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Eventro fair instance ID",
+                        "name": "fairId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -964,7 +988,100 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "400": {
+                        "description": "fairId query parameter is required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
+                        "description": "Failed to fetch from Eventro",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/eventrofairdates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "Sync fair dates from Eventro",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Eventro fair instance ID",
+                        "name": "fairId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Sync completed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "fairId query parameter is required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "422": {
+                        "description": "Eventro timeline could not be mapped",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Sync failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to fetch from Eventro",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/eventrofairs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "List active Eventro fair instances",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.eventroFairsResponse"
+                        }
+                    },
+                    "502": {
                         "description": "Failed to fetch from Eventro",
                         "schema": {
                             "type": "string"
@@ -4353,6 +4470,54 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.eventroFairResponse": {
+            "type": "object",
+            "properties": {
+                "endDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "timelineEntries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.eventroTimelineEntry"
+                    }
+                }
+            }
+        },
+        "controllers.eventroFairsResponse": {
+            "type": "object",
+            "properties": {
+                "fairInstances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.eventroFairResponse"
+                    }
+                }
+            }
+        },
+        "controllers.eventroTimelineEntry": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.loginRequest": {
             "type": "object",
             "properties": {
@@ -4453,7 +4618,13 @@ const docTemplate = `{
                 "actor_username": {
                     "type": "string"
                 },
+                "child_count": {
+                    "type": "integer"
+                },
                 "created_at": {
+                    "type": "string"
+                },
+                "group_status": {
                     "type": "string"
                 },
                 "http_method": {
@@ -4467,6 +4638,9 @@ const docTemplate = `{
                 },
                 "old_data": {
                     "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
                 },
                 "request_path": {
                     "type": "string"
@@ -4493,6 +4667,9 @@ const docTemplate = `{
                 },
                 "imageUrl": {
                     "type": "string"
+                },
+                "published": {
+                    "type": "boolean"
                 },
                 "showCoverInPost": {
                     "type": "boolean"
@@ -4649,9 +4826,6 @@ const docTemplate = `{
                 "events": {
                     "type": "object",
                     "properties": {
-                        "end": {
-                            "type": "string"
-                        },
                         "start": {
                             "type": "string"
                         }
@@ -4695,14 +4869,6 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                },
-                "ticket": {
-                    "type": "object",
-                    "properties": {
-                        "end": {
-                            "type": "string"
-                        }
-                    }
                 }
             }
         },
@@ -4712,7 +4878,7 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "eventsEnd": {
+                "eventroId": {
                     "type": "string"
                 },
                 "eventsStart": {
@@ -4738,10 +4904,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "irStart": {
-                    "type": "string"
-                },
-                "ticketEnd": {
-                    "description": "Nullable",
                     "type": "string"
                 }
             }

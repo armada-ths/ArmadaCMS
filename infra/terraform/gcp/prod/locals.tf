@@ -37,7 +37,6 @@ locals {
     DB_PASSWORD           = "DB_PASSWORD"
     jwtsecret_laganda     = "jwtsecret_laganda"
     EVENTRO_API           = "EVENTRO_API"
-    EVENTRO_FAIR_ID       = "EVENTRO_FAIR_ID"
     EVENTRO_ORG           = "EVENTRO_ORG"
     REVALIDATION_SECRET   = "REVALIDATION_SECRET"
     AWS_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"

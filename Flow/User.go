@@ -7,25 +7,24 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"time"
 
 	"gorm.io/gorm"
 )
 
 var ErrInvalidCredentials = errors.New("wrong username or password")
 
-func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) {
+func VerifyLoginWithPassword(username, password string) (*models.Tokens, uint, error) {
 
 	var user models.User
 	if err := db.DB.Preload("Roles").Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidCredentials
+			return nil, 0, ErrInvalidCredentials
 		}
-		return nil, err
+		return nil, 0, err
 	}
 	if err := utils.CheckPasswordHash(password, user.Password); err != nil {
 		log.Println(err)
-		return nil, ErrInvalidCredentials
+		return nil, 0, ErrInvalidCredentials
 	}
 
 	// Collect role names and merge permissions from all assigned roles.
@@ -44,40 +43,16 @@ func VerifyLoginWithPassword(username, password string) (*models.Tokens, error) 
 
 	refreshToken, err := utils.GenerateRefreshToken()
 	if err != nil {
-		return nil, errors.New("not authenticated (2)")
-	}
-	if !insertRefreshToken(int(user.ID), refreshToken) {
-		return nil, errors.New("not authenticated (3)")
+		return nil, 0, errors.New("not authenticated (2)")
 	}
 
 	accessToken, err := utils.GenerateAccessToken(int(user.ID), roleNames, permissions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
+		return nil, 0, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	return &models.Tokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}, nil
-
-}
-func insertRefreshToken(userId int, refreshToken string) bool {
-	if userId == 0 {
-		return false
-	}
-
-	token := models.RefreshToken{
-		RefreshToken: refreshToken,
-		UserID:       uint(userId),
-		ValidFrom:    time.Now(),
-		ValidTo:      time.Now().Add(7 * 24 * time.Hour), // +7 days
-		Enabled:      true,
-	}
-
-	if err := db.DB.Create(&token).Error; err != nil {
-		log.Println("InsertRefreshToken error:", err)
-		return false
-	}
-
-	return true
+	}, user.ID, nil
 }

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
@@ -208,9 +209,19 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 // @Router /recruitmentperiods/{id} [delete]
 func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.RecruitmentPeriod](w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
+	writeGroupedDeleteResponseWithAudit(w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
 		return tx.Preload("Roles").Preload("Roles.Team")
-	}, nil, "recruitment")
+	}, func(tx *gorm.DB, period *models.RecruitmentPeriod, childRequest *http.Request) error {
+		for i := range period.Roles {
+			if err := tx.Delete(&period.Roles[i]).Error; err != nil {
+				return err
+			}
+			if err := audit.LogDelete(tx, childRequest, "recruitmentroles", period.Roles[i].ID, period.Roles[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, map[string]any{"operation": "delete_recruitment_period_and_roles"}, "recruitment")
 }
 
 func parseFlexibleDateTime(value *string) (*time.Time, error) {
