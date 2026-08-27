@@ -14,17 +14,18 @@ deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
-manage_runtime_service_account    = false
-cloud_run_service_account_email   = ""  # leave empty to use default compute SA
-cloud_build_service_account_email = ""  # leave empty to use default Cloud Build SA
-manage_cloud_build_triggers       = true
+manage_runtime_service_account     = true
+manage_cloud_build_service_account = true
+manage_secret_accessor_bindings    = true
+manage_cloud_build_triggers        = true
 
 cloud_run_cpu    = "1000m"
 cloud_run_memory = "1Gi"
 
-enable_vpc_egress   = true
-vpc_network_name    = "default"
-vpc_subnetwork_name = "default"
+enable_vpc_egress            = true
+manage_vpc_network_resources = true
+vpc_network_name             = "armadacms-serverless"
+vpc_subnetwork_name          = "armadacms-serverless-europe-north2"
 
 enable_https_load_balancer     = true
 lb_managed_certificate_domains = ["cms.example.com"]
