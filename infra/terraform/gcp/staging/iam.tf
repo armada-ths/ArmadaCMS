@@ -16,6 +16,17 @@ resource "google_service_account" "cloud_build" {
   description  = "Least-privilege identity for ArmadaCMS staging Cloud Build triggers."
 }
 
+# Production still depends on the legacy default service account until its own
+# service-account migration has been applied. Remove staging's former IAM
+# resource from this state without deleting the shared project-level bindings.
+removed {
+  from = google_project_iam_member.cloud_build_roles
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 # Cloud Logging is project-scoped. Artifact Registry and Cloud Run permissions
 # are granted directly on the shared repository and staging service below.
 resource "google_project_iam_member" "cloud_build_log_writer" {
