@@ -8,7 +8,7 @@ This Terraform root manages the **Google Cloud staging runtime stack** for `Arma
 - Secret Manager secrets and IAM bindings
 - Cloud Run service
 - Cloud Run custom domain mapping (`staging.cms.armada.nu`)
-- Optional serverless VPC egress with Cloud NAT and a static outbound IP
+- Optional serverless VPC egress with Cloud NAT and a static outbound IP (supported by the root but currently disabled)
 - Cloud Build triggers for the GitHub → Cloud Run deploy pipeline
 
 Staging shares the production Artifact Registry repository — Cloud Build pushes
@@ -20,12 +20,11 @@ TLS termination instead).
 
 - Cloud Run runs the Go API and bundled React-Admin frontend.
 - Cloud Build updates the Cloud Run image via `cloudbuild.yaml` on every push to `staging`.
-- PostgreSQL is provided by a **Supabase project** (not RDS). Connection details are plain
-  environment variables set in `staging.auto.tfvars`.
-- File storage uses Supabase Storage via its S3-compatible endpoint.
+- PostgreSQL is provided by the persistent staging branch of the production Supabase project. Connection details are read from `armadacms-supabase-prod` via `tfe_outputs`.
+- File storage uses the production project's shared Supabase Storage bucket via its S3-compatible endpoint.
 - `invoker_iam_disabled = true` enables public access without an IAM binding.
-- Runtime secrets always include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, `REVALIDATION_SECRET`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `SUPABASE_STORAGE_ACCESS_KEY_ID`, and `SUPABASE_STORAGE_SECRET_ACCESS_KEY`.
-- Plain env vars always include DB settings, `STORAGE_PROVIDER`, and Supabase Storage settings (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) — all read from the `armadacms-supabase-prod` workspace via `tfe_outputs`.
+- Runtime secrets include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, `REVALIDATION_SECRET`, and `VERCEL_AUTOMATION_BYPASS_SECRET`. The prefixed Secret Manager IDs `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID` and `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY` are injected as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+- Plain env vars include DB settings plus `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, and `S3_REGION`, all read from `armadacms-supabase-prod` unless an explicit DB override is set.
 - The Cloud Run container image is ignored by Terraform after the first deploy so
   Cloud Build can ship new revisions freely.
 - Cloud Run and Cloud Build use separate `armadacms-staging-runtime` and `armadacms-staging-deploy` service accounts. Runtime can read only staging secrets; the deployer can write images, update only the staging Cloud Run service, write build logs, read the shared GitHub App secret, and act as the staging runtime identity.
@@ -79,20 +78,14 @@ Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run
 2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
    - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
    - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
-3. Verify uploads work, then revoke the old key.
-
-To prepare the staging runtime for Supabase Storage:
-
-- Set `storage_provider = "supabase"` (already committed in `staging.auto.tfvars`).
-- Storage configuration (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) is automatically read from the `armadacms-supabase-prod` workspace via `tfe_outputs`. No tfvars values are needed here.
-- Add the secret values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
-  - `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID`
-  - `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
+3. Deploy a new Cloud Run revision, verify uploads, and then revoke the old key.
 
 ### Rotating the JWT secret
 
-Update `secret_values["jwtsecret_laganda"]` in the HCP Terraform workspace variables and
-apply. All active sessions will be invalidated immediately.
+Add a new version to `armadacms-staging-jwtsecret_laganda` directly in GCP Secret Manager,
+then deploy a new Cloud Run revision. Do not put the value in HCP Terraform variables or
+Terraform state. All existing sessions signed with the old value will become invalid once
+the new revision serves traffic.
 
 Ensure that `jwtsecret_laganda` in staging Secret Manager is a **different value from
 production** so a leaked staging token cannot authenticate against the production API.

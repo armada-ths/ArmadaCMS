@@ -27,9 +27,8 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
   substitutions = {
     _TRIGGER_ID    = local.cloud_build_staging_trigger_id
     _DEPLOY_REGION = var.region
-    # Images are pushed to the shared production Artifact Registry repo so that
-    # the production trigger can detect a pre-built SHA and skip rebuilding when
-    # a commit is promoted from the staging branch to main.
+    # Staging images are pushed to the Artifact Registry repository managed by
+    # the production Terraform root; staging does not own a separate repository.
     _AR_HOSTNAME        = var.prod_artifact_registry_host
     _AR_REPOSITORY      = var.prod_artifact_registry_repository_id
     _AR_PROJECT_ID      = var.project_id
@@ -41,8 +40,8 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
 }
 
 # PR image build trigger — fires on PRs targeting staging.
-# Builds and pushes a "pr-<N>" image to the shared production Artifact Registry
-# so the staging deploy trigger can reuse it instead of rebuilding on merge.
+# Builds and pushes a "pr-<N>" preview image to the shared Artifact Registry
+# without deploying it.
 
 resource "google_cloudbuild_trigger" "staging_pr_build" {
   count = var.manage_cloud_build_triggers ? 1 : 0

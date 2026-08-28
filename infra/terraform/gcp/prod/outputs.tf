@@ -44,7 +44,7 @@ output "vpc_connector_id" {
 }
 
 output "static_egress_ip" {
-  description = "Reserved static egress IP to allow-list on AWS RDS when enable_vpc_egress is true."
+  description = "Reserved static egress IP consumed by the Supabase network allowlist when enable_vpc_egress is true."
   value       = var.enable_vpc_egress ? google_compute_address.nat[0].address : null
 }
 

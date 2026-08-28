@@ -11,19 +11,21 @@ Use this document only if you want to run or validate the frontend directly from
 ## Install dependencies
 
 ```sh
-npm install
+pnpm install --frozen-lockfile
 ```
 
 ## Run locally
 
 ```sh
-npm run dev
+pnpm run dev
 ```
 
 ## Validate changes
 
 ```sh
-npm run build
-npm run type-check
-npm run lint:check
+pnpm run build
+pnpm run lint:check
+pnpm run type-check
+pnpm run format:check
+pnpm run test
 ```

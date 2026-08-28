@@ -23,7 +23,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ### Backend
 
-- **Language**: Go 1.24
+- **Language**: Go 1.26
 - **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
 - **ORM**: [GORM](https://gorm.io/) (Postgres)
 - **Auth**: JWT (Bearer tokens)
@@ -39,14 +39,14 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 ### Infrastructure
 
 - **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
-- **Ingress**: HTTPS load balancing in front of Cloud Run
-- **Database**: Supabase (PostgreSQL)
+- **Ingress**: External HTTPS load balancing in production; Cloud Run domain mapping in staging
+- **Database**: Supabase PostgreSQL (production project with a persistent staging branch)
 - **File storage**: Supabase Storage (local dev: MinIO)
 
 ## Prerequisites
 
 - [Docker](https://www.docker.com/) and Docker Compose _(required for local development)_
-- [Go 1.24+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
+- [Go 1.26+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
 - [Node.js 24+](https://nodejs.org/) and pnpm _(optional, for running frontend tooling directly)_
 
 ## Getting Started
@@ -270,7 +270,7 @@ Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbui
 - Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
 - Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
 - PR builds build and push a preview-tagged image without deploying.
-- For merged changes, the pipeline reuses the already-built PR image instead of rebuilding from scratch.
+- For main-branch merges, the pipeline reuses an already-built PR image when the matching tag exists; otherwise it builds the commit normally.
 - The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
 
 The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers, while `cloudbuild.yaml` remains the source of truth for the build, image-promotion, and deployment steps the triggers execute.

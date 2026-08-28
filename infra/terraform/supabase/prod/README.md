@@ -1,8 +1,8 @@
 # ArmadaCMS Terraform — Supabase production
 
-This Terraform root manages the **hosted Supabase production project** for `ArmadaCMS`.
-It is designed to **import the already-created production project** and then manage a
-small, explicit subset of platform settings in Git.
+This Terraform root tracks the **hosted Supabase production project** for `ArmadaCMS`.
+It imports the already-created project record and exports connection metadata for the
+GCP workspaces. It does not currently manage platform settings.
 
 Today this root imports and manages:
 
@@ -27,7 +27,7 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
 
 ## Architecture notes
 
-- This root is the Supabase equivalent of the old production database infrastructure root.
+- This root imports the hosted production project and exposes connection metadata to the GCP workspaces.
 - `prevent_destroy = true` is enabled on the imported production project resource.
 - ArmadaCMS connects to Postgres via its Go API using direct DB/pooler connections. It does
   not use Supabase Auth, PostgREST, Realtime, or Edge Functions.
@@ -36,9 +36,13 @@ keys, or hosted secrets. Those can be added later in small, reviewable steps.
   it in the dashboard first).
 - The root exports pooler and staging DB connection details consumed by the GCP workspaces.
 - Supabase Storage configuration (`supabase_url`, `supabase_storage_s3_endpoint`, `supabase_storage_bucket`, `supabase_storage_region`) is also exported here so GCP workspaces read them via `tfe_outputs` — keeping all Supabase project metadata in one place.
-- Staging is a separate Supabase project. Its DB host, user, and name are stored as
-  variables here and exported so `gcp/staging` can read them via `tfe_outputs` without
-  hardcoding.
+- Staging is a persistent branch of the production Supabase project. Its DB host, user,
+  and name are stored as variables here and exported so `gcp/staging` can read them via
+  `tfe_outputs` without hardcoding. This root exports the connection metadata but does not
+  manage the branch lifecycle.
+- Supabase network restrictions are not managed by this root. The production Cloud NAT
+  address is exported as `static_egress_ip` by `armadacms-gcp-prod` and must be allowlisted
+  in the Supabase dashboard or another separately managed workflow.
 
 ## Workspace dependencies
 

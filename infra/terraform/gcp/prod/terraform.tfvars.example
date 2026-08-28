@@ -8,8 +8,6 @@
 project_id = "your-gcp-project-id"
 region     = "europe-north2"
 
-storage_provider = "s3"
-
 deploy_cloud_run_service = true
 deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
@@ -30,32 +28,11 @@ vpc_subnetwork_name          = "armadacms-serverless-europe-north2"
 enable_https_load_balancer     = true
 lb_managed_certificate_domains = ["cms.example.com"]
 
-# Optional: let Terraform create secret versions.
-# Values are stored in Terraform state — use an encrypted remote backend.
+# Terraform creates Secret Manager resources but secret values are added
+# directly in GCP Secret Manager. Do not set github_app_private_key or
+# secret_values in tfvars/HCP because their contents would enter Terraform state.
+# Storage endpoint and bucket values come from armadacms-supabase-prod outputs.
 #
-# github_app_private_key = <<-EOT
-# -----BEGIN RSA PRIVATE KEY-----
-# ...
-# -----END RSA PRIVATE KEY-----
-# EOT
-#
-# secret_values = {
-#   DB_PASSWORD           = "super-secret-password"
-#   jwtsecret_laganda     = "very-long-random-secret"
-#   EVENTRO_API           = "https://eventro.example/api"
-#   EVENTRO_ORG           = "armada"
-#   AWS_ACCESS_KEY_ID     = "AKIA..."
-#   AWS_SECRET_ACCESS_KEY = "..."
-# }
-
-# To switch Cloud Run to Supabase Storage while keeping the DB untouched:
-# storage_provider              = "supabase"
-# supabase_url                  = "https://rsdjnixgxqauonaofrwr.supabase.co"
-# supabase_storage_s3_endpoint  = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
-# supabase_storage_bucket       = "armadacms-files"
-# supabase_storage_region       = "eu-north-1"
-#
-# Then add the storage credentials directly in GCP Secret Manager
-# (NOT via secret_values — that would put them in Terraform state):
-#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_ACCESS_KEY_ID --data-file=-
-#   gcloud secrets versions add armadacms-SUPABASE_STORAGE_SECRET_ACCESS_KEY --data-file=-
+# Example storage credential rotation:
+#   gcloud secrets versions add SUPABASE_STORAGE_ACCESS_KEY_ID --data-file=-
+#   gcloud secrets versions add SUPABASE_STORAGE_SECRET_ACCESS_KEY --data-file=-

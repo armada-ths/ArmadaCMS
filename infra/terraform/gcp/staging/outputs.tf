@@ -39,7 +39,7 @@ output "cloud_run_service_url" {
 }
 
 output "static_egress_ip" {
-  description = "Reserved static egress IP to allow-list on the AWS staging S3 IAM policy."
+  description = "Reserved static egress IP when optional staging VPC egress is enabled."
   value       = var.enable_vpc_egress ? google_compute_address.nat[0].address : null
 }
 
