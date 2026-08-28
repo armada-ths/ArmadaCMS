@@ -69,10 +69,11 @@ locals {
     REVALIDATION_URL              = var.revalidation_url
   }
 
-  cloud_build_service_account_email     = trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
+  cloud_build_service_account_email     = var.manage_cloud_build_service_account ? google_service_account.cloud_build[0].email : (trimspace(var.cloud_build_service_account_email) != "" ? var.cloud_build_service_account_email : "${data.google_project.current.number}@cloudbuild.gserviceaccount.com")
   default_compute_service_account_email = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
 
-  runtime_service_account_id = substr(lower(replace("${var.name_prefix}-runtime", "_", "-")), 0, 30)
+  runtime_service_account_id     = substr(lower(replace("${var.name_prefix}-runtime", "_", "-")), 0, 30)
+  cloud_build_service_account_id = substr(lower(replace("${var.name_prefix}-deploy", "_", "-")), 0, 30)
 
   artifact_registry_host = "${var.region}-docker.pkg.dev"
   container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${local.artifact_registry_host}/${var.project_id}/${var.artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"

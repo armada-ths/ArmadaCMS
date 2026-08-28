@@ -28,6 +28,7 @@ TLS termination instead).
 - Plain env vars always include DB settings, `STORAGE_PROVIDER`, and Supabase Storage settings (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) — all read from the `armadacms-supabase-prod` workspace via `tfe_outputs`.
 - The Cloud Run container image is ignored by Terraform after the first deploy so
   Cloud Build can ship new revisions freely.
+- Cloud Run and Cloud Build use separate `armadacms-staging-runtime` and `armadacms-staging-deploy` service accounts. Runtime can read only staging secrets; the deployer can write images, update only the staging Cloud Run service, write build logs, read the shared GitHub App secret, and act as the staging runtime identity.
 
 ## Files
 
