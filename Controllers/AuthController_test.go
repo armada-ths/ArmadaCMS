@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -30,5 +31,17 @@ func TestRefreshTokenAuditDataExcludesTokenSecret(t *testing.T) {
 	}
 	if !strings.Contains(payload, `"user_id":12`) || !strings.Contains(payload, `"enabled":true`) {
 		t.Fatalf("audit payload is missing expected metadata: %s", payload)
+	}
+}
+
+func TestTokenResponseHeadersPreventCaching(t *testing.T) {
+	response := httptest.NewRecorder()
+	setTokenResponseHeaders(response)
+
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+	if got := response.Header().Get("Pragma"); got != "no-cache" {
+		t.Fatalf("Pragma = %q", got)
 	}
 }

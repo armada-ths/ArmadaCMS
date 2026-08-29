@@ -29,8 +29,9 @@ export const refreshTokens = async (): Promise<Tokens | null> => {
   const refreshToken = localStorage.getItem("refreshToken");
   if (!refreshToken) return null;
   try {
-    const response = await axios.get<Tokens>(
+    const response = await axios.post<Tokens>(
       `${globalApi()}/refreshAccessToken`,
+      undefined,
       { headers: { "X-RefreshAuthorization": `Bearer ${refreshToken}` } },
     );
     return response.data;

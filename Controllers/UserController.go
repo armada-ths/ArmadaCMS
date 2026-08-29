@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
@@ -184,7 +183,8 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newPassword := user.Password
-	if len(userUpdateBody.Password) > 0 {
+	passwordChanged := len(userUpdateBody.Password) > 0
+	if passwordChanged {
 		newPassword = utils.HashPassword(userUpdateBody.Password)
 	}
 
@@ -200,6 +200,11 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if err := updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
 		if err := tx.Model(&user).Updates(updateMap).Error; err != nil {
 			return err
+		}
+		if passwordChanged {
+			if err := revokeUserRefreshTokensWithAudit(tx, r, user.ID); err != nil {
+				return err
+			}
 		}
 		var roles []models.Role
 		if len(roleIDs) > 0 {
@@ -233,20 +238,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	writeGroupedDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
 		func(tx *gorm.DB) *gorm.DB { return tx.Preload("Roles") },
 		func(tx *gorm.DB, user *models.User, childRequest *http.Request) error {
-			var tokens []models.RefreshToken
-			if err := tx.Where("user_id = ? AND enabled = ?", user.ID, true).Find(&tokens).Error; err != nil {
-				return err
-			}
-			for i := range tokens {
-				oldToken := newRefreshTokenAuditData(tokens[i])
-				if err := tx.Model(&tokens[i]).Update("enabled", false).Error; err != nil {
-					return err
-				}
-				if err := audit.LogUpdate(tx, childRequest, "refreshtokens", tokens[i].ID, oldToken, newRefreshTokenAuditData(tokens[i])); err != nil {
-					return err
-				}
-			}
-			return nil
+			return revokeUserRefreshTokensWithAudit(tx, childRequest, user.ID)
 		},
 		map[string]any{"operation": "delete_user_and_revoke_sessions"},
 	)
@@ -353,7 +345,10 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 	before := user
 	newHash := utils.HashPassword(body.NewPassword)
 	if err := updateWithAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB) error {
-		return tx.Model(&user).Update("password", newHash).Error
+		if err := tx.Model(&user).Update("password", newHash).Error; err != nil {
+			return err
+		}
+		return revokeUserRefreshTokensWithAudit(tx, r, user.ID)
 	}, func(tx *gorm.DB) error {
 		return tx.First(&user, userID).Error
 	}); err != nil {
