@@ -3961,7 +3961,7 @@ const docTemplate = `{
             }
         },
         "/refreshAccessToken": {
-            "get": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],

@@ -207,6 +207,10 @@ All endpoints are under `/api/v1`. Routes are split into:
 - **Public** (no auth): `GET` endpoints for resources like exhibitors, events, profiles, teams, dates.
 - **Protected** (Bearer JWT): `POST`, `PUT`, `DELETE` and admin-only `GET` endpoints.
 
+Browser cross-origin access is restricted to `armada.nu`, common local development
+origins, and any exact origins listed in the optional comma-separated
+`CORS_ALLOWED_ORIGINS` environment variable.
+
 ### Example endpoints
 
 | Method   | Endpoint                  | Auth     | Description         |

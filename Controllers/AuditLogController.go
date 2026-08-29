@@ -47,7 +47,11 @@ func GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	if !hasParentFilter {
 		query = query.Where("parent_id IS NULL")
 		if params.Filter["include_auth"] != "true" {
-			query = query.Where("request_path NOT IN ?", []string{"/api/v1/login", "/api/v1/refreshAccessToken"})
+			query = query.Where("request_path NOT IN ?", []string{
+				"/api/v1/login",
+				"/api/v1/refreshAccessToken",
+				"/api/v1/me/password",
+			})
 		}
 	}
 

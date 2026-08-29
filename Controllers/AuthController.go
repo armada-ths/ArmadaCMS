@@ -25,6 +25,11 @@ type refreshTokenAuditData struct {
 	Enabled   bool      `json:"enabled"`
 }
 
+type refreshTokenRevocationAuditData struct {
+	ActiveCount  int64 `json:"active_count"`
+	RevokedCount int64 `json:"revoked_count"`
+}
+
 func newRefreshTokenAuditData(token models.RefreshToken) refreshTokenAuditData {
 	return refreshTokenAuditData{
 		ID:        token.ID,
@@ -65,7 +70,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	username := data.Username
 	password := data.Password
-	w.Header().Set("Content-Type", "application/json")
+	setTokenResponseHeaders(w)
 
 	response, userID, err := Flow.VerifyLoginWithPassword(username, password)
 	if err != nil {
@@ -81,7 +86,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	refreshToken := models.RefreshToken{
-		RefreshToken: response.RefreshToken,
+		RefreshToken: utils.HashRefreshToken(response.RefreshToken),
 		UserID:       userID,
 		ValidFrom:    now,
 		ValidTo:      now.Add(7 * 24 * time.Hour),
@@ -110,8 +115,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.Tokens
 // @Failure 401 {string} string "Invalid or expired refresh token"
 // @Failure 500 {string} string "Token refresh failed"
-// @Router /refreshAccessToken [get]
+// @Router /refreshAccessToken [post]
 func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	setTokenResponseHeaders(w)
 	header := r.Header.Get("X-RefreshAuthorization")
 	if header == "" {
 		http.Error(w, "missing X-RefreshAuthorization header", http.StatusUnauthorized)
@@ -127,7 +133,7 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 
 	var rt models.RefreshToken
 	if err := db.DB.Preload("User.Roles").Where(
-		"refresh_token = ? AND enabled = true AND valid_to > ?", tokenStr, time.Now(),
+		"refresh_token = ? AND enabled = true AND valid_to > ?", utils.HashRefreshToken(tokenStr), time.Now(),
 	).First(&rt).Error; err != nil {
 		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
 		return
@@ -154,7 +160,7 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newRT := models.RefreshToken{
-		RefreshToken: newRefreshTokenStr,
+		RefreshToken: utils.HashRefreshToken(newRefreshTokenStr),
 		UserID:       rt.UserID,
 		ValidFrom:    time.Now(),
 		ValidTo:      time.Now().Add(7 * 24 * time.Hour),
@@ -201,9 +207,35 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.Tokens{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshTokenStr,
 	})
+}
+
+func setTokenResponseHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+}
+
+func revokeUserRefreshTokensWithAudit(tx *gorm.DB, r *http.Request, userID uint) error {
+	result := tx.Model(&models.RefreshToken{}).
+		Where("user_id = ? AND enabled = true", userID).
+		Update("enabled", false)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil
+	}
+
+	return audit.LogUpdate(
+		tx,
+		r,
+		"sessions",
+		userID,
+		refreshTokenRevocationAuditData{ActiveCount: result.RowsAffected},
+		refreshTokenRevocationAuditData{RevokedCount: result.RowsAffected},
+	)
 }
