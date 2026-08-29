@@ -125,7 +125,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	log.Println(userBody.Password)
 	var user = models.User{
 		Username: userBody.Username,
 		Password: userBody.Password,
@@ -152,8 +151,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	log.Println(user.Password)
-
 	writeCreatedJSONResponse(w, user)
 }
 

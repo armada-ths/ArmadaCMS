@@ -39,9 +39,8 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
   depends_on = [google_project_service.enabled]
 }
 
-# PR image build trigger — fires on PRs targeting staging.
-# Builds and pushes a "pr-<N>" preview image to the shared Artifact Registry
-# without deploying it.
+# Untrusted PR validation trigger — fires on PRs targeting staging. It uses a
+# secret-free build config and an identity that cannot publish or deploy.
 
 resource "google_cloudbuild_trigger" "staging_pr_build" {
   count = var.manage_cloud_build_triggers ? 1 : 0
@@ -50,8 +49,8 @@ resource "google_cloudbuild_trigger" "staging_pr_build" {
   location           = "global"
   name               = local.cloud_build_staging_pr_trigger_name
   description        = local.cloud_build_staging_pr_trigger_description
-  filename           = "cloudbuild.yaml"
-  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_service_account_email}"
+  filename           = "cloudbuild-pr.yaml"
+  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_pr_service_account_email}"
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
 
   github {
@@ -59,15 +58,13 @@ resource "google_cloudbuild_trigger" "staging_pr_build" {
     name  = "ArmadaCMS"
 
     pull_request {
-      branch = "^staging$"
+      branch          = "^staging$"
+      comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
     }
   }
 
   substitutions = {
-    _TRIGGER_ID    = local.cloud_build_staging_pr_trigger_id
-    _AR_HOSTNAME   = var.prod_artifact_registry_host
-    _AR_REPOSITORY = var.prod_artifact_registry_repository_id
-    _AR_PROJECT_ID = var.project_id
+    _SERVICE_NAME = var.service_name
   }
 
   depends_on = [google_project_service.enabled]
