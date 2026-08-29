@@ -269,11 +269,11 @@ Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbui
 
 - Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
 - Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- PR builds build and push a preview-tagged image without deploying.
-- For main-branch merges, the pipeline reuses an already-built PR image when the matching tag exists; otherwise it builds the commit normally.
+- PR builds use the secret-free `cloudbuild-pr.yaml` configuration with a dedicated unprivileged service account. They validate the container build without publishing or deploying an image; external contributors require an owner or collaborator to comment `/gcbrun` first.
+- Trusted branch builds always build the commit SHA, publish that image, and deploy it.
 - The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
 
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers, while `cloudbuild.yaml` remains the source of truth for the build, image-promotion, and deployment steps the triggers execute.
+The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers; `cloudbuild.yaml` defines the trusted branch build/deploy flow and `cloudbuild-pr.yaml` defines unprivileged PR validation.
 
 ## Operations notes
 
