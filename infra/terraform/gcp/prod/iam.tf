@@ -16,6 +16,18 @@ resource "google_service_account" "cloud_build" {
   description  = "Least-privilege identity for ArmadaCMS production Cloud Build triggers."
 }
 
+# Pull request builds execute contributor-controlled code. Keep this identity
+# separate from the deployer so PRs cannot read secrets, deploy Cloud Run, or
+# impersonate the runtime service account.
+resource "google_service_account" "cloud_build_pr" {
+  count = var.manage_cloud_build_triggers ? 1 : 0
+
+  project      = var.project_id
+  account_id   = local.cloud_build_pr_service_account_id
+  display_name = "ArmadaCMS pull request builder"
+  description  = "Unprivileged builder for contributor pull requests."
+}
+
 # Cloud Logging is project-scoped. Artifact Registry and Cloud Run permissions
 # are granted directly on the repository and service below.
 resource "google_project_iam_member" "cloud_build_log_writer" {
@@ -24,6 +36,16 @@ resource "google_project_iam_member" "cloud_build_log_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${local.cloud_build_service_account_email}"
+
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_project_iam_member" "cloud_build_pr_log_writer" {
+  count = var.manage_cloud_build_triggers ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${local.cloud_build_pr_service_account_email}"
 
   depends_on = [google_project_service.enabled]
 }

@@ -1,0 +1,22 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: Build
+    args:
+      - build
+      - --no-cache
+      - -t
+      - local/${_SERVICE_NAME}:pr-${_PR_NUMBER}
+      - .
+      - -f
+      - Dockerfile.prod
+
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _SERVICE_NAME: armadacms
+
+tags:
+  - gcp-cloud-build-pr
+  - armadacms

@@ -40,7 +40,7 @@ variable "prod_artifact_registry_host" {
 }
 
 variable "prod_artifact_registry_repository_id" {
-  description = "Repository ID of the shared production Artifact Registry that both staging and prod Cloud Build triggers push images to."
+  description = "Repository ID of the shared production Artifact Registry that trusted staging and production deploy builds push images to."
   type        = string
   default     = "cloud-run-source-deploy"
 }
