@@ -197,12 +197,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	roleIDs := userUpdateBody.RoleIDs
 
 	before := user
-	if err := updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
+	mutateUser := func(tx *gorm.DB, auditRequest *http.Request) error {
 		if err := tx.Model(&user).Updates(updateMap).Error; err != nil {
 			return err
 		}
 		if passwordChanged {
-			if err := revokeUserRefreshTokensWithAudit(tx, r, user.ID); err != nil {
+			if err := revokeUserRefreshTokensWithAudit(tx, auditRequest, user.ID); err != nil {
 				return err
 			}
 		}
@@ -213,9 +213,20 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		return tx.Model(&user).Association("Roles").Replace(roles)
-	}, func(tx *gorm.DB) error {
+	}
+	reloadUser := func(tx *gorm.DB) error {
 		return tx.Preload("Roles").First(&user, id).Error
-	}); err != nil {
+	}
+
+	var err error
+	if passwordChanged {
+		err = updateWithGroupedAudit(r, "customusers", id, before, &user, mutateUser, reloadUser)
+	} else {
+		err = updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
+			return mutateUser(tx, r)
+		}, reloadUser)
+	}
+	if err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -344,11 +355,11 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 
 	before := user
 	newHash := utils.HashPassword(body.NewPassword)
-	if err := updateWithAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB) error {
+	if err := updateWithGroupedAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB, childRequest *http.Request) error {
 		if err := tx.Model(&user).Update("password", newHash).Error; err != nil {
 			return err
 		}
-		return revokeUserRefreshTokensWithAudit(tx, r, user.ID)
+		return revokeUserRefreshTokensWithAudit(tx, childRequest, user.ID)
 	}, func(tx *gorm.DB) error {
 		return tx.First(&user, userID).Error
 	}); err != nil {

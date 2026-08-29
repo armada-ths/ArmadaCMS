@@ -78,6 +78,34 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 	return err
 }
 
+// updateWithGroupedAudit records one parent update while retaining detailed
+// child audit entries for related mutations. The audit log list hides child
+// entries by default and exposes them through the parent's Related count.
+func updateWithGroupedAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB, childRequest *http.Request) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		group, err := audit.StartGroupWithData(tx, r, "update", resourceType, resourceID, before, after)
+		if err != nil {
+			return err
+		}
+
+		if err := mutate(tx, audit.WithParent(r, group.ID)); err != nil {
+			return err
+		}
+		if reload != nil {
+			if err := reload(tx); err != nil {
+				return err
+			}
+		}
+		return audit.FinalizeGroup(tx, group.ID, "completed", after)
+	})
+	if err == nil {
+		for _, tag := range revalidateTags {
+			go utils.RevalidateTag(tag)
+		}
+	}
+	return err
+}
+
 func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, beforeDelete func(tx *gorm.DB, entity *T) error, revalidateTags ...string) {
 	var entity T
 	query := db.DB
