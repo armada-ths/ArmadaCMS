@@ -64,81 +64,13 @@ steps:
         PY
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    id: Determine Image Strategy
+    id: Determine Image URI
     entrypoint: bash
     args:
       - -ceu
       - |
         IMAGE_REPOSITORY="${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${REPO_NAME}/${_SERVICE_NAME}"
-        echo "$${IMAGE_REPOSITORY}" > /workspace/image_repository
-
-        if [[ -n "${_PR_NUMBER}" ]]; then
-          IMAGE_TAG="pr-${_PR_NUMBER}"
-          echo "$${IMAGE_TAG}" > /workspace/image_tag
-          echo "$${IMAGE_REPOSITORY}:$${IMAGE_TAG}" > /workspace/image_uri
-          echo "false" > /workspace/deploy_enabled
-
-          echo "true" > /workspace/build_required
-          echo "PR build detected; will build and push image tag $${IMAGE_TAG}."
-          exit 0
-        fi
-
-        echo "true" > /workspace/deploy_enabled
-        BUILD_REQUIRED="true"
-        IMAGE_TAG="${COMMIT_SHA}"
-
-        if [[ -f /workspace/github_installation_token ]]; then
-          GITHUB_TOKEN="$$(cat /workspace/github_installation_token)"
-          RESPONSE_FILE="/workspace/github_commit_pulls_response.json"
-          HTTP_CODE="$$(
-            {
-              curl -sS -o "$${RESPONSE_FILE}" -w "%{http_code}" -L \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $${GITHUB_TOKEN}" \
-                -H "X-GitHub-Api-Version: 2026-03-10" \
-                "https://api.github.com/repos/${_GITHUB_OWNER}/${_GITHUB_REPO}/commits/${COMMIT_SHA}/pulls"
-            } || true
-          )"
-
-          if [[ "$${HTTP_CODE}" =~ ^2 ]]; then
-            ASSOCIATED_PR_NUMBER="$$(python3 -c "import json; pulls=json.load(open(r'$${RESPONSE_FILE}', encoding='utf-8')); merged=[str(pr.get('number')) for pr in pulls if pr.get('merged_at')]; print(merged[0] if merged else '')")"
-
-            if [[ -n "$${ASSOCIATED_PR_NUMBER}" ]]; then
-              CANDIDATE_TAG="pr-$${ASSOCIATED_PR_NUMBER}"
-              echo "Checking Artifact Registry for prebuilt tag $${CANDIDATE_TAG}."
-              if gcloud artifacts docker tags list "$${IMAGE_REPOSITORY}" --format='value(tag)' | grep -Fxq "$${CANDIDATE_TAG}"; then
-                IMAGE_TAG="$${CANDIDATE_TAG}"
-                BUILD_REQUIRED="false"
-                echo "Found prebuilt PR image for PR #$${ASSOCIATED_PR_NUMBER}; deploy will reuse tag $${IMAGE_TAG}."
-              else
-                echo "No prebuilt PR image found for PR #$${ASSOCIATED_PR_NUMBER}; will build on main as fallback."
-              fi
-            else
-              echo "No merged PR associated with commit ${COMMIT_SHA}; will build on main as fallback."
-            fi
-          else
-            echo "Failed to look up merged PR for commit ${COMMIT_SHA} (HTTP $${HTTP_CODE}); will build on main as fallback."
-            cat "$${RESPONSE_FILE}" || true
-          fi
-        else
-          echo "GitHub token unavailable for commit-to-PR lookup; will build on main as fallback."
-        fi
-
-        # If no prebuilt PR image was found, check whether this exact commit SHA
-        # was already built and pushed — e.g. by a prior staging trigger run.
-        # This avoids rebuilding when a commit promoted from the staging branch
-        # to main is already present in Artifact Registry.
-        if [[ "$${BUILD_REQUIRED}" == "true" ]]; then
-          echo "Checking Artifact Registry for existing image tag ${COMMIT_SHA}."
-          if gcloud artifacts docker tags list "$${IMAGE_REPOSITORY}" --format='value(tag)' | grep -Fxq "${COMMIT_SHA}"; then
-            BUILD_REQUIRED="false"
-            echo "Image for commit ${COMMIT_SHA} already exists in Artifact Registry; skipping build."
-          fi
-        fi
-
-        echo "$${IMAGE_TAG}" > /workspace/image_tag
-        echo "$${IMAGE_REPOSITORY}:$${IMAGE_TAG}" > /workspace/image_uri
-        echo "$${BUILD_REQUIRED}" > /workspace/build_required
+        echo "$${IMAGE_REPOSITORY}:${COMMIT_SHA}" > /workspace/image_uri
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: Create GitHub Deployment
@@ -147,11 +79,6 @@ steps:
       - -ceu
       - |
         LOG_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
-
-        if [[ -f /workspace/deploy_enabled ]] && [[ "$$(cat /workspace/deploy_enabled)" != "true" ]]; then
-          echo "This build is a PR image build; skipping GitHub deployment creation."
-          exit 0
-        fi
 
         if [[ ! -f /workspace/github_installation_token ]]; then
           echo "GitHub App installation token is not available; skipping deployment tracking."
@@ -198,12 +125,6 @@ steps:
     args:
       - -ceu
       - |
-        if [[ -f /workspace/build_required ]] && [[ "$$(cat /workspace/build_required)" != "true" ]]; then
-          echo "Reusing prebuilt image; skipping docker build."
-          echo "0" > /workspace/build_exit_code
-          exit 0
-        fi
-
         IMAGE_URI="$$(cat /workspace/image_uri)"
         set +e
         docker build \
@@ -225,12 +146,6 @@ steps:
     args:
       - -ceu
       - |
-        if [[ -f /workspace/build_required ]] && [[ "$$(cat /workspace/build_required)" != "true" ]]; then
-          echo "Reusing prebuilt image; skipping docker push."
-          echo "0" > /workspace/push_exit_code
-          exit 0
-        fi
-
         IMAGE_URI="$$(cat /workspace/image_uri)"
         BUILD_EXIT_CODE=1
         if [[ -f /workspace/build_exit_code ]]; then
@@ -259,11 +174,6 @@ steps:
     args:
       - -ceu
       - |
-        if [[ -f /workspace/deploy_enabled ]] && [[ "$$(cat /workspace/deploy_enabled)" != "true" ]]; then
-          echo "This build is a PR image build; skipping deployment status update."
-          exit 0
-        fi
-
         if [[ ! -f /workspace/github_deployment_id ]] || [[ ! -f /workspace/github_installation_token ]]; then
           echo "GitHub deployment tracking not initialized; skipping in-progress status."
           exit 0
@@ -303,12 +213,6 @@ steps:
     args:
       - -ceu
       - |
-        if [[ -f /workspace/deploy_enabled ]] && [[ "$$(cat /workspace/deploy_enabled)" != "true" ]]; then
-          echo "This build is a PR image build; skipping Cloud Run deploy."
-          echo "0" > /workspace/deploy_exit_code
-          exit 0
-        fi
-
         IMAGE_URI="$$(cat /workspace/image_uri)"
         BUILD_EXIT_CODE=1
         PUSH_EXIT_CODE=1
@@ -344,14 +248,9 @@ steps:
     args:
       - -ceu
       - |
-        DEPLOY_ENABLED="false"
         BUILD_EXIT_CODE=1
         PUSH_EXIT_CODE=1
         DEPLOY_EXIT_CODE=1
-
-        if [[ -f /workspace/deploy_enabled ]]; then
-          DEPLOY_ENABLED="$$(cat /workspace/deploy_enabled)"
-        fi
 
         if [[ -f /workspace/build_exit_code ]]; then
           BUILD_EXIT_CODE="$$(cat /workspace/build_exit_code)"
@@ -372,7 +271,7 @@ steps:
           FAILURE_DESCRIPTION="Cloud Run deployment failed"
         fi
 
-        if [[ "$${DEPLOY_ENABLED}" == "true" ]] && [[ -f /workspace/github_deployment_id ]] && [[ -f /workspace/github_installation_token ]]; then
+        if [[ -f /workspace/github_deployment_id ]] && [[ -f /workspace/github_installation_token ]]; then
           DEPLOYMENT_ID="$$(cat /workspace/github_deployment_id)"
           GITHUB_TOKEN="$$(cat /workspace/github_installation_token)"
           LOG_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
@@ -397,21 +296,6 @@ steps:
               -d "{\"state\":\"failure\",\"environment\":\"${_GITHUB_ENVIRONMENT}\",\"log_url\":\"$${LOG_URL}\",\"description\":\"$${FAILURE_DESCRIPTION}\"}" \
               >/dev/null || true
           fi
-        fi
-
-        if [[ "$${DEPLOY_ENABLED}" != "true" ]]; then
-          if [[ "$${BUILD_EXIT_CODE}" != "0" ]]; then
-            echo "Docker build failed with exit code $${BUILD_EXIT_CODE}."
-            exit "$${BUILD_EXIT_CODE}"
-          fi
-
-          if [[ "$${PUSH_EXIT_CODE}" != "0" ]]; then
-            echo "Docker push failed with exit code $${PUSH_EXIT_CODE}."
-            exit "$${PUSH_EXIT_CODE}"
-          fi
-
-          echo "PR image build completed successfully; no deployment was requested."
-          exit 0
         fi
 
         if [[ "$${BUILD_EXIT_CODE}" != "0" ]]; then
@@ -443,7 +327,6 @@ substitutions:
   _GITHUB_ENVIRONMENT: "Production"
   _GITHUB_OWNER: "armada-ths"
   _GITHUB_REPO: "ArmadaCMS"
-  _PLATFORM: "managed"
   _SERVICE_NAME: "armadacms"
   REPO_NAME: "armadacms"
 tags:

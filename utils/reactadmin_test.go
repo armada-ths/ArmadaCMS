@@ -81,3 +81,53 @@ func TestParseListParamsAppliesDefaultsForInvalidJSON(t *testing.T) {
 		t.Errorf("expected fallback Filter to be empty map, got %#v", params.Filter)
 	}
 }
+
+func TestParseListParamsRejectsSQLInFieldNamesAndSortDirection(t *testing.T) {
+	q := url.Values{}
+	q.Set("sort", `["name; SELECT pg_sleep(10)","DESC NULLS LAST"]`)
+	q.Set("filter", `{"name":"safe","id OR 1=1 --":"unsafe"}`)
+
+	params, err := ParseListParams(q)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(params.Sort, []string{"id", "ASC"}) {
+		t.Fatalf("expected unsafe sort to fall back, got %#v", params.Sort)
+	}
+	if !reflect.DeepEqual(params.Filter, map[string]string{"name": "safe"}) {
+		t.Fatalf("expected unsafe filter key to be removed, got %#v", params.Filter)
+	}
+}
+
+func TestParseListParamsNormalizesSafeSortDirection(t *testing.T) {
+	q := url.Values{}
+	q.Set("sort", `["created_at","desc"]`)
+
+	params, err := ParseListParams(q)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(params.Sort, []string{"created_at", "DESC"}) {
+		t.Fatalf("unexpected normalized sort: %#v", params.Sort)
+	}
+}
+
+func TestParseListParamsRejectsInvalidOrExcessiveRanges(t *testing.T) {
+	for _, rawRange := range []string{`[]`, `[1]`, `[-1,10]`, `[10,1]`, `[0,1000]`} {
+		t.Run(rawRange, func(t *testing.T) {
+			q := url.Values{}
+			q.Set("range", rawRange)
+
+			params, err := ParseListParams(q)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(params.Range, []int{0, 24}) {
+				t.Fatalf("expected unsafe range to fall back, got %#v", params.Range)
+			}
+		})
+	}
+}
