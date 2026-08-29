@@ -73,7 +73,8 @@ func isSafeListField(field string) bool {
 	for index, char := range field {
 		isLetter := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z'
 		isDigit := char >= '0' && char <= '9'
-		if !(isLetter || char == '_' || index > 0 && isDigit) {
+		isAllowed := isLetter || char == '_' || index > 0 && isDigit
+		if !isAllowed {
 			return false
 		}
 	}

@@ -12,6 +12,7 @@ func TestStringPtrReturnsPointerForNonEmptyString(t *testing.T) {
 	got := StringPtr("hello")
 	if got == nil {
 		t.Fatal("expected StringPtr(\"hello\") to return non-nil pointer")
+		return
 	}
 	if *got != "hello" {
 		t.Fatalf("expected pointed-to value to be \"hello\", got %q", *got)
