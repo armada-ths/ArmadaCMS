@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -35,6 +36,14 @@ func GenerateRefreshToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// HashRefreshToken returns the one-way representation stored in the database.
+// The tokens are random and high-entropy, so a fast digest is safe here and
+// allows equality lookups without retaining reusable credentials at rest.
+func HashRefreshToken(token string) string {
+	digest := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(digest[:])
 }
 
 // accessClaims represents the custom JWT claims embedded in access tokens,
@@ -78,11 +87,11 @@ func VerifyAccessToken(tokenString string) (*jwt.MapClaims, error) {
 
 	claims := &accessClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return jwtSecret, nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 
 	if err != nil {
 		log.Println(err)
@@ -114,11 +123,11 @@ func GetUserIdFromAccessToken(tokenString string) *int {
 	claims := jwt.MapClaims{}
 
 	_, err = jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return jwtSecret, nil
-	}, jwt.WithoutClaimsValidation()) // intentionally ignores expiration/claims validation, but still verifies signature
+	}, jwt.WithoutClaimsValidation(), jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()})) // intentionally ignores expiration/claims validation, but still verifies signature
 	if err != nil {
 		log.Println(err)
 		return nil

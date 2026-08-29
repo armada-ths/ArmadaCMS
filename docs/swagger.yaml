@@ -2998,7 +2998,7 @@ paths:
       tags:
       - recruitment
   /refreshAccessToken:
-    get:
+    post:
       produces:
       - application/json
       responses:
