@@ -25,11 +25,6 @@ type refreshTokenAuditData struct {
 	Enabled   bool      `json:"enabled"`
 }
 
-type refreshTokenRevocationAuditData struct {
-	ActiveCount  int64 `json:"active_count"`
-	RevokedCount int64 `json:"revoked_count"`
-}
-
 func newRefreshTokenAuditData(token models.RefreshToken) refreshTokenAuditData {
 	return refreshTokenAuditData{
 		ID:        token.ID,
@@ -220,22 +215,21 @@ func setTokenResponseHeaders(w http.ResponseWriter) {
 }
 
 func revokeUserRefreshTokensWithAudit(tx *gorm.DB, r *http.Request, userID uint) error {
-	result := tx.Model(&models.RefreshToken{}).
-		Where("user_id = ? AND enabled = true", userID).
-		Update("enabled", false)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return nil
+	var tokens []models.RefreshToken
+	if err := tx.Where("user_id = ? AND enabled = true", userID).Find(&tokens).Error; err != nil {
+		return err
 	}
 
-	return audit.LogUpdate(
-		tx,
-		r,
-		"sessions",
-		userID,
-		refreshTokenRevocationAuditData{ActiveCount: result.RowsAffected},
-		refreshTokenRevocationAuditData{RevokedCount: result.RowsAffected},
-	)
+	for i := range tokens {
+		before := newRefreshTokenAuditData(tokens[i])
+		if err := tx.Model(&tokens[i]).Update("enabled", false).Error; err != nil {
+			return err
+		}
+		tokens[i].Enabled = false
+		if err := audit.LogUpdate(tx, r, "refreshtokens", tokens[i].ID, before, newRefreshTokenAuditData(tokens[i])); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
