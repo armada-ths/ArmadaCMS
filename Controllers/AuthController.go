@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"ArmadaCMS/main/Flow"
+	"ArmadaCMS/main/audit"
+	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
@@ -11,7 +13,27 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
+
+type refreshTokenAuditData struct {
+	ID        uint      `json:"id"`
+	UserID    uint      `json:"user_id"`
+	ValidFrom time.Time `json:"valid_from"`
+	ValidTo   time.Time `json:"valid_to"`
+	Enabled   bool      `json:"enabled"`
+}
+
+func newRefreshTokenAuditData(token models.RefreshToken) refreshTokenAuditData {
+	return refreshTokenAuditData{
+		ID:        token.ID,
+		UserID:    token.UserID,
+		ValidFrom: token.ValidFrom,
+		ValidTo:   token.ValidTo,
+		Enabled:   token.Enabled,
+	}
+}
 
 // loginRequest is the body for the Login endpoint.
 type loginRequest struct {
@@ -43,9 +65,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	username := data.Username
 	password := data.Password
-	w.Header().Set("Content-Type", "application/json")
+	setTokenResponseHeaders(w)
 
-	response, err := Flow.VerifyLoginWithPassword(username, password)
+	response, userID, err := Flow.VerifyLoginWithPassword(username, password)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, Flow.ErrInvalidCredentials) {
@@ -53,6 +75,26 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		http.Error(w, "Login failed", http.StatusInternalServerError)
+		return
+	}
+
+	now := time.Now()
+	refreshToken := models.RefreshToken{
+		RefreshToken: utils.HashRefreshToken(response.RefreshToken),
+		UserID:       userID,
+		ValidFrom:    now,
+		ValidTo:      now.Add(7 * 24 * time.Hour),
+		Enabled:      true,
+	}
+	auditRequest := auth.WithUserID(r, int(userID))
+	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&refreshToken).Error; err != nil {
+			return err
+		}
+		return audit.LogCreate(tx, auditRequest, "refreshtokens", refreshToken.ID, newRefreshTokenAuditData(refreshToken))
+	}); err != nil {
+		log.Println("Login: failed to persist refresh token:", err)
 		http.Error(w, "Login failed", http.StatusInternalServerError)
 		return
 	}
@@ -68,8 +110,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.Tokens
 // @Failure 401 {string} string "Invalid or expired refresh token"
 // @Failure 500 {string} string "Token refresh failed"
-// @Router /refreshAccessToken [get]
+// @Router /refreshAccessToken [post]
 func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	setTokenResponseHeaders(w)
 	header := r.Header.Get("X-RefreshAuthorization")
 	if header == "" {
 		http.Error(w, "missing X-RefreshAuthorization header", http.StatusUnauthorized)
@@ -85,16 +128,9 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 
 	var rt models.RefreshToken
 	if err := db.DB.Preload("User.Roles").Where(
-		"refresh_token = ? AND enabled = true AND valid_to > ?", tokenStr, time.Now(),
+		"refresh_token = ? AND enabled = true AND valid_to > ?", utils.HashRefreshToken(tokenStr), time.Now(),
 	).First(&rt).Error; err != nil {
 		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
-		return
-	}
-
-	// Invalidate used refresh token (rotation)
-	if err := db.DB.Model(&rt).Update("enabled", false).Error; err != nil {
-		log.Println("RefreshAccessToken: failed to disable old token:", err)
-		http.Error(w, "token refresh failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -119,16 +155,11 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newRT := models.RefreshToken{
-		RefreshToken: newRefreshTokenStr,
+		RefreshToken: utils.HashRefreshToken(newRefreshTokenStr),
 		UserID:       rt.UserID,
 		ValidFrom:    time.Now(),
 		ValidTo:      time.Now().Add(7 * 24 * time.Hour),
 		Enabled:      true,
-	}
-	if err := db.DB.Create(&newRT).Error; err != nil {
-		log.Println("RefreshAccessToken: failed to insert new token:", err)
-		http.Error(w, "token refresh failed", http.StatusInternalServerError)
-		return
 	}
 
 	accessToken, err := utils.GenerateAccessToken(int(rt.UserID), roleNames, permissions)
@@ -137,9 +168,68 @@ func RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	auditRequest := auth.WithUserID(r, int(rt.UserID))
+	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		group, err := audit.StartGroup(tx, auditRequest, "update", "sessions", rt.UserID, map[string]any{
+			"operation": "refresh_token_rotation",
+		})
+		if err != nil {
+			return err
+		}
+		childRequest := audit.WithParent(auditRequest, group.ID)
+
+		oldToken := newRefreshTokenAuditData(rt)
+		if err := tx.Model(&rt).Update("enabled", false).Error; err != nil {
+			return err
+		}
+		if err := audit.LogUpdate(tx, childRequest, "refreshtokens", rt.ID, oldToken, newRefreshTokenAuditData(rt)); err != nil {
+			return err
+		}
+		if err := tx.Create(&newRT).Error; err != nil {
+			return err
+		}
+		if err := audit.LogCreate(tx, childRequest, "refreshtokens", newRT.ID, newRefreshTokenAuditData(newRT)); err != nil {
+			return err
+		}
+		return audit.FinalizeGroup(tx, group.ID, "completed", map[string]any{
+			"operation": "refresh_token_rotation",
+			"revoked":   1,
+			"created":   1,
+		})
+	}); err != nil {
+		log.Println("RefreshAccessToken: failed to rotate token:", err)
+		http.Error(w, "token refresh failed", http.StatusInternalServerError)
+		return
+	}
+
 	json.NewEncoder(w).Encode(models.Tokens{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshTokenStr,
 	})
+}
+
+func setTokenResponseHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+}
+
+func revokeUserRefreshTokensWithAudit(tx *gorm.DB, r *http.Request, userID uint) error {
+	var tokens []models.RefreshToken
+	if err := tx.Where("user_id = ? AND enabled = true", userID).Find(&tokens).Error; err != nil {
+		return err
+	}
+
+	for i := range tokens {
+		before := newRefreshTokenAuditData(tokens[i])
+		if err := tx.Model(&tokens[i]).Update("enabled", false).Error; err != nil {
+			return err
+		}
+		tokens[i].Enabled = false
+		if err := audit.LogUpdate(tx, r, "refreshtokens", tokens[i].ID, before, newRefreshTokenAuditData(tokens[i])); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -124,7 +124,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
-	log.Println(userBody.Password)
 	var user = models.User{
 		Username: userBody.Username,
 		Password: userBody.Password,
@@ -151,8 +150,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
-	log.Println(user.Password)
-
 	writeCreatedJSONResponse(w, user)
 }
 
@@ -186,7 +183,8 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newPassword := user.Password
-	if len(userUpdateBody.Password) > 0 {
+	passwordChanged := len(userUpdateBody.Password) > 0
+	if passwordChanged {
 		newPassword = utils.HashPassword(userUpdateBody.Password)
 	}
 
@@ -199,9 +197,14 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	roleIDs := userUpdateBody.RoleIDs
 
 	before := user
-	if err := updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
+	mutateUser := func(tx *gorm.DB, auditRequest *http.Request) error {
 		if err := tx.Model(&user).Updates(updateMap).Error; err != nil {
 			return err
+		}
+		if passwordChanged {
+			if err := revokeUserRefreshTokensWithAudit(tx, auditRequest, user.ID); err != nil {
+				return err
+			}
 		}
 		var roles []models.Role
 		if len(roleIDs) > 0 {
@@ -210,9 +213,20 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		return tx.Model(&user).Association("Roles").Replace(roles)
-	}, func(tx *gorm.DB) error {
+	}
+	reloadUser := func(tx *gorm.DB) error {
 		return tx.Preload("Roles").First(&user, id).Error
-	}); err != nil {
+	}
+
+	var err error
+	if passwordChanged {
+		err = updateWithGroupedAudit(r, "customusers", id, before, &user, mutateUser, reloadUser)
+	} else {
+		err = updateWithAudit(r, "customusers", id, before, &user, func(tx *gorm.DB) error {
+			return mutateUser(tx, r)
+		}, reloadUser)
+	}
+	if err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -232,14 +246,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Router /customusers/{id} [delete]
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
+	writeGroupedDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
 		func(tx *gorm.DB) *gorm.DB { return tx.Preload("Roles") },
-		func(tx *gorm.DB, user *models.User) error {
-			// Revoke all refresh tokens so the user cannot obtain new access tokens.
-			return tx.Model(&models.RefreshToken{}).
-				Where("user_id = ?", user.ID).
-				Update("enabled", false).Error
+		func(tx *gorm.DB, user *models.User, childRequest *http.Request) error {
+			return revokeUserRefreshTokensWithAudit(tx, childRequest, user.ID)
 		},
+		map[string]any{"operation": "delete_user_and_revoke_sessions"},
 	)
 }
 
@@ -343,8 +355,11 @@ func ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 
 	before := user
 	newHash := utils.HashPassword(body.NewPassword)
-	if err := updateWithAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB) error {
-		return tx.Model(&user).Update("password", newHash).Error
+	if err := updateWithGroupedAudit(r, "customusers", fmt.Sprint(userID), before, &user, func(tx *gorm.DB, childRequest *http.Request) error {
+		if err := tx.Model(&user).Update("password", newHash).Error; err != nil {
+			return err
+		}
+		return revokeUserRefreshTokensWithAudit(tx, childRequest, user.ID)
 	}, func(tx *gorm.DB) error {
 		return tx.First(&user, userID).Error
 	}); err != nil {

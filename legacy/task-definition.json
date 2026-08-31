@@ -28,10 +28,6 @@
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_API::"
         },
         {
-          "name": "EVENTRO_FAIR_ID",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_FAIR_ID::"
-        },
-        {
           "name": "EVENTRO_ORG",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:593054043164:secret:armadacms/production-7xfzUt:EVENTRO_ORG::"
         },

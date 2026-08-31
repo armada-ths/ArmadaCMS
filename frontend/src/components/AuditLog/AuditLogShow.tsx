@@ -14,6 +14,7 @@ import {
   TextField,
   useRecordContext,
 } from "react-admin";
+import { AuditLogChildren } from "./AuditLogChildren";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue =
@@ -415,7 +416,10 @@ export const AuditLogShow = () => (
       <TextField source="actor_name" label="Name" />
       <TextField source="http_method" label="HTTP method" />
       <TextField source="request_path" label="Request path" />
+      <TextField source="group_status" label="Group status" />
+      <TextField source="child_count" label="Related entries" />
       <DataSection label="Data" />
+      <AuditLogChildren />
     </SimpleShowLayout>
   </Show>
 );

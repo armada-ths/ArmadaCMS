@@ -155,3 +155,13 @@ func TestRequirePermissionRejectsWhenPermissionMissing(t *testing.T) {
 		t.Fatalf("expected 403, got %d", rec.Code)
 	}
 }
+
+func TestWithUserID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", nil)
+	req = WithUserID(req, 42)
+
+	userID, ok := GetUserIDFromContext(req)
+	if !ok || userID != 42 {
+		t.Fatalf("expected user ID 42, got %d (ok=%v)", userID, ok)
+	}
+}

@@ -48,7 +48,6 @@ var adminClientRouteSegments = map[string]struct{}{
 	"recruitmentperiods": {},
 	"recruitmentroles":   {},
 	"auditlogs":          {},
-	"eventrosync":        {},
 	"highlightcards":     {},
 	"blogposts":          {},
 	"login":              {},
@@ -233,7 +232,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
 	publicAPI.HandleFunc("/login", controllers.Login)
-	publicAPI.HandleFunc("/refreshAccessToken", controllers.RefreshAccessToken)
+	publicAPI.HandleFunc("/refreshAccessToken", controllers.RefreshAccessToken).Methods("POST")
 
 	// Current user info (for frontend permissions)
 	protectedAPI.HandleFunc("/me", controllers.GetMe).Methods("GET")
@@ -335,6 +334,8 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 
 	protectedAPI.HandleFunc("/eventroexhibitors", auth.RequirePermission("eventrosync.access", controllers.FetchExhibitorsEventro)).Methods("GET")
 	protectedAPI.HandleFunc("/eventroevents", auth.RequirePermission("eventrosync.access", controllers.FetchEventsEventro)).Methods("GET")
+	protectedAPI.HandleFunc("/eventrofairdates", auth.RequirePermission("eventrosync.access", controllers.FetchFairDatesEventro)).Methods("GET")
+	protectedAPI.HandleFunc("/eventrofairs", auth.RequirePermission("eventrosync.access", controllers.GetEventroFairs)).Methods("GET")
 	protectedAPI.HandleFunc("/eventromembers", auth.RequirePermission("eventrosync.access", controllers.FetchMembersEventro)).Methods("GET")
 	protectedAPI.HandleFunc("/eventrorecruitments", auth.RequirePermission("eventrosync.access", controllers.FetchRecruitmentsEventro)).Methods("GET")
 	publicAPI.HandleFunc("/recruitment", controllers.GetRecruitment).Methods("GET")
@@ -367,14 +368,14 @@ func HandleCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
-		if origin != "" {
+		if isAllowedCORSOrigin(origin) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RefreshAuthorization, Content-Range, Range")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
 
 		if r.Method == http.MethodOptions {
@@ -384,4 +385,25 @@ func HandleCORS(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+var defaultCORSOrigins = map[string]struct{}{
+	"https://armada.nu":     {},
+	"https://www.armada.nu": {},
+	"http://localhost:3000": {},
+	"http://localhost:5173": {},
+}
+
+func isAllowedCORSOrigin(origin string) bool {
+	if _, ok := defaultCORSOrigins[origin]; ok {
+		return true
+	}
+
+	for configuredOrigin := range strings.SplitSeq(os.Getenv("CORS_ALLOWED_ORIGINS"), ",") {
+		if origin != "" && origin == strings.TrimSpace(configuredOrigin) {
+			return true
+		}
+	}
+
+	return false
 }

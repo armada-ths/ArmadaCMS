@@ -18,11 +18,13 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 - Cloud Build updates the Cloud Run image via `cloudbuild.yaml`.
 - PostgreSQL is provided by Supabase. Connection details are read from the `armadacms-supabase-prod` workspace outputs.
 - File storage uses Supabase Storage via its S3-compatible endpoint.
-- Cloud Run uses direct VPC egress on the `default` VPC with Cloud NAT for a stable outbound IP.
+- Cloud Run uses direct VPC egress on a dedicated `armadacms-serverless` VPC and subnet. Cloud NAT provides the stable outbound IP consumed by the Supabase network allowlist.
 - `invoker_iam_disabled = true` enables public access without an IAM binding.
-- Runtime secrets always include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, `REVALIDATION_SECRET`, `SUPABASE_STORAGE_ACCESS_KEY_ID`, and `SUPABASE_STORAGE_SECRET_ACCESS_KEY`.
-- Plain env vars always include DB settings, `STORAGE_PROVIDER`, and Supabase Storage settings (`SUPABASE_URL`, `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_REGION`) — all read from the `armadacms-supabase-prod` workspace via `tfe_outputs`.
+- Runtime secrets include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, and `REVALIDATION_SECRET`. The Secret Manager IDs `SUPABASE_STORAGE_ACCESS_KEY_ID` and `SUPABASE_STORAGE_SECRET_ACCESS_KEY` are injected as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the S3-compatible client.
+- Plain env vars include DB settings plus `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, and `S3_REGION`. DB and storage values are read from the `armadacms-supabase-prod` workspace via `tfe_outputs` unless an explicit DB override is set.
 - The Cloud Run container image is ignored by Terraform after the first deploy so Cloud Build can ship new revisions freely.
+- Artifact Registry cleanup policies retain the 20 most recent versions per package, delete untagged versions after 14 days, delete `pr-*` versions after 30 days, and delete other versions after 180 days.
+- Cloud Run, trusted deploys, and untrusted pull requests use separate `armadacms-runtime`, `armadacms-deploy`, and `armadacms-pr-build` service accounts. Runtime can read only its own secrets; the deployer can write images, update only the production Cloud Run service, write build logs, read the GitHub App secret, and act as the production runtime identity. The PR builder can only write build logs and uses the secret-free `cloudbuild-pr.yaml` configuration; it validates the container build without publishing an image. External contributors additionally require an owner or collaborator to comment `/gcbrun` before Cloud Build runs.
 
 ## Files
 
@@ -48,7 +50,7 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 
 This root consumes outputs from:
 
-- `armadacms-supabase-prod` — `pooler_host`, `pooler_user`, `db_name`
+- `armadacms-supabase-prod` — `pooler_host`, `pooler_user`, `db_name`, `supabase_url`, `supabase_storage_s3_endpoint`, `supabase_storage_bucket`, and `supabase_storage_region`
 
 For the full cross-workspace wiring and remote state sharing setup, see [`../../README.md`](../../README.md).
 
@@ -69,10 +71,17 @@ Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run `
 
 ## Ongoing operations
 
+### Artifact Registry cleanup
+
+Cleanup is managed directly on `google_artifact_registry_repository.docker` and
+runs asynchronously after apply. `KEEP` policies take precedence over `DELETE`
+policies, so the 20 newest versions of every package remain available for
+deployments and rollbacks even when an age-based delete policy also matches.
+
 ### Rotating storage credentials
 
 1. Generate a new S3 access key pair in the Supabase dashboard.
 2. Add the new values directly in GCP Secret Manager (do **not** use HCP Terraform workspace variables):
-   - `armadacms-SUPABASE_STORAGE_ACCESS_KEY_ID`
-   - `armadacms-SUPABASE_STORAGE_SECRET_ACCESS_KEY`
-3. Verify uploads work, then revoke the old key.
+   - `SUPABASE_STORAGE_ACCESS_KEY_ID`
+   - `SUPABASE_STORAGE_SECRET_ACCESS_KEY`
+3. Deploy a new Cloud Run revision, verify uploads, and then revoke the old key.

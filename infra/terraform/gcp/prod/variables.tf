@@ -147,9 +147,15 @@ variable "max_instances" {
 }
 
 variable "cloud_build_service_account_email" {
-  description = "Optional override for the Cloud Build service account email. Leave empty to use the project's default Cloud Build service account."
+  description = "Optional existing service account for Cloud Build. Ignored when manage_cloud_build_service_account is true."
   type        = string
   default     = ""
+}
+
+variable "manage_cloud_build_service_account" {
+  description = "Whether Terraform should create a dedicated least-privilege service account for production builds and deployments."
+  type        = bool
+  default     = false
 }
 
 variable "manage_cloud_build_triggers" {

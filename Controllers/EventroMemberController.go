@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -69,6 +71,13 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 
 	inserted := 0
 	updated := 0
+	failed := 0
+	group, err := startAuditGroup(r, "sync", "profiles", "eventro-members", map[string]any{"source": "eventro", "status": "running"})
+	if err != nil {
+		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
+		return
+	}
+	childRequest := audit.WithParent(r, group.ID)
 
 	for _, group := range result.Groups {
 		eventroGroup := strings.TrimSpace(group.Group)
@@ -100,6 +109,7 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 			err := db.DB.Where("eventro_key = ?", eventroKey).First(&existing).Error
 			if err != nil && err != gorm.ErrRecordNotFound {
 				log.Printf("❌ Failed reading profile for key %s: %v", eventroKey, err)
+				failed++
 				continue
 			}
 
@@ -112,6 +122,7 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 
 				if errByName != nil && errByName != gorm.ErrRecordNotFound {
 					log.Printf("❌ Failed reading profile for name %s: %v", fullName, errByName)
+					failed++
 					continue
 				}
 
@@ -134,8 +145,9 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 					}
 
 					if len(updates) > 0 {
-						if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+						if updateErr := updateProfileFromEventroWithAudit(childRequest, &existing, updates); updateErr != nil {
 							log.Printf("❌ Failed updating existing profile by name %s: %v", fullName, updateErr)
+							failed++
 							continue
 						}
 						updated++
@@ -154,8 +166,14 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 					Photo:      image,
 				}
 
-				if createErr := db.DB.Create(&profile).Error; createErr != nil {
+				if createErr := db.DB.Transaction(func(tx *gorm.DB) error {
+					if err := tx.Create(&profile).Error; err != nil {
+						return err
+					}
+					return audit.LogCreate(tx, childRequest, "profiles", profile.ID, profile)
+				}); createErr != nil {
 					log.Printf("❌ Failed creating member %s: %v", fullName, createErr)
+					failed++
 					continue
 				}
 
@@ -184,8 +202,9 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			if updateErr := db.DB.Model(&existing).Updates(updates).Error; updateErr != nil {
+			if updateErr := updateProfileFromEventroWithAudit(childRequest, &existing, updates); updateErr != nil {
 				log.Printf("❌ Failed updating member %s: %v", fullName, updateErr)
+				failed++
 				continue
 			}
 
@@ -193,6 +212,14 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	status := auditGroupStatus(inserted+updated, failed)
+	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "failed": failed}); err != nil {
+		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
+		return
+	}
+	if inserted+updated > 0 {
+		go utils.RevalidateTag("organization")
+	}
 	message := fmt.Sprintf(
 		"Sync completed — inserted: %d, updated: %d",
 		inserted,
@@ -201,6 +228,19 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 	log.Printf("✅ %s", message)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(message))
+}
+
+func updateProfileFromEventroWithAudit(r *http.Request, profile *models.Profile, updates map[string]any) error {
+	before := *profile
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(profile).Updates(updates).Error; err != nil {
+			return err
+		}
+		if err := tx.First(profile, profile.ID).Error; err != nil {
+			return err
+		}
+		return audit.LogUpdate(tx, r, "profiles", profile.ID, before, profile)
+	})
 }
 
 func resolveAllowedRank(eventroGroup string) string {

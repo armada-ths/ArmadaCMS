@@ -8,7 +8,7 @@ type Tokens struct {
 }
 type RefreshToken struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
-	RefreshToken string    `gorm:"column:refresh_token;type:text;not null"`
+	RefreshToken string    `gorm:"column:refresh_token;type:text;not null" json:"-"`
 	ValidFrom    time.Time `gorm:"column:valid_from;not null"`
 	ValidTo      time.Time `gorm:"column:valid_to;not null"`
 	UserID       uint      `gorm:"column:user_id;not null"`

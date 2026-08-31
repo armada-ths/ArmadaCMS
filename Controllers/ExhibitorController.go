@@ -14,6 +14,21 @@ import (
 	"gorm.io/gorm"
 )
 
+var exhibitorSortColumns = map[string]string{
+	"id":           "id",
+	"name":         "name",
+	"type":         "type",
+	"tier":         "tier",
+	"fairLocation": "fair_location",
+}
+
+func exhibitorSortColumn(field string) string {
+	if column, ok := exhibitorSortColumns[field]; ok {
+		return column
+	}
+	return "id"
+}
+
 // GetExhibitors returns a paginated (or full) list of exhibitors.
 // @Summary List exhibitors
 // @Tags exhibitors
@@ -27,7 +42,6 @@ import (
 // @Router /exhibitors [get]
 func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
-	log.Print(params)
 	var exhibitors []models.Exhibitor
 	query := db.DB.Model(&models.Exhibitor{})
 
@@ -38,7 +52,7 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	all := r.URL.Query().Get("limit") == "all" || r.URL.Query().Get("all") == "true"
 
 	if !all && len(params.Sort) == 2 {
-		query = query.Order(params.Sort[0] + " " + params.Sort[1])
+		query = query.Order(exhibitorSortColumn(params.Sort[0]) + " " + params.Sort[1])
 	}
 
 	var total int64

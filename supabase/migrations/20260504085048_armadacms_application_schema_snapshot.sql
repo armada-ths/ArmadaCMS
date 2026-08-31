@@ -137,14 +137,12 @@ create sequence "public"."users_id_seq";
     "id" bigint not null default nextval('public.fair_date_configs_id_seq'::regclass),
     "description" text not null,
     "fair_days" text not null,
-    "ticket_end" text,
     "ir_start" text not null,
     "ir_end" text not null,
     "ir_acceptance" text not null,
     "fr_start" text not null,
     "fr_end" text not null,
-    "events_start" text not null,
-    "events_end" text
+    "events_start" text not null
       );
 
 
@@ -450,5 +448,3 @@ alter table "public"."refresh_tokens" validate constraint "fk_refresh_tokens_use
 alter table "public"."users" add constraint "fk_users_role" FOREIGN KEY (role_id) REFERENCES public.roles(id) ON UPDATE CASCADE ON DELETE SET NULL not valid;
 
 alter table "public"."users" validate constraint "fk_users_role";
-
-

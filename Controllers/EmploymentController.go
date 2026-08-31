@@ -153,7 +153,14 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 // @Router /employments/{id} [delete]
 func DeleteEmployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	writeDeleteResponseWithAudit[models.Employment](w, r, "employments", id, "employment not found", func(tx *gorm.DB) *gorm.DB {
-		return tx.Preload("Exhibitor")
-	}, nil, "employments")
+	writeGroupedDeleteResponseWithAudit(w, r, "employments", id, "employment not found", nil, func(tx *gorm.DB, employment *models.Employment, childRequest *http.Request) error {
+		var exhibitors []models.Exhibitor
+		if err := tx.Joins("JOIN exhibitor_employments ON exhibitor_employments.exhibitor_id = exhibitors.id").
+			Where("exhibitor_employments.employment_id = ?", employment.ID).
+			Preload("Industries").Preload("Programs").Preload("Employments").
+			Find(&exhibitors).Error; err != nil {
+			return err
+		}
+		return removeExhibitorAssociationWithAudit(tx, childRequest, exhibitors, "Employments", employment)
+	}, map[string]any{"operation": "delete_employment_and_unlink_exhibitors"}, "employments", "exhibitors")
 }

@@ -9,10 +9,10 @@ deletion_protection      = false
 
 cloud_run_ingress = "INGRESS_TRAFFIC_ALL"
 
-manage_runtime_service_account    = false
-cloud_run_service_account_email   = "475154911163-compute@developer.gserviceaccount.com"
-cloud_build_service_account_email = "475154911163-compute@developer.gserviceaccount.com"
-manage_cloud_build_triggers       = true
+manage_runtime_service_account     = true
+manage_cloud_build_service_account = true
+manage_secret_accessor_bindings    = true
+manage_cloud_build_triggers        = true
 
 cloud_run_cpu    = "1000m"
 cloud_run_memory = "512Mi"

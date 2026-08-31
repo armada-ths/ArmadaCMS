@@ -34,13 +34,13 @@ variable "labels" {
 }
 
 variable "prod_artifact_registry_host" {
-  description = "Hostname of the production Artifact Registry repository that Cloud Build writes images to. Staging and prod share this repo so a commit built on staging is reused by the prod trigger."
+  description = "Hostname of the Artifact Registry repository managed by the production Terraform root and shared with staging."
   type        = string
   default     = "europe-north2-docker.pkg.dev"
 }
 
 variable "prod_artifact_registry_repository_id" {
-  description = "Repository ID of the shared production Artifact Registry that both staging and prod Cloud Build triggers push images to."
+  description = "Repository ID of the shared production Artifact Registry that trusted staging and production deploy builds push images to."
   type        = string
   default     = "cloud-run-source-deploy"
 }
@@ -96,7 +96,7 @@ variable "revalidation_url" {
 }
 
 variable "deploy_cloud_run_service" {
-  description = "Whether Terraform should manage the Cloud Run service itself. Set to false until both the staging Cloud Build has produced a first image and the AWS staging workspace outputs are available."
+  description = "Whether Terraform should manage the Cloud Run service itself. Set to false during bootstrap until the required Secret Manager versions and an initial container image exist."
   type        = bool
   default     = false
 }
@@ -159,9 +159,15 @@ variable "max_instances" {
 }
 
 variable "cloud_build_service_account_email" {
-  description = "Optional override for the Cloud Build service account email. Leave empty to use the project's default Cloud Build service account."
+  description = "Optional existing service account for Cloud Build. Ignored when manage_cloud_build_service_account is true."
   type        = string
   default     = ""
+}
+
+variable "manage_cloud_build_service_account" {
+  description = "Whether Terraform should create a dedicated least-privilege service account for staging builds and deployments."
+  type        = bool
+  default     = false
 }
 
 variable "manage_cloud_build_triggers" {
@@ -189,7 +195,7 @@ variable "cloud_run_service_account_email" {
 }
 
 variable "enable_vpc_egress" {
-  description = "Whether Cloud Run should use VPC egress for a stable outbound IP (required for S3 IP restriction)."
+  description = "Whether Cloud Run should use optional VPC egress with Cloud NAT and a stable outbound IP. Disabled in the current staging configuration."
   type        = bool
   default     = true
 }
@@ -302,4 +308,3 @@ variable "recaptcha_allowed_domains" {
   type        = list(string)
   default     = ["armada.nu"]
 }
-

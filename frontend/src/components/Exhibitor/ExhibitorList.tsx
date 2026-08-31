@@ -18,12 +18,12 @@ export const ExhibitorList = (props: ListProps) => (
       <TextField source="type" />
       <TextField source="tier" />
       <TextField source="fairLocation" label="Fair location" />
-      <ArrayField source="industries">
+      <ArrayField source="industries" sortable={false}>
         <SingleFieldList>
           <ChipField source="name" />
         </SingleFieldList>
       </ArrayField>
-      <ArrayField source="programs">
+      <ArrayField source="programs" sortable={false}>
         <SingleFieldList>
           <ChipField source="name" />
         </SingleFieldList>

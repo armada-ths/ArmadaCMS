@@ -9,6 +9,7 @@ on:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
+      - ".golangci.yml"
       - ".github/workflows/go-checks.yml"
   pull_request:
 
@@ -16,14 +17,19 @@ permissions:
   pull-requests: read
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       go: ${{ steps.filter.outputs.go }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Detect Go changes
         uses: dorny/paths-filter@v3
@@ -34,18 +40,20 @@ jobs:
               - '**/*.go'
               - 'go.mod'
               - 'go.sum'
+              - '.golangci.yml'
               - '.github/workflows/go-checks.yml'
 
   vet:
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -57,12 +65,13 @@ jobs:
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -77,12 +86,13 @@ jobs:
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -92,15 +102,37 @@ jobs:
 
   go-checks:
     runs-on: ubuntu-latest
-    needs: [vet, lint, test]
+    timeout-minutes: 5
+    needs: [changes, vet, lint, test]
     if: always()
     steps:
       - name: All checks passed or skipped
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          GO_CHANGED: ${{ needs.changes.outputs.go }}
+          VET_RESULT: ${{ needs.vet.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
         run: |
-          if [[ "${{ needs.vet.result }}" == "failure" || \
-                "${{ needs.lint.result }}" == "failure" || \
-                "${{ needs.test.result }}" == "failure" ]]; then
-            echo "One or more Go checks failed."
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Go change detection did not succeed: $CHANGES_RESULT"
             exit 1
           fi
-          echo "All Go checks passed or were skipped (no Go changes)."
+          if [[ "$GO_CHANGED" != "true" && "$GO_CHANGED" != "false" ]]; then
+            echo "Go change detection returned an unexpected value: $GO_CHANGED"
+            exit 1
+          fi
+
+          expected_result="skipped"
+          if [[ "$GO_CHANGED" == "true" ]]; then
+            expected_result="success"
+          fi
+
+          for result in "$VET_RESULT" "$LINT_RESULT" "$TEST_RESULT"; do
+            if [[ "$result" != "$expected_result" ]]; then
+              echo "Unexpected Go check result: $result (expected $expected_result)."
+              exit 1
+            fi
+          done
+
+          echo "All required Go checks have the expected result: $expected_result."

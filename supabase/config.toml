@@ -1,12 +1,12 @@
 # ArmadaCMS Supabase local-development scaffold.
 #
-# Billing is now configured. Hosted branching (persistent staging branch and
-# ephemeral PR preview branches) is ready to be enabled as the next phase,
-# together with per-PR GCP preview services.
+# Hosted production and its persistent staging branch are used remotely. This
+# file configures the local Supabase stack; it does not manage hosted branch
+# lifecycle or per-PR GCP preview services.
 #
-# Storage is enabled locally so we can evolve toward Supabase Storage, but the
-# ArmadaCMS application still uses MinIO/AWS-compatible uploads until the
-# backend storage abstraction is migrated.
+# Storage's S3-compatible protocol is enabled locally. ArmadaCMS uses the same
+# generic S3 environment variables with MinIO locally and Supabase Storage in
+# staging and production.
 project_id = "armadacms"
 
 [db]

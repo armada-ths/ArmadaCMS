@@ -27,9 +27,8 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
   substitutions = {
     _TRIGGER_ID    = local.cloud_build_staging_trigger_id
     _DEPLOY_REGION = var.region
-    # Images are pushed to the shared production Artifact Registry repo so that
-    # the production trigger can detect a pre-built SHA and skip rebuilding when
-    # a commit is promoted from the staging branch to main.
+    # Staging images are pushed to the Artifact Registry repository managed by
+    # the production Terraform root; staging does not own a separate repository.
     _AR_HOSTNAME        = var.prod_artifact_registry_host
     _AR_REPOSITORY      = var.prod_artifact_registry_repository_id
     _AR_PROJECT_ID      = var.project_id
@@ -40,9 +39,8 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
   depends_on = [google_project_service.enabled]
 }
 
-# PR image build trigger — fires on PRs targeting staging.
-# Builds and pushes a "pr-<N>" image to the shared production Artifact Registry
-# so the staging deploy trigger can reuse it instead of rebuilding on merge.
+# Untrusted PR validation trigger — fires on PRs targeting staging. It uses a
+# secret-free build config and an identity that cannot publish or deploy.
 
 resource "google_cloudbuild_trigger" "staging_pr_build" {
   count = var.manage_cloud_build_triggers ? 1 : 0
@@ -51,8 +49,8 @@ resource "google_cloudbuild_trigger" "staging_pr_build" {
   location           = "global"
   name               = local.cloud_build_staging_pr_trigger_name
   description        = local.cloud_build_staging_pr_trigger_description
-  filename           = "cloudbuild.yaml"
-  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_service_account_email}"
+  filename           = "cloudbuild-pr.yaml"
+  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_pr_service_account_email}"
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
 
   github {
@@ -60,15 +58,13 @@ resource "google_cloudbuild_trigger" "staging_pr_build" {
     name  = "ArmadaCMS"
 
     pull_request {
-      branch = "^staging$"
+      branch          = "^staging$"
+      comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
     }
   }
 
   substitutions = {
-    _TRIGGER_ID    = local.cloud_build_staging_pr_trigger_id
-    _AR_HOSTNAME   = var.prod_artifact_registry_host
-    _AR_REPOSITORY = var.prod_artifact_registry_repository_id
-    _AR_PROJECT_ID = var.project_id
+    _SERVICE_NAME = var.service_name
   }
 
   depends_on = [google_project_service.enabled]

@@ -1,5 +1,9 @@
 # ArmadaCMS
 
+[![Go checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/go-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/go-checks.yml)
+[![Frontend checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/frontend-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/frontend-checks.yml)
+[![Supabase checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml)
+
 Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides REST endpoints consumed by the public website ([armada.nu](https://github.com/armada-ths/armada.nu)) and a React-Admin interface for content management.
 
 ## Table of Contents
@@ -23,7 +27,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ### Backend
 
-- **Language**: Go 1.24
+- **Language**: Go 1.26
 - **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
 - **ORM**: [GORM](https://gorm.io/) (Postgres)
 - **Auth**: JWT (Bearer tokens)
@@ -39,14 +43,14 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 ### Infrastructure
 
 - **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
-- **Ingress**: HTTPS load balancing in front of Cloud Run
-- **Database**: Supabase (PostgreSQL)
+- **Ingress**: External HTTPS load balancing in production; Cloud Run domain mapping in staging
+- **Database**: Supabase PostgreSQL (production project with a persistent staging branch)
 - **File storage**: Supabase Storage (local dev: MinIO)
 
 ## Prerequisites
 
 - [Docker](https://www.docker.com/) and Docker Compose _(required for local development)_
-- [Go 1.24+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
+- [Go 1.26+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
 - [Node.js 24+](https://nodejs.org/) and pnpm _(optional, for running frontend tooling directly)_
 
 ## Getting Started
@@ -105,6 +109,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    ```
 
    The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
+
+   After cloning a Supabase database, AutoMigrate needs to be disabled in order to avoid schema conflicts. Set `DB_ENABLE_AUTOMIGRATE=false` in `.env` before starting the server. To apply a local SQL migration file manually, run `cat supabase/migrations/<migration-file>.sql | docker compose -f docker-compose.dev.yml exec -T postgres psql -U postgres -d armadacms`.
 
 5. **Verify the app is running**
 
@@ -205,6 +211,10 @@ All endpoints are under `/api/v1`. Routes are split into:
 - **Public** (no auth): `GET` endpoints for resources like exhibitors, events, profiles, teams, dates.
 - **Protected** (Bearer JWT): `POST`, `PUT`, `DELETE` and admin-only `GET` endpoints.
 
+Browser cross-origin access is restricted to `armada.nu`, common local development
+origins, and any exact origins listed in the optional comma-separated
+`CORS_ALLOWED_ORIGINS` environment variable.
+
 ### Example endpoints
 
 | Method   | Endpoint                  | Auth     | Description         |
@@ -259,7 +269,7 @@ Repository checks live in `.github/workflows/` and are path-filtered so unchange
 - `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
 - `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
 
-All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed.
+All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed. Superseded runs for the same workflow and branch or pull request are cancelled automatically, and every job has a timeout.
 
 ### Google Cloud Build (CD)
 
@@ -267,11 +277,11 @@ Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbui
 
 - Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
 - Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- PR builds build and push a preview-tagged image without deploying.
-- For merged changes, the pipeline reuses the already-built PR image instead of rebuilding from scratch.
+- PR builds use the secret-free `cloudbuild-pr.yaml` configuration with a dedicated unprivileged service account. They validate the container build without publishing or deploying an image; external contributors require an owner or collaborator to comment `/gcbrun` first.
+- Trusted branch builds always build the commit SHA, publish that image, and deploy it.
 - The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
 
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers, while `cloudbuild.yaml` remains the source of truth for the build, image-promotion, and deployment steps the triggers execute.
+The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers; `cloudbuild.yaml` defines the trusted branch build/deploy flow and `cloudbuild-pr.yaml` defines unprivileged PR validation.
 
 ## Operations notes
 
@@ -295,9 +305,10 @@ Use those documents as the canonical source for infrastructure specifics rather 
 
 1. Create a model in `models/` with GORM struct tags and camelCase JSON tags.
 2. Register the model in `db.DB.AutoMigrate(...)` in `main.go`.
-3. Create a controller in `Controllers/` following existing CRUD patterns.
-4. Add routes in `main.go` (public for reads, protected for writes).
-5. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
-6. Register the `<Resource>` in `frontend/src/App.tsx`.
-7. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
-8. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.
+3. Write a SQL migration in `supabase/migrations/` for the schema change.
+4. Create a controller in `Controllers/` following existing CRUD patterns.
+5. Add routes in `main.go` (public for reads, protected for writes).
+6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
+7. Register the `<Resource>` in `frontend/src/App.tsx`.
+8. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
+9. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.
