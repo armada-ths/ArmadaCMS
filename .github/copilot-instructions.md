@@ -21,6 +21,8 @@ Deployed to **Google Cloud Run** (containerised).
 
 ## Developer workflows
 
+**Validation policy:** Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
+
 **Docker dev (recommended):**
 
 ```bash
@@ -34,7 +36,7 @@ Default credentials: host `localhost`, db `armadacms`, user/password `postgres`.
 
 `pnpm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
-**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). Run `go test -race -count=1 ./...` locally for backend changes. Frontend unit tests live in `frontend/src/` alongside the source files and use **vitest** (`pnpm run test` in `frontend/`). There is no end-to-end/integration test suite yet, so still verify relevant API behavior manually (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
+**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). When warranted by the validation policy above, run `go test -race -count=1 ./...` locally for backend changes. Frontend unit tests live in `frontend/src/` alongside the source files and use **vitest** (`pnpm run test` in `frontend/`). There is no end-to-end/integration test suite yet, so use relevant targeted API checks when needed (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
 
 **CI checks**: `.github/workflows/go-checks.yml` runs `go vet`, `golangci-lint`, and `go test -race -count=1 ./...` when Go files change (push to `main`/`staging` and pull requests).
 

@@ -14,14 +14,19 @@ permissions:
   pull-requests: read
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       supabase: ${{ steps.filter.outputs.supabase }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Detect Supabase changes
         uses: dorny/paths-filter@v3
@@ -36,9 +41,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.supabase == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -60,17 +66,33 @@ jobs:
 
   supabase-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [changes, validate-local-reset]
     if: always()
     steps:
       - name: All checks passed or skipped
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
+          VALIDATE_RESULT: ${{ needs.validate-local-reset.result }}
         run: |
-          if [[ "${{ needs.changes.result }}" == "failure" || "${{ needs.changes.result }}" == "cancelled" ]]; then
-            echo "Changes detection job failed."
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Supabase change detection did not succeed: $CHANGES_RESULT"
             exit 1
           fi
-          if [[ "${{ needs.validate-local-reset.result }}" == "failure" || "${{ needs.validate-local-reset.result }}" == "cancelled" ]]; then
-            echo "Supabase checks failed."
+          if [[ "$SUPABASE_CHANGED" != "true" && "$SUPABASE_CHANGED" != "false" ]]; then
+            echo "Supabase change detection returned an unexpected value: $SUPABASE_CHANGED"
             exit 1
           fi
-          echo "All Supabase checks passed or were skipped (no Supabase changes)."
+
+          expected_result="skipped"
+          if [[ "$SUPABASE_CHANGED" == "true" ]]; then
+            expected_result="success"
+          fi
+
+          if [[ "$VALIDATE_RESULT" != "$expected_result" ]]; then
+            echo "Unexpected Supabase check result: $VALIDATE_RESULT (expected $expected_result)."
+            exit 1
+          fi
+
+          echo "All required Supabase checks have the expected result: $expected_result."
