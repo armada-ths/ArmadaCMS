@@ -5,7 +5,6 @@
 [![Supabase checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml)
 [![Production deployment](https://img.shields.io/github/deployments/armada-ths/ArmadaCMS/Production?label=production&logo=googlecloud)](https://github.com/armada-ths/ArmadaCMS/deployments/Production)
 [![API status](https://img.shields.io/website?url=https%3A%2F%2Fcms.armada.nu%2Fhealth&label=CMS%20API)](https://cms.armada.nu/health)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/armada-ths/ArmadaCMS/badge)](https://securityscorecards.dev/viewer/?uri=github.com/armada-ths/ArmadaCMS)
 [![Last commit](https://img.shields.io/github/last-commit/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/commits)
 [![Open issues](https://img.shields.io/github/issues/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/issues)
 [![License: MIT](https://img.shields.io/github/license/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/blob/main/license.txt)
