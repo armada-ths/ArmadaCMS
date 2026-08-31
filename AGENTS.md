@@ -15,7 +15,7 @@ If a task changes the public website, also update the sibling `../armada.nu` rep
 
 ## Fast path
 
-- Do not run time-consuming scripts such as builds, full test suites, linters, or type checks after every prompt. Run them only when the scope or risk of the changes creates a realistic chance that the scripts will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
+- Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
 - Keep write operations in controllers on the audit helper path: use `createWithAudit[T]`, `updateWithAudit[T]`, and `writeDeleteResponseWithAudit[T]` rather than calling `db.DB.Create/Save/Delete` directly from controllers.
 - Register every new DB model in `db.DB.AutoMigrate(...)` in `main.go`.
 - When a change affects a public-site resource, pass the correct revalidation tag through the audit helper so the Next.js site cache is purged.
