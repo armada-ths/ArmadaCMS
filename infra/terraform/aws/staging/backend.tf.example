@@ -1,0 +1,11 @@
+# Copy this file to backend.tf and fill in your HCP Terraform details.
+
+terraform {
+  cloud {
+    organization = "THS-Armada"
+
+    workspaces {
+      name = "armadacms-aws-staging"
+    }
+  }
+}
