@@ -77,6 +77,21 @@ func GetProfileByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profile)
 }
 
+func parseOptionalTeamID(value string) (*int32, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	teamID, err := strconv.ParseInt(trimmed, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("team_id must be a 32-bit integer: %w", err)
+	}
+
+	teamIDInt32 := int32(teamID)
+	return &teamIDInt32, nil
+}
+
 // CreateProfile creates a new profile. Accepts multipart/form-data.
 // @Summary Create profile
 // @Tags profiles
@@ -108,17 +123,14 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
-	if teamIDStr != "" {
-		teamID, err := strconv.Atoi(teamIDStr)
-		if err != nil {
-			log.Println("Invalid team_id:", teamIDStr)
-			http.Error(w, "team_id must be an integer", http.StatusBadRequest)
-			return
-		}
-		teamIDInt32 := int32(teamID)
-		profile.TeamID = &teamIDInt32
+	teamIDStr := r.FormValue("team_id")
+	teamID, err := parseOptionalTeamID(teamIDStr)
+	if err != nil {
+		log.Println("Invalid team_id:", teamIDStr)
+		http.Error(w, "team_id must be a 32-bit integer", http.StatusBadRequest)
+		return
 	}
+	profile.TeamID = teamID
 	profile.Name = r.FormValue("name")
 	profile.Rank = r.FormValue("rank")
 	profile.Title = r.FormValue("title")
@@ -208,21 +220,18 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
+	teamIDStr := r.FormValue("team_id")
 	teamIDProvided := false
 	if r.MultipartForm != nil {
 		_, teamIDProvided = r.MultipartForm.Value["team_id"]
 	}
-	if teamIDStr != "" {
-		teamID, err := strconv.Atoi(teamIDStr)
-		if err != nil {
-			log.Println("Invalid team_id:", teamIDStr)
-			http.Error(w, "team_id must be an integer", http.StatusBadRequest)
-			return
-		}
-		teamIDInt32 := int32(teamID)
-		updates.TeamID = &teamIDInt32
+	teamID, err := parseOptionalTeamID(teamIDStr)
+	if err != nil {
+		log.Println("Invalid team_id:", teamIDStr)
+		http.Error(w, "team_id must be a 32-bit integer", http.StatusBadRequest)
+		return
 	}
+	updates.TeamID = teamID
 	updates.Name = r.FormValue("name")
 	updates.Rank = r.FormValue("rank")
 	updates.Title = r.FormValue("title")

@@ -168,9 +168,22 @@ func isKnownAdminClientPath(relPath string) bool {
 	return ok
 }
 
+func adminAssetExists(files http.FileSystem, relPath string) bool {
+	asset, err := files.Open(relPath)
+	if err != nil {
+		return false
+	}
+	defer asset.Close()
+
+	info, err := asset.Stat()
+	return err == nil && !info.IsDir()
+}
+
 func CreateControllers(mux *mux.Router) *mux.Router {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	buildDir := "./frontend/dist"
+	adminFiles := http.Dir(buildDir)
+	adminFileServer := http.StripPrefix("/admin/", http.FileServer(adminFiles))
 
 	serveAdminIndex := func(w http.ResponseWriter, r *http.Request, status int) {
 		indexPath := filepath.Join(buildDir, "index.html")
@@ -206,9 +219,8 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 			return
 		}
 
-		assetPath := filepath.Join(buildDir, filepath.FromSlash(relPath))
-		if info, err := os.Stat(assetPath); err == nil && !info.IsDir() {
-			http.ServeFile(w, r, assetPath)
+		if adminAssetExists(adminFiles, relPath) {
+			adminFileServer.ServeHTTP(w, r)
 			return
 		}
 
