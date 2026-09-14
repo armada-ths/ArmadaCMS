@@ -1,3 +1,6 @@
+import "@fontsource/bebas-neue/400.css";
+import "@fontsource/lato/400.css";
+import "@fontsource/lato/700.css";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { App } from "./App";
