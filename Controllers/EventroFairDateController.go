@@ -31,8 +31,6 @@ const (
 	milestoneEventsStart  fairDateMilestone = "events start"
 )
 
-// test comment to trigger CD
-
 // FetchFairDatesEventro syncs fair date configurations from the selected Eventro fair timeline.
 // @Summary Sync fair dates from Eventro
 // @Tags eventro
