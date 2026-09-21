@@ -40,11 +40,9 @@ export const LatestBlogPosts = ({ perms }: { perms: string[] }) => {
       <CardContent>
         <Stack
           direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={1}
+          sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
         >
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Newspaper color="action" />
             <Typography variant="h6">Latest blog posts</Typography>
           </Stack>
@@ -62,13 +60,13 @@ export const LatestBlogPosts = ({ perms }: { perms: string[] }) => {
         </Stack>
         <Divider />
         {isPending ? (
-          <Stack spacing={1} mt={1}>
+          <Stack spacing={1} sx={{ mt: 1 }}>
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} height={56} />
             ))}
           </Stack>
         ) : (data ?? []).length === 0 ? (
-          <Typography variant="body2" color="text.secondary" mt={1}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             No blog posts yet.
           </Typography>
         ) : (
