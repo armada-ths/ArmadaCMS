@@ -44,11 +44,9 @@ export const FeatureFlagsSummary = ({ perms }: { perms: string[] }) => {
       <CardContent>
         <Stack
           direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={1}
+          sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
         >
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <ToggleOn color="action" />
             <Typography variant="h6">Feature flags</Typography>
           </Stack>
@@ -68,7 +66,7 @@ export const FeatureFlagsSummary = ({ perms }: { perms: string[] }) => {
         {isPending ? (
           <Skeleton height={36} />
         ) : (
-          <Box display="flex" flexWrap="wrap" gap={1}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             {(data ?? []).map((flag) => (
               <Chip
                 key={flag.id}

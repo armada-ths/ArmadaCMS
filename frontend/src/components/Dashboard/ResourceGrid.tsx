@@ -178,10 +178,14 @@ const ResourceCard = ({
           sx={{ height: "100%", p: 0.5 }}
         >
           <CardContent>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Icon color="primary" fontSize="large" />
-              <Box flexGrow={1}>
-                <Typography variant="h6" component="div" lineHeight={1.2}>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography
+                  variant="h6"
+                  component="div"
+                  sx={{ lineHeight: 1.2 }}
+                >
                   {label}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
