@@ -13,6 +13,10 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ .
 RUN pnpm run build
 
+# Cache the small compiled assets separately from Node and node_modules.
+FROM scratch AS frontend-assets
+COPY --from=frontend-builder /frontend/dist /dist
+
 # ----------------------
 # Stage 2: Build Go binary
 # ----------------------
@@ -21,9 +25,16 @@ FROM golang:1.26-alpine3.22 AS backend-builder
 RUN apk add --no-cache bash git openssh
 
 WORKDIR /app
+ENV GOCACHE=/go-build-cache
 
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Keep compiled third-party packages in a regular image layer so the registry
+# cache can reuse them when application sources change. Update build/deps.txt
+# when application code starts importing another external package.
+COPY build/deps.txt ./build/deps.txt
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(cat build/deps.txt)
 
 COPY main.go ./
 COPY Controllers/ ./Controllers/
@@ -49,7 +60,7 @@ WORKDIR /app
 
 # Copy compiled binary and frontend assets
 COPY --from=backend-builder /app/server .
-COPY --from=frontend-builder /frontend/dist ./frontend/dist
+COPY --from=frontend-assets /dist ./frontend/dist
 
 EXPOSE 8080
 
