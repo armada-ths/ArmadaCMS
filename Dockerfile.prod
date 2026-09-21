@@ -25,8 +25,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
-COPY --from=frontend-builder /frontend/dist ./frontend/dist
+COPY main.go ./
+COPY Controllers/ ./Controllers/
+COPY Flow/ ./Flow/
+COPY audit/ ./audit/
+COPY auth/ ./auth/
+COPY db/ ./db/
+COPY docs/ ./docs/
+COPY models/ ./models/
+COPY utils/ ./utils/
 
 # Build a statically linked production binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/server .
@@ -42,7 +49,7 @@ WORKDIR /app
 
 # Copy compiled binary and frontend assets
 COPY --from=backend-builder /app/server .
-COPY --from=backend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
 EXPOSE 8080
 
