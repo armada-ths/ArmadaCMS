@@ -59,6 +59,9 @@ import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
 import { TimelineEntryList } from "./components/TimelineEntry/TimelineEntryList";
 import { TimelineEntryCreate } from "./components/TimelineEntry/TimelineEntryCreate";
 import { TimelineEntryEdit } from "./components/TimelineEntry/TimelineEntryEdit";
+import { TimelineEraList } from "./components/TimelineEra/TimelineEraList";
+import { TimelineEraCreate } from "./components/TimelineEra/TimelineEraCreate";
+import { TimelineEraEdit } from "./components/TimelineEra/TimelineEraEdit";
 import { ChangePasswordButton } from "./components/ChangePasswordButton";
 import { Dashboard } from "./components/Dashboard/Dashboard";
 import { DashboardMenuItem } from "react-admin";
@@ -212,6 +215,13 @@ export const App = () => (
       edit={BlogpostEdit}
     />
 
+    <Resource
+      name="timeline-eras"
+      options={{ label: "History timeline" }}
+      list={TimelineEraList}
+      create={TimelineEraCreate}
+      edit={TimelineEraEdit}
+    />
     <Resource
       name="timeline-entries"
       options={{ label: "Timeline Entries" }}

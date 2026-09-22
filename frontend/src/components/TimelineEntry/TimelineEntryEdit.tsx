@@ -1,21 +1,10 @@
-import {
-  Edit,
-  EditProps,
-  SimpleForm,
-  TextInput,
-  NumberInput,
-} from "react-admin";
+import { Edit, EditProps } from "react-admin";
+import { TimelineEntryForm } from "./TimelineEntryForm";
 
 export const TimelineEntryEdit = (props: EditProps) => {
   return (
     <Edit {...props}>
-      <SimpleForm>
-        <TextInput source="title" />
-        <TextInput source="body" multiline />
-        <TextInput source="era" label="Era (e.g. 1980s)" />
-        <TextInput source="eraTitle" label="Era title" />
-        <NumberInput source="sortOrder" label="Sort order" />
-      </SimpleForm>
+      <TimelineEntryForm />
     </Edit>
   );
 };

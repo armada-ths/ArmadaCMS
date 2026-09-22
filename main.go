@@ -51,6 +51,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"highlightcards":     {},
 	"blogposts":          {},
 	"timeline-entries":   {},
+	"timeline-eras":      {},
 	"login":              {},
 }
 
@@ -86,6 +87,7 @@ func main() {
 			models.FairDateConfig{},
 			models.FeatureFlag{},
 			models.HighlightCard{},
+			models.TimelineEra{},
 			models.TimelineEntry{},
 			// Enter your models here
 		); err != nil {
@@ -344,6 +346,11 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.delete", controllers.DeleteBlogpost)).Methods("DELETE")
 
 	// timeline entries
+	publicAPI.HandleFunc("/timeline-eras", controllers.GetTimelineEras).Methods("GET")
+	publicAPI.HandleFunc("/timeline-eras/{id}", controllers.GetTimelineEraByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline-eras", auth.RequirePermission("timeline-eras.create", controllers.CreateTimelineEra)).Methods("POST")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.edit", controllers.UpdateTimelineEra)).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.delete", controllers.DeleteTimelineEra)).Methods("DELETE")
 	publicAPI.HandleFunc("/timeline-entries", controllers.GetTimelineEntries).Methods("GET")
 	publicAPI.HandleFunc("/timeline-entries/{id}", controllers.GetTimelineEntryByID).Methods("GET")
 	protectedAPI.HandleFunc("/timeline-entries", auth.RequirePermission("timeline-entries.create", controllers.CreateTimelineEntry)).Methods("POST")

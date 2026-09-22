@@ -146,6 +146,10 @@ const buildMultipartFormDataOrHttpError = (
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
+  getOne: (resource, params) => {
+    return baseDataProvider.getOne(resource, params);
+  },
+
   create: (resource, params) => {
     if (["profiles", "events", "exhibitors", "blogposts"].includes(resource)) {
       try {
@@ -172,5 +176,9 @@ export const dataProvider: DataProvider = {
       }
     }
     return baseDataProvider.update(resource, params);
+  },
+
+  delete: (resource, params) => {
+    return baseDataProvider.delete(resource, params);
   },
 };
