@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -41,5 +43,29 @@ func TestHandleCORSDoesNotReflectUnknownOrigin(t *testing.T) {
 	}
 	if got := response.Header().Get("Access-Control-Allow-Credentials"); got != "" {
 		t.Fatalf("credentials were allowed for an unknown origin: %q", got)
+	}
+}
+
+func TestAdminAssetExistsOnlyServesFilesInsideRoot(t *testing.T) {
+	parentDir := t.TempDir()
+	assetDir := filepath.Join(parentDir, "assets")
+	if err := os.Mkdir(assetDir, 0o755); err != nil {
+		t.Fatalf("create asset directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(assetDir, "app.js"), []byte("asset"), 0o600); err != nil {
+		t.Fatalf("write asset: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(parentDir, "secret.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+
+	files := http.Dir(assetDir)
+	if !adminAssetExists(files, "app.js") {
+		t.Fatal("expected in-root asset to exist")
+	}
+	for _, path := range []string{"../secret.txt", `..\secret.txt`, "/../secret.txt"} {
+		if adminAssetExists(files, path) {
+			t.Fatalf("outside path %q was accepted", path)
+		}
 	}
 }

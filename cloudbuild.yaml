@@ -65,6 +65,7 @@ steps:
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: Determine Image URI
+    waitFor: ['-']
     entrypoint: bash
     args:
       - -ceu
@@ -74,6 +75,7 @@ steps:
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: Create GitHub Deployment
+    waitFor: ['Mint GitHub App Installation Token']
     entrypoint: bash
     args:
       - -ceu
@@ -121,14 +123,19 @@ steps:
 
   - name: gcr.io/cloud-builders/docker
     id: Build
+    waitFor: ['Determine Image URI']
     entrypoint: bash
     args:
       - -ceu
       - |
         IMAGE_URI="$$(cat /workspace/image_uri)"
+        CACHE_URI="$${IMAGE_URI%:*}:buildcache"
         set +e
-        docker build \
-          --no-cache \
+        docker buildx create --driver docker-container --use >/dev/null && docker buildx build \
+          --platform linux/amd64 \
+          --cache-from "type=registry,ref=$${CACHE_URI}" \
+          --cache-to "type=registry,ref=$${CACHE_URI},mode=max" \
+          --load \
           -t "$${IMAGE_URI}" \
           . \
           -f Dockerfile.prod

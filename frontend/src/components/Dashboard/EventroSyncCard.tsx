@@ -131,12 +131,16 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
     <>
       <Card variant="outlined" sx={{ mt: 2 }}>
         <CardContent>
-          <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", mb: 1.5 }}
+          >
             <Sync color="action" />
             <Typography variant="h6">Eventro sync</Typography>
           </Stack>
           <Divider sx={{ mb: 2 }} />
-          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+          <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
             {EVENTRO_ENDPOINTS.map((endpoint) => (
               <Button
                 key={endpoint.path}
@@ -183,7 +187,7 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
             </Alert>
           )}
           {loadingFairs ? (
-            <Stack alignItems="center" sx={{ py: 3 }}>
+            <Stack sx={{ alignItems: "center", py: 3 }}>
               <CircularProgress aria-label="Loading fair instances" />
             </Stack>
           ) : (
