@@ -9,9 +9,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     watch: {
-      // Required for HMR with Docker volume mounts on Windows/macOS
+      // Keep HMR reliable on Windows while watching only application assets.
       usePolling: true,
       interval: 1000,
+      ignored: (filePath) =>
+        !filePath.includes(`${path.sep}src${path.sep}`) &&
+        !filePath.includes(`${path.sep}public${path.sep}`),
     },
   },
 
@@ -68,7 +71,7 @@ export default defineConfig(({ mode }) => ({
       "react-hook-form",
     ],
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
     },
   },
 

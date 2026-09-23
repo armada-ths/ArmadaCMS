@@ -23,14 +23,22 @@ Deployed to **Google Cloud Run** (containerised).
 
 **Validation policy:** Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
 
-**Docker dev (recommended):**
+**Local dev (recommended):**
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build  # first run
 docker compose -f docker-compose.dev.yml up           # subsequent
 ```
 
-This runs the Go API, React-Admin frontend, Postgres, and MinIO together with hot reload.
+This runs the Go API, Postgres, and MinIO in Docker. Start the admin frontend separately from `frontend/` so Vite's Windows file watching and HMR do not run through a Docker bind mount:
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm run dev -- --host 127.0.0.1
+```
+
+The API is published at `http://localhost:8080`; `frontend/.env` points the dev data provider to `http://127.0.0.1:8080/api/v1`. The backend's default CORS allowlist includes both local frontend origins.
 
 Default credentials: host `localhost`, db `armadacms`, user/password `postgres`. Copy `.env.example` → `.env`.
 
