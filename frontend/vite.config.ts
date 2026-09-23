@@ -9,12 +9,22 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     watch: {
-      // Keep HMR reliable on Windows while watching only application assets.
+      // Keep Windows polling focused on files needed by the frontend.
       usePolling: true,
       interval: 1000,
-      ignored: (filePath) =>
-        !filePath.includes(`${path.sep}src${path.sep}`) &&
-        !filePath.includes(`${path.sep}public${path.sep}`),
+      ignored: (filePath) => {
+        const relativePath = path.relative(import.meta.dirname, filePath);
+        return (
+          relativePath !== "" &&
+          relativePath !== "src" &&
+          relativePath !== "public" &&
+          relativePath !== "index.html" &&
+          relativePath !== "vite.config.ts" &&
+          !/^\.env(?:\.|$)/.test(relativePath) &&
+          !relativePath.startsWith(`src${path.sep}`) &&
+          !relativePath.startsWith(`public${path.sep}`)
+        );
+      },
     },
   },
 
