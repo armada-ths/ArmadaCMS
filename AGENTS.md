@@ -4,7 +4,7 @@ This file exists for cross-agent compatibility. The canonical project instructio
 
 Also consult:
 
-- `README.md` for setup, scripts, project structure, and developer workflows
+- `README.md` for setup, scripts, project structure, and developer workflows. In local development, Docker runs the API/infrastructure while the admin Vite frontend runs from `frontend/` on the host.
 - `.github/instructions/terraform.instructions.md` when editing `infra/terraform/**`
 
 ## Project scope

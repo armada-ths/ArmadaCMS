@@ -9,9 +9,22 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     watch: {
-      // Required for HMR with Docker volume mounts on Windows/macOS
+      // Keep Windows polling focused on files needed by the frontend.
       usePolling: true,
       interval: 1000,
+      ignored: (filePath) => {
+        const relativePath = path.relative(import.meta.dirname, filePath);
+        return (
+          relativePath !== "" &&
+          relativePath !== "src" &&
+          relativePath !== "public" &&
+          relativePath !== "index.html" &&
+          relativePath !== "vite.config.ts" &&
+          !/^\.env(?:\.|$)/.test(relativePath) &&
+          !relativePath.startsWith(`src${path.sep}`) &&
+          !relativePath.startsWith(`public${path.sep}`)
+        );
+      },
     },
   },
 
@@ -68,7 +81,7 @@ export default defineConfig(({ mode }) => ({
       "react-hook-form",
     ],
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
     },
   },
 
