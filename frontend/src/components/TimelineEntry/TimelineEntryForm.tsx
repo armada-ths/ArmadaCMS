@@ -6,6 +6,7 @@ import {
   TextInput,
   required,
 } from "react-admin";
+import { MarkdownInput } from "../shared/MarkdownInput";
 
 export const TimelineEntryForm = () => (
   <SimpleForm>
@@ -28,14 +29,11 @@ export const TimelineEntryForm = () => (
       validate={required()}
       fullWidth
     />
-    <TextInput
+    <MarkdownInput
       source="body"
-      label="Body"
-      helperText="Description displayed under the heading."
+      label="Body (Markdown)"
       validate={required()}
-      multiline
-      rows={4}
-      fullWidth
+      enableImageFeatures={false}
     />
     <NumberInput
       source="sortOrder"
