@@ -23,7 +23,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".+",
-          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+          "endsPattern": "Server running on http://localhost:8080"
         }
       },
       "group": {
@@ -53,10 +53,41 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".+",
-          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+          "endsPattern": "Server running on http://localhost:8080"
         }
       },
       "group": "build"
+    },
+    {
+      "label": "admin frontend + docker",
+      "dependsOn": ["docker dev up"],
+      "dependsOrder": "parallel",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "dev", "--", "--host", "127.0.0.1"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(__never_match_this__)$",
+          "kind": "file",
+          "file": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".+",
+          "endsPattern": "Local:\\s+http://[^\\s]+:5173"
+        }
+      }
     },
     {
       "label": "docker dev stop",

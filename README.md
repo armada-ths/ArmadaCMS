@@ -86,12 +86,20 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    docker compose -f docker-compose.dev.yml up --build
    ```
 
-   This starts the Go API (Air hot reload), the React-Admin frontend (Vite HMR), Postgres, and MinIO in one Docker Compose workflow.
+   This starts the Go API (Air hot reload), Postgres, and MinIO. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
 
    Only the first run requires `--build`. After that, use:
 
    ```bash
    docker compose -f docker-compose.dev.yml up
+   ```
+
+   In a second terminal, start the admin frontend:
+
+   ```powershell
+   cd frontend
+   pnpm install --frozen-lockfile
+   pnpm run dev -- --host 127.0.0.1
    ```
 
    Local connection (e.g. for a DB GUI): `postgres:postgres@localhost:5432/armadacms`
@@ -126,7 +134,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    Once the development stack is running, the following URLs are available:
    - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
-   - **Admin UI**: [http://localhost:5173](http://localhost:5173)
+   - **Admin UI**: [http://localhost:5173/admin](http://localhost:5173/admin) (host-run Vite frontend)
    - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
 
 ## Database migrations
@@ -157,8 +165,8 @@ Roles and feature flags are seeded from `supabase/seed.sql` alongside the initia
 
 This repo includes shared VS Code configuration in `.vscode/`:
 
-- `tasks.json` — shared Docker tasks for `docker dev up`, `docker dev up --build`, `docker dev stop`, and `docker dev down`
-- `launch.json` — a `Docker` launch that starts the dev stack via the shared task and opens the admin UI
+- `tasks.json` — Docker tasks plus an `admin frontend + docker` task that runs Vite from `frontend/` and starts the Docker task as a dependency.
+- `launch.json` — an `Admin Frontend + Docker` launch using the `admin frontend + docker` task.
 
 If you work across both repos, use the shared workspace file committed in `armada.nu`:
 

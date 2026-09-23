@@ -4,7 +4,7 @@ This file is a compatibility wrapper for non-Copilot agents. The canonical instr
 
 Also check:
 
-- `README.md` for setup, scripts, project structure, and developer workflows
+- `README.md` for setup, scripts, project structure, and developer workflows. In local development, Docker runs the API/infrastructure while the admin Vite frontend runs from `frontend/` on the host.
 - `.github/instructions/terraform.instructions.md` for `infra/terraform/**`
 
 ## Must-follow rules
