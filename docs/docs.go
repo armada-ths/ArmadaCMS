@@ -4456,6 +4456,342 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/timeline-entries": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "List timeline entries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination range, e.g. [0,24]",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.TimelineEntry"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Create timeline entry",
+                "parameters": [
+                    {
+                        "description": "Timeline entry data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-entries/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Get timeline entry by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Update timeline entry",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated timeline entry data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Delete timeline entry",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-eras": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "List timeline eras",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination range, e.g. [0,24]",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.TimelineEra"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Create timeline era",
+                "parameters": [
+                    {
+                        "description": "Timeline era data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-eras/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Get timeline era by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Update timeline era",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Timeline era data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Delete timeline era",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -5155,6 +5491,43 @@ const docTemplate = `{
                 "TierSilver",
                 "TierGold"
             ]
+        },
+        "models.TimelineEntry": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "eraId": {
+                    "type": "integer"
+                },
+                "eraTitle": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.TimelineEra": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
         },
         "models.Tokens": {
             "type": "object",

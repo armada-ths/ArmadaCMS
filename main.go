@@ -50,6 +50,8 @@ var adminClientRouteSegments = map[string]struct{}{
 	"auditlogs":          {},
 	"highlightcards":     {},
 	"blogposts":          {},
+	"timeline-entries":   {},
+	"timeline-eras":      {},
 	"login":              {},
 }
 
@@ -85,6 +87,8 @@ func main() {
 			models.FairDateConfig{},
 			models.FeatureFlag{},
 			models.HighlightCard{},
+			models.TimelineEra{},
+			models.TimelineEntry{},
 			// Enter your models here
 		); err != nil {
 			log.Fatalf("failed to run database migrations: %v", err)
@@ -340,6 +344,18 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/blogposts/upload", auth.RequirePermission("blogposts.create", controllers.UploadBlogImage)).Methods("POST")
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.edit", controllers.UpdateBlogpost)).Methods("PUT")
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.delete", controllers.DeleteBlogpost)).Methods("DELETE")
+
+	// timeline entries
+	publicAPI.HandleFunc("/timeline-eras", controllers.GetTimelineEras).Methods("GET")
+	publicAPI.HandleFunc("/timeline-eras/{id}", controllers.GetTimelineEraByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline-eras", auth.RequirePermission("timeline-eras.create", controllers.CreateTimelineEra)).Methods("POST")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.edit", controllers.UpdateTimelineEra)).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.delete", controllers.DeleteTimelineEra)).Methods("DELETE")
+	publicAPI.HandleFunc("/timeline-entries", controllers.GetTimelineEntries).Methods("GET")
+	publicAPI.HandleFunc("/timeline-entries/{id}", controllers.GetTimelineEntryByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline-entries", auth.RequirePermission("timeline-entries.create", controllers.CreateTimelineEntry)).Methods("POST")
+	protectedAPI.HandleFunc("/timeline-entries/{id}", auth.RequirePermission("timeline-entries.edit", controllers.UpdateTimelineEntry)).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline-entries/{id}", auth.RequirePermission("timeline-entries.delete", controllers.DeleteTimelineEntry)).Methods("DELETE")
 
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
