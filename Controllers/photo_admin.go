@@ -26,7 +26,7 @@ var photoSlug = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 func validatePhotoEvent(event models.PhotoEvent) error {
 	if event.Name == "" || !photoSlug.MatchString(event.Slug) || event.MaxPhotosPerGuest < 1 || event.MaxPhotosPerGuest > 25 ||
-		!event.UploadsOpenAt.Before(event.UploadsCloseAt) || event.UploadsCloseAt.After(event.GalleryCloseAt) || !event.GalleryCloseAt.Before(event.DeleteAfter) {
+		!event.UploadsOpenAt.Before(event.UploadsCloseAt) || event.UploadsCloseAt.After(event.GalleryCloseAt) {
 		return fmt.Errorf("invalid event fields")
 	}
 	if event.Active {
@@ -70,6 +70,7 @@ func CreatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	event.ID = 0
 	event.TokenVersion = 1
+	event.DeletionRequestedAt, event.DeletionCompletedAt = nil, nil
 	if event.MaxPhotosPerGuest == 0 {
 		event.MaxPhotosPerGuest = 25
 	}
@@ -96,18 +97,59 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", 400)
 		return
 	}
+	if before.DeletionRequestedAt != nil {
+		http.Error(w, "Deletion already requested", http.StatusConflict)
+		return
+	}
 	input.ID, input.TokenVersion, input.CreatedAt = before.ID, before.TokenVersion, before.CreatedAt
+	input.DeletionRequestedAt, input.DeletionCompletedAt = before.DeletionRequestedAt, before.DeletionCompletedAt
 	if err := validatePhotoEvent(input); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "slug": input.Slug, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "delete_after": input.DeleteAfter, "active": input.Active, "privacy_url": input.PrivacyURL, "max_photos_per_guest": input.MaxPhotosPerGuest}).Error
+		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "slug": input.Slug, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "active": input.Active, "privacy_url": input.PrivacyURL, "max_photos_per_guest": input.MaxPhotosPerGuest}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return
 	}
 	photoAdminJSON(w, input)
+}
+
+// RequestPhotoEventDeletion disables access and queues object deletion by the worker.
+func RequestPhotoEventDeletion(w http.ResponseWriter, r *http.Request) {
+	var before models.PhotoEvent
+	if db.DB.First(&before, mux.Vars(r)["id"]).Error != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if before.DeletionRequestedAt != nil {
+		http.Error(w, "Deletion already requested", http.StatusConflict)
+		return
+	}
+	var input struct {
+		ExternalCopiesHandled bool `json:"external_copies_handled"`
+	}
+	if json.NewDecoder(r.Body).Decode(&input) != nil || !input.ExternalCopiesHandled {
+		http.Error(w, "Confirm that THS-controlled external copies were handled", http.StatusBadRequest)
+		return
+	}
+	now := time.Now().UTC()
+	after := before
+	after.Active = false
+	after.TokenVersion++
+	after.DeletionRequestedAt = &now
+	if err := updateWithAudit(r, "photoevents", before.ID, before, &after, func(tx *gorm.DB) error {
+		return tx.Model(&before).Updates(map[string]any{"active": false, "token_version": after.TokenVersion, "deletion_requested_at": now}).Error
+	}, nil); err != nil {
+		http.Error(w, "Deletion request failed", http.StatusInternalServerError)
+		return
+	}
+	if err := launchPhotoWorker(r.Context()); err != nil {
+		w.Header().Set("X-Photo-Deletion-Launch", "scheduled-retry")
+	}
+	w.WriteHeader(http.StatusAccepted)
+	photoAdminJSON(w, after)
 }
 
 func RotatePhotoEventToken(w http.ResponseWriter, r *http.Request) {
@@ -307,7 +349,16 @@ func ModerateEventPhotosBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeletePhotoEvent(w http.ResponseWriter, r *http.Request) {
-	// Retention cleanup owns object deletion; prevent unsafe cascade while objects still exist.
+	// Ordinary record deletion is only safe after the explicit retention workflow.
+	var event models.PhotoEvent
+	if db.DB.First(&event, mux.Vars(r)["id"]).Error != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if event.DeletionCompletedAt == nil {
+		http.Error(w, "Request retention deletion first", http.StatusConflict)
+		return
+	}
 	var count int64
 	db.DB.Model(&models.EventPhoto{}).Where("event_id = ?", mux.Vars(r)["id"]).Count(&count)
 	var exportCount int64

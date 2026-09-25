@@ -6,16 +6,20 @@ create table public.photo_events (
   uploads_open_at timestamptz not null,
   uploads_close_at timestamptz not null,
   gallery_close_at timestamptz not null,
-  delete_after timestamptz not null,
+  deletion_requested_at timestamptz,
+  deletion_completed_at timestamptz,
   active boolean not null default false,
   privacy_url text not null default '',
   max_photos_per_guest integer not null default 25 check (max_photos_per_guest between 1 and 25),
   token_version integer not null default 1 check (token_version > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint photo_events_time_order check (uploads_open_at < uploads_close_at and uploads_close_at <= gallery_close_at and gallery_close_at < delete_after),
+  constraint photo_events_time_order check (uploads_open_at < uploads_close_at and uploads_close_at <= gallery_close_at),
   constraint photo_events_active_privacy check (not active or length(trim(privacy_url)) > 0)
 );
+
+create index photo_events_deletion_queue_idx on public.photo_events(deletion_requested_at)
+  where deletion_requested_at is not null and deletion_completed_at is null;
 
 create table public.event_photos (
   id bigint generated always as identity primary key,

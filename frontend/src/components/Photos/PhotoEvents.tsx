@@ -13,17 +13,24 @@ import {
   TextInput,
   useNotify,
   useRecordContext,
+  useRefresh,
 } from "react-admin";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { httpClient } from "../../dataProvider";
 import globalApi from "../../context/globalApi";
 
-type PhotoEvent = { id: number; name: string; active: boolean };
+type PhotoEvent = {
+  id: number;
+  name: string;
+  active: boolean;
+  deletion_requested_at: string | null;
+};
 
 function EventActions() {
   const record = useRecordContext<PhotoEvent>();
   const notify = useNotify();
+  const refresh = useRefresh();
   const [busy, setBusy] = useState(false);
   if (!record) return null;
 
@@ -68,6 +75,31 @@ function EventActions() {
     window.setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
   };
 
+  const deleteEventData = async () => {
+    if (
+      !window.confirm(
+        "This disables the event and queues permanent deletion of its photos and exports. Confirm that THS-controlled marketing copies and posts have been handled manually. Continue?",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await httpClient(
+        `${globalApi()}/photoevents/${record.id}/retention-delete`,
+        {
+          method: "POST",
+          body: JSON.stringify({ external_copies_handled: true }),
+        },
+      );
+      notify("Event access disabled and deletion queued", { type: "success" });
+      refresh();
+    } catch {
+      notify("Could not queue deletion", { type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
       <button type="button" disabled={busy} onClick={() => void copyLink()}>
@@ -92,6 +124,15 @@ function EventActions() {
         QR PNG
       </button>
       <Link to={`/photoevents/${record.id}/photos`}>Moderate</Link>
+      {!record.deletion_requested_at && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void deleteEventData()}
+        >
+          Request deletion
+        </button>
+      )}
     </div>
   );
 }
@@ -119,11 +160,6 @@ const EventForm = () => (
     <DateTimeInput
       source="gallery_close_at"
       label="Gallery closes"
-      validate={required()}
-    />
-    <DateTimeInput
-      source="delete_after"
-      label="Delete all photos after"
       validate={required()}
     />
     <TextInput

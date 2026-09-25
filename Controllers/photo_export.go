@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func StartPhotoExport(w http.ResponseWriter, r *http.Request) {
@@ -25,11 +26,24 @@ func StartPhotoExport(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if event.DeletionRequestedAt != nil {
+		http.Error(w, "Event deletion requested", http.StatusConflict)
+		return
+	}
 	userID, _ := auth.GetUserIDFromContext(r)
 	admin := uint(userID)
 	job := models.PhotoExport{EventID: event.ID, Status: "queued", RequestedBy: &admin, CreatedAt: time.Now()}
-	if err := createWithAudit(r, "photoexports", &job, func(tx *gorm.DB) error { return tx.Create(&job).Error }, nil); err != nil {
-		http.Error(w, "Could not queue export", 500)
+	if err := createWithAudit(r, "photoexports", &job, func(tx *gorm.DB) error {
+		var locked models.PhotoEvent
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&locked, event.ID).Error; err != nil {
+			return err
+		}
+		if locked.DeletionRequestedAt != nil {
+			return fmt.Errorf("event deletion requested")
+		}
+		return tx.Create(&job).Error
+	}, nil); err != nil {
+		http.Error(w, "Could not queue export", http.StatusInternalServerError)
 		return
 	}
 	log.Print("photo_export result=queued")
@@ -69,7 +83,7 @@ func ListPhotoExports(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("event_id = ?", eventID)
 	}
 	if err := query.Find(&jobs).Error; err != nil {
-		http.Error(w, "Export list unavailable", 503)
+		http.Error(w, "Export list unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	photoAdminJSON(w, jobs)

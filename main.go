@@ -268,6 +268,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/photoevents/{id}/link", auth.RequirePermission("photoevents.view", controllers.PhotoEventLink)).Methods("GET")
 	protectedAPI.HandleFunc("/photoevents/{id}/qr", auth.RequirePermission("photoevents.view", controllers.PhotoEventQR)).Methods("GET")
 	protectedAPI.HandleFunc("/photoevents/{id}/rotate", auth.RequirePermission("photoevents.edit", controllers.RotatePhotoEventToken)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}/retention-delete", auth.RequirePermission("photoevents.delete", controllers.RequestPhotoEventDeletion)).Methods("POST")
 	protectedAPI.HandleFunc("/eventphotos", auth.RequirePermission("eventphotos.view", controllers.ListEventPhotos)).Methods("GET")
 	protectedAPI.HandleFunc("/eventphotos/batch", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhotosBatch)).Methods("POST")
 	protectedAPI.HandleFunc("/eventphotos/{id}/moderate", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhoto)).Methods("POST")

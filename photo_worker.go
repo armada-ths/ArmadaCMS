@@ -41,7 +41,9 @@ func claimPhotoExport() (*models.PhotoExport, error) {
 			return err
 		}
 		return tx.Raw(`UPDATE photo_exports SET status = 'running', started_at = now()
-		  WHERE id = (SELECT id FROM photo_exports WHERE status = 'queued' ORDER BY created_at, id FOR UPDATE SKIP LOCKED LIMIT 1)
+		  WHERE id = (SELECT pe.id FROM photo_exports pe JOIN photo_events e ON e.id = pe.event_id
+		    WHERE pe.status = 'queued' AND e.deletion_requested_at IS NULL
+		    ORDER BY pe.created_at, pe.id FOR UPDATE OF pe SKIP LOCKED LIMIT 1)
 		  RETURNING *`).Scan(&found).Error
 	})
 	if err != nil || found.ID == 0 {
@@ -127,12 +129,19 @@ func cleanupPhotos(ctx context.Context) error {
 		}
 	}
 	var events []models.PhotoEvent
-	if err := db.DB.Where("delete_after <= ?", time.Now()).Find(&events).Error; err != nil {
+	if err := db.DB.Where("deletion_requested_at IS NOT NULL AND deletion_completed_at IS NULL").Find(&events).Error; err != nil {
 		return err
 	}
 	for _, event := range events {
 		if err := db.DB.Model(&event).Update("active", false).Error; err != nil {
 			return err
+		}
+		var running int64
+		if err := db.DB.Model(&models.PhotoExport{}).Where("event_id = ? AND status = 'running'", event.ID).Count(&running).Error; err != nil {
+			return err
+		}
+		if running > 0 {
+			continue
 		}
 		var photos []models.EventPhoto
 		if err := db.DB.Where("event_id = ?", event.ID).Find(&photos).Error; err != nil {
@@ -161,6 +170,9 @@ func cleanupPhotos(ctx context.Context) error {
 			if err := db.DB.Delete(&item).Error; err != nil {
 				return err
 			}
+		}
+		if err := db.DB.Model(&event).Update("deletion_completed_at", time.Now().UTC()).Error; err != nil {
+			return err
 		}
 	}
 	return nil

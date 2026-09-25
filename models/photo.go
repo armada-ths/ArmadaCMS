@@ -3,20 +3,21 @@ package models
 import "time"
 
 type PhotoEvent struct {
-	ID                uint64    `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	Name              string    `gorm:"column:name" json:"name"`
-	Slug              string    `gorm:"column:slug" json:"slug"`
-	Description       string    `gorm:"column:description" json:"description"`
-	UploadsOpenAt     time.Time `gorm:"column:uploads_open_at" json:"uploads_open_at"`
-	UploadsCloseAt    time.Time `gorm:"column:uploads_close_at" json:"uploads_close_at"`
-	GalleryCloseAt    time.Time `gorm:"column:gallery_close_at" json:"gallery_close_at"`
-	DeleteAfter       time.Time `gorm:"column:delete_after" json:"delete_after"`
-	Active            bool      `gorm:"column:active" json:"active"`
-	PrivacyURL        string    `gorm:"column:privacy_url" json:"privacy_url"`
-	MaxPhotosPerGuest int       `gorm:"column:max_photos_per_guest;default:25" json:"max_photos_per_guest"`
-	TokenVersion      int       `gorm:"column:token_version;default:1" json:"token_version"`
-	CreatedAt         time.Time `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt         time.Time `gorm:"column:updated_at" json:"updated_at"`
+	ID                  uint64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	Name                string     `gorm:"column:name" json:"name"`
+	Slug                string     `gorm:"column:slug" json:"slug"`
+	Description         string     `gorm:"column:description" json:"description"`
+	UploadsOpenAt       time.Time  `gorm:"column:uploads_open_at" json:"uploads_open_at"`
+	UploadsCloseAt      time.Time  `gorm:"column:uploads_close_at" json:"uploads_close_at"`
+	GalleryCloseAt      time.Time  `gorm:"column:gallery_close_at" json:"gallery_close_at"`
+	DeletionRequestedAt *time.Time `gorm:"column:deletion_requested_at" json:"deletion_requested_at"`
+	DeletionCompletedAt *time.Time `gorm:"column:deletion_completed_at" json:"deletion_completed_at"`
+	Active              bool       `gorm:"column:active" json:"active"`
+	PrivacyURL          string     `gorm:"column:privacy_url" json:"privacy_url"`
+	MaxPhotosPerGuest   int        `gorm:"column:max_photos_per_guest;default:25" json:"max_photos_per_guest"`
+	TokenVersion        int        `gorm:"column:token_version;default:1" json:"token_version"`
+	CreatedAt           time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at" json:"updated_at"`
 }
 
 type EventPhoto struct {

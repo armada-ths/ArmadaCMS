@@ -11,7 +11,7 @@ func TestPhotoEventActivationRequiresPrivacyAndValidTimes(t *testing.T) {
 	event := models.PhotoEvent{
 		Name: "Banquet", Slug: "banquet-2026", MaxPhotosPerGuest: 25,
 		UploadsOpenAt: now, UploadsCloseAt: now.Add(time.Hour),
-		GalleryCloseAt: now.Add(24 * time.Hour), DeleteAfter: now.Add(48 * time.Hour),
+		GalleryCloseAt: now.Add(24 * time.Hour),
 	}
 	if err := validatePhotoEvent(event); err != nil {
 		t.Fatal(err)

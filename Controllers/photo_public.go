@@ -25,7 +25,7 @@ func photoEventFromToken(w http.ResponseWriter, r *http.Request) (*models.PhotoE
 		return nil, false
 	}
 	var event models.PhotoEvent
-	if err := db.DB.First(&event, id).Error; err != nil || !event.Active || event.TokenVersion != version || !time.Now().Before(event.DeleteAfter) {
+	if err := db.DB.First(&event, id).Error; err != nil || !event.Active || event.DeletionRequestedAt != nil || event.TokenVersion != version {
 		http.Error(w, "Event is unavailable", http.StatusNotFound)
 		return nil, false
 	}
