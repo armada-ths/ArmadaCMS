@@ -60,12 +60,12 @@ export function PhotoModeration() {
         setPage(0);
         setHasMore((result.json as Photo[]).length === 200);
       })
-      .catch(() => setMessage("Kunde inte läsa bilderna."));
+      .catch(() => setMessage("Could not load the photos."));
   }, [id, status]);
   useEffect(() => {
     void httpClient(`${globalApi()}/photoexports?event_id=${id}`)
       .then((result) => setExports(result.json as PhotoExport[]))
-      .catch(() => setMessage("Kunde inte läsa exportjobb."));
+      .catch(() => setMessage("Could not load the export jobs."));
   }, [id]);
 
   const startExport = async () => {
@@ -73,10 +73,10 @@ export function PhotoModeration() {
       await httpClient(`${globalApi()}/photoevents/${id}/exports`, {
         method: "POST",
       });
-      setMessage("Exporten har köats. Uppdatera status om en stund.");
+      setMessage("The export is queued. Refresh its status in a moment.");
       await refreshExports();
     } catch {
-      setMessage("Kunde inte starta exporten.");
+      setMessage("Could not start the export.");
     }
   };
 
@@ -100,11 +100,11 @@ export function PhotoModeration() {
       const counts = result.json as { succeeded: number; failed: number };
       setMessage(
         counts.failed
-          ? `${counts.failed} bilder kunde inte behandlas.`
-          : `${counts.succeeded} bilder behandlade.`,
+          ? `${counts.failed} photos could not be processed.`
+          : `${counts.succeeded} photos processed.`,
       );
     } catch {
-      setMessage("Modereringen misslyckades.");
+      setMessage("Moderation failed.");
     }
     setBusy(false);
     await refresh();
@@ -112,14 +112,14 @@ export function PhotoModeration() {
 
   return (
     <main className="p-6">
-      <h1 className="text-2xl">Moderering – event {id}</h1>
+      <h1 className="text-2xl">Moderation – event {id}</h1>
       <section>
-        <h2>ZIP-export</h2>
+        <h2>ZIP export</h2>
         <button type="button" onClick={() => void startExport()}>
-          Skapa ZIP av godkända bilder
+          Create ZIP of approved photos
         </button>
         <button type="button" onClick={() => void refreshExports()}>
-          Uppdatera exportstatus
+          Refresh export status
         </button>
         <ul>
           {exports.map((item) => (
@@ -130,7 +130,7 @@ export function PhotoModeration() {
                   type="button"
                   onClick={() => void downloadExport(item.id)}
                 >
-                  Ladda ned
+                  Download
                 </button>
               )}
             </li>
@@ -143,13 +143,13 @@ export function PhotoModeration() {
           value={status}
           onChange={(event) => setStatus(event.target.value)}
         >
-          <option value="pending">Väntar</option>
-          <option value="approved">Godkända</option>
-          <option value="rejected">Avvisade</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
       </label>
       <button type="button" onClick={() => void refresh()}>
-        Uppdatera
+        Refresh
       </button>
       <p role="status">{message}</p>
       <div className="flex gap-3">
@@ -158,24 +158,24 @@ export function PhotoModeration() {
           disabled={busy || !selected.length}
           onClick={() => void moderate(selected, "approve")}
         >
-          Godkänn valda
+          Approve selected
         </button>
         <button
           type="button"
           disabled={busy || !selected.length}
           onClick={() => void moderate(selected, "reject")}
         >
-          Avvisa valda
+          Reject selected
         </button>
         <button
           type="button"
           disabled={busy || !selected.length}
           onClick={() => {
-            if (window.confirm("Radera valda bilder permanent?"))
+            if (window.confirm("Permanently delete the selected photos?"))
               void moderate(selected, "delete");
           }}
         >
-          Radera valda
+          Delete selected
         </button>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
@@ -195,13 +195,13 @@ export function PhotoModeration() {
             {photo.thumbnail_url ? (
               <img
                 src={photo.thumbnail_url}
-                alt={`Bild ${photo.id}`}
+                alt={`Photo ${photo.id}`}
                 className="h-40 w-full object-contain"
               />
             ) : (
-              <div className="h-40">Borttagen</div>
+              <div className="h-40">Deleted</div>
             )}
-            <span>{new Date(photo.uploaded_at).toLocaleString("sv-SE")}</span>
+            <span>{new Date(photo.uploaded_at).toLocaleString("en-GB")}</span>
           </label>
         ))}
       </div>
@@ -210,11 +210,11 @@ export function PhotoModeration() {
           type="button"
           onClick={() =>
             void loadMore().catch(() =>
-              setMessage("Kunde inte läsa fler bilder."),
+              setMessage("Could not load more photos."),
             )
           }
         >
-          Ladda fler bilder
+          Load more photos
         </button>
       )}
     </main>

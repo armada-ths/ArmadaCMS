@@ -105,7 +105,7 @@ export const App = () => (
     </CustomRoutes>
     <Resource
       name="photoevents"
-      options={{ label: "Gästbilder" }}
+      options={{ label: "Guest photos" }}
       list={PhotoEventList}
       create={PhotoEventCreate}
       edit={PhotoEventEdit}

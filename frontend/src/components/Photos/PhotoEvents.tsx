@@ -37,11 +37,11 @@ function EventActions() {
       await navigator.clipboard.writeText(
         (response.json as { url: string }).url,
       );
-      notify(rotate ? "Länken roterades och kopierades" : "Länken kopierades", {
+      notify(rotate ? "Link rotated and copied" : "Link copied", {
         type: "success",
       });
     } catch {
-      notify("Kunde inte kopiera länken", { type: "error" });
+      notify("Could not copy the link", { type: "error" });
     } finally {
       setBusy(false);
     }
@@ -57,7 +57,7 @@ function EventActions() {
       },
     );
     if (!response.ok) {
-      notify("QR-koden kunde inte hämtas", { type: "error" });
+      notify("Could not download the QR code", { type: "error" });
       return;
     }
     const objectURL = URL.createObjectURL(await response.blob());
@@ -71,17 +71,19 @@ function EventActions() {
   return (
     <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
       <button type="button" disabled={busy} onClick={() => void copyLink()}>
-        Kopiera länk
+        Copy link
       </button>
       <button
         type="button"
         disabled={busy}
         onClick={() => {
-          if (window.confirm("Den gamla QR-länken slutar fungera. Rotera?"))
+          if (
+            window.confirm("The previous QR link will stop working. Rotate it?")
+          )
             void copyLink(true);
         }}
       >
-        Rotera
+        Rotate
       </button>
       <button type="button" onClick={() => void downloadQR("svg")}>
         QR SVG
@@ -89,7 +91,7 @@ function EventActions() {
       <button type="button" onClick={() => void downloadQR("png")}>
         QR PNG
       </button>
-      <Link to={`/photoevents/${record.id}/photos`}>Moderera</Link>
+      <Link to={`/photoevents/${record.id}/photos`}>Moderate</Link>
     </div>
   );
 }
@@ -98,45 +100,45 @@ const EventForm = () => (
   <SimpleForm>
     <TextInput
       source="name"
-      label="Eventnamn"
+      label="Event name"
       validate={required()}
       fullWidth
     />
     <TextInput source="slug" label="Slug" validate={required()} fullWidth />
-    <TextInput source="description" label="Beskrivning" multiline fullWidth />
+    <TextInput source="description" label="Description" multiline fullWidth />
     <DateTimeInput
       source="uploads_open_at"
-      label="Uppladdning öppnar"
+      label="Uploads open"
       validate={required()}
     />
     <DateTimeInput
       source="uploads_close_at"
-      label="Uppladdning stänger"
+      label="Uploads close"
       validate={required()}
     />
     <DateTimeInput
       source="gallery_close_at"
-      label="Galleri stänger"
+      label="Gallery closes"
       validate={required()}
     />
     <DateTimeInput
       source="delete_after"
-      label="Radera allt efter"
+      label="Delete all photos after"
       validate={required()}
     />
     <TextInput
       source="privacy_url"
-      label="Länk till integritetsinformation (HTTPS)"
+      label="Privacy information URL (HTTPS)"
       fullWidth
     />
     <NumberInput
       source="max_photos_per_guest"
-      label="Bilder per gäst"
+      label="Photos per guest"
       min={1}
       max={25}
       defaultValue={25}
     />
-    <BooleanInput source="active" label="Aktivt event" />
+    <BooleanInput source="active" label="Active event" />
   </SimpleForm>
 );
 
@@ -145,11 +147,7 @@ export const PhotoEventList = () => (
     <Datagrid rowClick="edit">
       <TextField source="name" label="Event" />
       <TextField source="slug" label="Slug" />
-      <DateField
-        source="uploads_close_at"
-        label="Uppladdning stänger"
-        showTime
-      />
+      <DateField source="uploads_close_at" label="Uploads close" showTime />
       <EventActions />
     </Datagrid>
   </List>
