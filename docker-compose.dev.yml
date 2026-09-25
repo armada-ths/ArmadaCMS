@@ -89,13 +89,17 @@ services:
         condition: service_healthy
     environment:
       S3_BUCKET: ${S3_BUCKET:-armada-dev}
+      PHOTO_S3_BUCKET: ${PHOTO_S3_BUCKET:-event-photos}
+      PHOTO_EXPORT_S3_BUCKET: ${PHOTO_EXPORT_S3_BUCKET:-event-photo-exports}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
       mc mb --ignore-existing local/$$S3_BUCKET &&
-      mc anonymous set download local/$$S3_BUCKET
+      mc anonymous set download local/$$S3_BUCKET &&
+      mc mb --ignore-existing local/$$PHOTO_S3_BUCKET &&
+      mc mb --ignore-existing local/$$PHOTO_EXPORT_S3_BUCKET
       "
     networks:
       - backend

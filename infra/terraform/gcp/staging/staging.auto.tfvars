@@ -15,7 +15,7 @@ manage_secret_accessor_bindings    = true
 manage_cloud_build_triggers        = true
 
 cloud_run_cpu    = "1000m"
-cloud_run_memory = "512Mi"
+cloud_run_memory = "1Gi"
 min_instances    = 0
 max_instances    = 1
 

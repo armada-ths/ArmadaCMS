@@ -16,6 +16,7 @@ locals {
     [
       "artifactregistry.googleapis.com",
       "cloudbuild.googleapis.com",
+      "cloudscheduler.googleapis.com",
       "iam.googleapis.com",
       "run.googleapis.com",
       "secretmanager.googleapis.com",
@@ -41,6 +42,7 @@ locals {
     REVALIDATION_SECRET   = "REVALIDATION_SECRET"
     AWS_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
     AWS_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
+    PHOTO_TOKEN_SECRET    = "PHOTO_TOKEN_SECRET"
   }
 
   secret_value_keys = toset([
@@ -50,6 +52,7 @@ locals {
 
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
+  # Photo bucket fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = {
     DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
     DB_PORT                       = "5432"
@@ -60,6 +63,11 @@ locals {
     S3_ENDPOINT                   = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
     S3_PUBLIC_URL                 = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"
     S3_BUCKET                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
+    PHOTO_S3_BUCKET               = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_storage_bucket"]), "event-photos")
+    PHOTO_EXPORT_S3_BUCKET        = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_export_bucket"]), "event-photo-exports")
+    PHOTO_RECAPTCHA_SITE_KEY      = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : ""
+    RECAPTCHA_PROJECT_ID          = var.project_id
+    PHOTO_WORKER_JOB_NAME         = "projects/${var.project_id}/locations/${var.region}/jobs/${var.service_name}-photo-worker"
     S3_REGION                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_region"])
     DB_MAX_OPEN_CONNS             = "10"
     DB_MAX_IDLE_CONNS             = "5"

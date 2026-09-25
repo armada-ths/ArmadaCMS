@@ -73,6 +73,16 @@ output "supabase_storage_bucket" {
   value       = var.supabase_storage_bucket
 }
 
+output "supabase_photo_storage_bucket" {
+  description = "Private event-photo bucket created by the SQL migration."
+  value       = "event-photos"
+}
+
+output "supabase_photo_export_bucket" {
+  description = "Private export bucket created by the SQL migration."
+  value       = "event-photo-exports"
+}
+
 output "supabase_storage_region" {
   description = "AWS-style region name for the S3-compatible storage client, consumed by GCP workspaces via tfe_outputs."
   value       = var.supabase_storage_region
