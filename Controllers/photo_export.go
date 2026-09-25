@@ -53,7 +53,7 @@ func GetPhotoExport(w http.ResponseWriter, r *http.Request) {
 		duration := time.Until(*job.ExpiresAt)
 		link, err := utils.SignPrivatePhoto(r.Context(), *job.ObjectKey, true, duration)
 		if err != nil {
-			http.Error(w, "Export unavailable", 503)
+			http.Error(w, "Export unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		response["download_url"] = link

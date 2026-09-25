@@ -61,7 +61,7 @@ jobs:
       - name: Install image processing libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvips-dev libheif-dev libheif-plugin-libde265 libheif-plugin-x265
+          sudo apt-get install -y libvips-dev
 
       - name: Run go vet
         run: go vet ./...
@@ -84,7 +84,7 @@ jobs:
       - name: Install image processing libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvips-dev libheif-dev libheif-plugin-libde265 libheif-plugin-x265
+          sudo apt-get install -y libvips-dev
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -109,7 +109,7 @@ jobs:
       - name: Install image processing libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvips-dev libheif-dev libheif-plugin-libde265 libheif-plugin-x265
+          sudo apt-get install -y libvips-dev
 
       - name: Run go test
         run: go test -race -count=1 ./...

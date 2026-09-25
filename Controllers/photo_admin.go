@@ -224,7 +224,7 @@ func ListEventPhotos(w http.ResponseWriter, r *http.Request) {
 		if photo.ObjectKey != nil {
 			signed, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, 15*time.Minute)
 			if err != nil {
-				http.Error(w, "Image unavailable", 503)
+				http.Error(w, "Image unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			item["thumbnail_url"] = signed
@@ -248,12 +248,12 @@ func ModerateEventPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if input.Action == "approve" && (photo.Status != "pending" || photo.ObjectKey == nil) {
-		http.Error(w, "Cannot approve", 409)
+		http.Error(w, "Cannot approve", http.StatusConflict)
 		return
 	}
 	if input.Action != "approve" && photo.ObjectKey != nil {
 		if err := utils.DeletePrivatePhoto(r.Context(), *photo.ObjectKey, false); err != nil {
-			http.Error(w, "Object delete failed", 503)
+			http.Error(w, "Object delete failed", http.StatusServiceUnavailable)
 			return
 		}
 	}
@@ -313,7 +313,7 @@ func DeletePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	var exportCount int64
 	db.DB.Model(&models.PhotoExport{}).Where("event_id = ?", mux.Vars(r)["id"]).Count(&exportCount)
 	if count > 0 || exportCount > 0 {
-		http.Error(w, "Delete event photos and exports first", 409)
+		http.Error(w, "Delete event photos and exports first", http.StatusConflict)
 		return
 	}
 	writeDeleteResponseWithAudit[models.PhotoEvent](w, r, "photoevents", mux.Vars(r)["id"], "Event not found", nil, nil)

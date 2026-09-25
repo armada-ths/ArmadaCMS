@@ -118,9 +118,12 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	}()
 	signature := make([]byte, 512)
 	n, _ := file.Read(signature)
-	if detected, err := utils.DetectPhotoFormat(signature[:n]); err == nil {
-		format = detected
+	detected, err := utils.DetectPhotoFormat(signature[:n])
+	if err != nil {
+		http.Error(w, "Only JPEG photos are supported", http.StatusUnsupportedMediaType)
+		return
 	}
+	format = detected
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		http.Error(w, "Invalid photo", http.StatusUnprocessableEntity)
 		return

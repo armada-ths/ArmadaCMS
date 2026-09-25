@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/davidbyttow/govips/v2/vips"
@@ -18,20 +16,16 @@ const MaxPhotoPixels = 60_000_000
 
 var photoTransform = make(chan struct{}, 1)
 var photoVipsOnce sync.Once
+var photoVipsStartupErr error
+
+func startPhotoVips() error {
+	photoVipsOnce.Do(func() { photoVipsStartupErr = vips.Startup(nil) })
+	return photoVipsStartupErr
+}
 
 func DetectPhotoFormat(data []byte) (string, error) {
-	if len(data) < 12 {
-		return "", ErrUnsupportedImageFormat
-	}
-	contentType := http.DetectContentType(data[:min(len(data), 512)])
-	if contentType == "image/jpeg" || contentType == "image/png" || contentType == "image/webp" {
-		return contentType, nil
-	}
-	if string(data[4:8]) == "ftyp" {
-		brand := string(data[8:12])
-		if strings.HasPrefix(brand, "hei") || strings.HasPrefix(brand, "hev") || strings.HasPrefix(brand, "mif") || strings.HasPrefix(brand, "msf") {
-			return "image/heic", nil
-		}
+	if len(data) >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff {
+		return "image/jpeg", nil
 	}
 	return "", ErrUnsupportedImageFormat
 }
@@ -50,7 +44,9 @@ func ProcessPhoto(file multipart.File, size int64) ([]byte, int, int, error) {
 	}
 	photoTransform <- struct{}{}
 	defer func() { <-photoTransform }()
-	photoVipsOnce.Do(func() { vips.Startup(nil) })
+	if err := startPhotoVips(); err != nil {
+		return nil, 0, 0, fmt.Errorf("start image processor: %w", err)
+	}
 	image, err := vips.NewImageFromBuffer(data)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("decode image: %w", err)
