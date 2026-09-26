@@ -36,7 +36,7 @@ services:
       dockerfile: Dockerfile.dev
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -45,6 +45,9 @@ services:
       - go-build-cache:/root/.cache/go-build
     env_file:
       - .env
+    environment:
+      PHOTO_RECAPTCHA_BYPASS_LOCAL: "true"
+      PHOTO_S3_PRESIGN_ENDPOINT: "http://127.0.0.1:9000"
     depends_on:
       postgres:
         condition: service_healthy

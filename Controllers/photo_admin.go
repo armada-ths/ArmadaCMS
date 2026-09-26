@@ -11,8 +11,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,20 +20,26 @@ import (
 	"gorm.io/gorm"
 )
 
-var photoSlug = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-
 func validatePhotoEvent(event models.PhotoEvent) error {
-	if event.Name == "" || !photoSlug.MatchString(event.Slug) || event.MaxPhotosPerGuest < 1 || event.MaxPhotosPerGuest > 25 ||
-		!event.UploadsOpenAt.Before(event.UploadsCloseAt) || event.UploadsCloseAt.After(event.GalleryCloseAt) {
-		return fmt.Errorf("invalid event fields")
+	if strings.TrimSpace(event.Name) == "" {
+		return fmt.Errorf("Event name is required")
 	}
-	if event.Active {
-		privacy, err := url.Parse(event.PrivacyURL)
-		if err != nil || privacy.Scheme != "https" || privacy.Host == "" {
-			return fmt.Errorf("an HTTPS privacy URL is required")
-		}
+	if event.MaxPhotosPerGuest < 1 || event.MaxPhotosPerGuest > 25 {
+		return fmt.Errorf("Photos per guest must be between 1 and 25")
+	}
+	if !event.UploadsOpenAt.Before(event.UploadsCloseAt) {
+		return fmt.Errorf("Uploads must close after they open")
+	}
+	if event.UploadsCloseAt.After(event.GalleryCloseAt) {
+		return fmt.Errorf("Gallery must close no earlier than uploads close")
 	}
 	return nil
+}
+
+func photoEventBadRequest(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": message})
 }
 
 func photoAdminJSON(w http.ResponseWriter, value any) {
@@ -65,7 +69,7 @@ func GetPhotoEvent(w http.ResponseWriter, r *http.Request) {
 func CreatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	var event models.PhotoEvent
 	if json.NewDecoder(r.Body).Decode(&event) != nil {
-		http.Error(w, "Invalid JSON", 400)
+		photoEventBadRequest(w, "Invalid event data. Dates must include a timezone")
 		return
 	}
 	event.ID = 0
@@ -75,7 +79,7 @@ func CreatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		event.MaxPhotosPerGuest = 25
 	}
 	if err := validatePhotoEvent(event); err != nil {
-		http.Error(w, err.Error(), 400)
+		photoEventBadRequest(w, err.Error())
 		return
 	}
 	if err := createWithAudit(r, "photoevents", &event, func(tx *gorm.DB) error { return tx.Create(&event).Error }, nil); err != nil {
@@ -94,7 +98,7 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	var input models.PhotoEvent
 	if json.NewDecoder(r.Body).Decode(&input) != nil {
-		http.Error(w, "Invalid JSON", 400)
+		photoEventBadRequest(w, "Invalid event data. Dates must include a timezone")
 		return
 	}
 	if before.DeletionRequestedAt != nil {
@@ -104,11 +108,11 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	input.ID, input.TokenVersion, input.CreatedAt = before.ID, before.TokenVersion, before.CreatedAt
 	input.DeletionRequestedAt, input.DeletionCompletedAt = before.DeletionRequestedAt, before.DeletionCompletedAt
 	if err := validatePhotoEvent(input); err != nil {
-		http.Error(w, err.Error(), 400)
+		photoEventBadRequest(w, err.Error())
 		return
 	}
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "slug": input.Slug, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "active": input.Active, "privacy_url": input.PrivacyURL, "max_photos_per_guest": input.MaxPhotosPerGuest}).Error
+		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return
@@ -136,11 +140,10 @@ func RequestPhotoEventDeletion(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC()
 	after := before
-	after.Active = false
 	after.TokenVersion++
 	after.DeletionRequestedAt = &now
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &after, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"active": false, "token_version": after.TokenVersion, "deletion_requested_at": now}).Error
+		return tx.Model(&before).Updates(map[string]any{"token_version": after.TokenVersion, "deletion_requested_at": now}).Error
 	}, nil); err != nil {
 		http.Error(w, "Deletion request failed", http.StatusInternalServerError)
 		return
@@ -160,11 +163,16 @@ func RotatePhotoEventToken(w http.ResponseWriter, r *http.Request) {
 	}
 	after := before
 	after.TokenVersion++
+	token, err := utils.PhotoEventToken(after.ID, after.TokenVersion)
+	if err != nil {
+		http.Error(w, "Link configuration missing", http.StatusServiceUnavailable)
+		return
+	}
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &after, func(tx *gorm.DB) error { return tx.Model(&before).Update("token_version", after.TokenVersion).Error }, nil); err != nil {
 		http.Error(w, "Rotation failed", 500)
 		return
 	}
-	photoEventLink(w, after)
+	writePhotoEventLink(w, token)
 }
 
 func PhotoEventLink(w http.ResponseWriter, r *http.Request) {
@@ -182,6 +190,10 @@ func photoEventLink(w http.ResponseWriter, event models.PhotoEvent) {
 		http.Error(w, "Link configuration missing", 500)
 		return
 	}
+	writePhotoEventLink(w, token)
+}
+
+func writePhotoEventLink(w http.ResponseWriter, token string) {
 	w.Header().Set("Cache-Control", "no-store")
 	photoAdminJSON(w, map[string]string{"url": "https://photos.armada.nu/e/" + token})
 }

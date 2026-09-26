@@ -27,6 +27,24 @@ func DetectPhotoFormat(data []byte) (string, error) {
 	if len(data) >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff {
 		return "image/jpeg", nil
 	}
+	if len(data) >= 8 && bytes.Equal(data[:8], []byte{137, 80, 78, 71, 13, 10, 26, 10}) {
+		return "image/png", nil
+	}
+	if len(data) >= 12 && bytes.Equal(data[:4], []byte("RIFF")) && bytes.Equal(data[8:12], []byte("WEBP")) {
+		return "image/webp", nil
+	}
+	if len(data) >= 12 && bytes.Equal(data[4:8], []byte("ftyp")) {
+		// HEIF files identify their codec through the major or a compatible brand.
+		for offset := 8; offset+4 <= len(data) && offset < 64; offset += 4 {
+			if offset == 12 { // Minor version is not a brand.
+				continue
+			}
+			switch string(data[offset : offset+4]) {
+			case "heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs":
+				return "image/heic", nil
+			}
+		}
+	}
 	return "", ErrUnsupportedImageFormat
 }
 

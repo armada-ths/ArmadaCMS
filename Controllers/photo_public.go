@@ -25,7 +25,7 @@ func photoEventFromToken(w http.ResponseWriter, r *http.Request) (*models.PhotoE
 		return nil, false
 	}
 	var event models.PhotoEvent
-	if err := db.DB.First(&event, id).Error; err != nil || !event.Active || event.DeletionRequestedAt != nil || event.TokenVersion != version {
+	if err := db.DB.First(&event, id).Error; err != nil || event.DeletionRequestedAt != nil || event.TokenVersion != version {
 		http.Error(w, "Event is unavailable", http.StatusNotFound)
 		return nil, false
 	}
@@ -65,9 +65,9 @@ func PhotoEventAccess(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"name": event.Name, "description": event.Description,
 		"uploads_open_at": event.UploadsOpenAt, "uploads_close_at": event.UploadsCloseAt,
-		"gallery_close_at": event.GalleryCloseAt, "privacy_url": event.PrivacyURL,
-		"uploads_open": !now.Before(event.UploadsOpenAt) && now.Before(event.UploadsCloseAt),
-		"gallery_open": now.Before(event.GalleryCloseAt), "remaining": remaining,
+		"gallery_close_at": event.GalleryCloseAt,
+		"uploads_open":     !now.Before(event.UploadsOpenAt) && now.Before(event.UploadsCloseAt),
+		"gallery_open":     now.Before(event.GalleryCloseAt), "remaining": remaining,
 	})
 }
 
@@ -120,7 +120,7 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	n, _ := file.Read(signature)
 	detected, err := utils.DetectPhotoFormat(signature[:n])
 	if err != nil {
-		http.Error(w, "Only JPEG photos are supported", http.StatusUnsupportedMediaType)
+		http.Error(w, "Unsupported photo format", http.StatusUnsupportedMediaType)
 		return
 	}
 	format = detected

@@ -1,21 +1,17 @@
 create table public.photo_events (
   id bigint generated always as identity primary key,
   name text not null check (length(trim(name)) > 0),
-  slug text not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
   description text not null default '',
   uploads_open_at timestamptz not null,
   uploads_close_at timestamptz not null,
   gallery_close_at timestamptz not null,
   deletion_requested_at timestamptz,
   deletion_completed_at timestamptz,
-  active boolean not null default false,
-  privacy_url text not null default '',
   max_photos_per_guest integer not null default 25 check (max_photos_per_guest between 1 and 25),
   token_version integer not null default 1 check (token_version > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint photo_events_time_order check (uploads_open_at < uploads_close_at and uploads_close_at <= gallery_close_at),
-  constraint photo_events_active_privacy check (not active or length(trim(privacy_url)) > 0)
+  constraint photo_events_time_order check (uploads_open_at < uploads_close_at and uploads_close_at <= gallery_close_at)
 );
 
 create index photo_events_deletion_queue_idx on public.photo_events(deletion_requested_at)

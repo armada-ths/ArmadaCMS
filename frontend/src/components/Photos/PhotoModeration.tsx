@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useGetOne } from "react-admin";
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { httpClient } from "../../dataProvider";
 import globalApi from "../../context/globalApi";
 
@@ -13,6 +27,11 @@ type PhotoExport = { id: number; status: string; error?: string };
 
 export function PhotoModeration() {
   const { id } = useParams();
+  const { data: event } = useGetOne<{ id: number; name: string }>(
+    "photoevents",
+    { id: id ?? "" },
+    { enabled: Boolean(id) },
+  );
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [status, setStatus] = useState("pending");
@@ -86,10 +105,7 @@ export function PhotoModeration() {
     if (url) window.location.assign(url);
   };
 
-  const moderate = async (
-    ids: number[],
-    action: "approve" | "reject" | "delete",
-  ) => {
+  const moderate = async (ids: number[], action: "approve" | "reject") => {
     setBusy(true);
     setMessage("");
     try {
@@ -111,78 +127,111 @@ export function PhotoModeration() {
   };
 
   return (
-    <main className="p-6">
-      <h1 className="text-2xl">Moderation – event {id}</h1>
-      <section>
-        <h2>ZIP export</h2>
-        <button type="button" onClick={() => void startExport()}>
-          Create ZIP of approved photos
-        </button>
-        <button type="button" onClick={() => void refreshExports()}>
-          Refresh export status
-        </button>
-        <ul>
-          {exports.map((item) => (
-            <li key={item.id}>
-              Export {item.id}: {item.status}{" "}
-              {item.status === "completed" && (
-                <button
-                  type="button"
-                  onClick={() => void downloadExport(item.id)}
-                >
-                  Download
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <label>
-        Status:{" "}
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-        >
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </label>
-      <button type="button" onClick={() => void refresh()}>
-        Refresh
-      </button>
-      <p role="status">{message}</p>
-      <div className="flex gap-3">
-        <button
-          type="button"
+    <Box component="main" sx={{ p: 3 }}>
+      <Typography variant="h5" gutterBottom>
+        Guest photos{event?.name ? ` · ${event.name}` : ""}
+      </Typography>
+      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          ZIP export
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+          <Button variant="outlined" onClick={() => void startExport()}>
+            Create ZIP of approved photos
+          </Button>
+          <Button variant="outlined" onClick={() => void refreshExports()}>
+            Refresh export status
+          </Button>
+        </Box>
+        {exports.map((item) => (
+          <Stack
+            key={item.id}
+            direction="row"
+            alignItems="center"
+            gap={1}
+            sx={{ mt: 1 }}
+          >
+            <Typography variant="body2">
+              Export {item.id}: {item.status}
+            </Typography>
+            {item.status === "completed" && (
+              <Button size="small" onClick={() => void downloadExport(item.id)}>
+                Download
+              </Button>
+            )}
+          </Stack>
+        ))}
+      </Paper>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mb: 2,
+        }}
+      >
+        <FormControl size="small" sx={{ width: 180, flexShrink: 0 }}>
+          <InputLabel id="photo-status-label">Status</InputLabel>
+          <Select
+            labelId="photo-status-label"
+            label="Status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="approved">Approved</MenuItem>
+            <MenuItem value="rejected">Rejected</MenuItem>
+          </Select>
+        </FormControl>
+        <Button variant="outlined" onClick={() => void refresh()}>
+          Refresh
+        </Button>
+        <Button
           disabled={busy || !selected.length}
           onClick={() => void moderate(selected, "approve")}
         >
           Approve selected
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
           disabled={busy || !selected.length}
           onClick={() => void moderate(selected, "reject")}
         >
           Reject selected
-        </button>
-        <button
-          type="button"
-          disabled={busy || !selected.length}
-          onClick={() => {
-            if (window.confirm("Permanently delete the selected photos?"))
-              void moderate(selected, "delete");
-          }}
+        </Button>
+      </Box>
+      {message && (
+        <Alert
+          severity={
+            message.startsWith("Could not") || message === "Moderation failed."
+              ? "error"
+              : "info"
+          }
+          sx={{ mb: 2 }}
         >
-          Delete selected
-        </button>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+          {message}
+        </Alert>
+      )}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+          gap: 2,
+        }}
+      >
         {photos.map((photo) => (
-          <label key={photo.id} className="rounded border p-2">
-            <input
-              type="checkbox"
+          <Paper
+            key={photo.id}
+            component="label"
+            variant="outlined"
+            sx={{
+              p: 1,
+              display: "flex",
+              flexDirection: "column",
+              cursor: "pointer",
+            }}
+          >
+            <Checkbox
               checked={selected.includes(photo.id)}
               onChange={(event) =>
                 setSelected((current) =>
@@ -193,21 +242,26 @@ export function PhotoModeration() {
               }
             />
             {photo.thumbnail_url ? (
-              <img
+              <Box
+                component="img"
                 src={photo.thumbnail_url}
                 alt={`Photo ${photo.id}`}
-                className="h-40 w-full object-contain"
+                sx={{ height: 160, width: "100%", objectFit: "contain" }}
               />
             ) : (
-              <div className="h-40">Deleted</div>
+              <Box sx={{ height: 160, display: "grid", placeItems: "center" }}>
+                Deleted
+              </Box>
             )}
-            <span>{new Date(photo.uploaded_at).toLocaleString("en-GB")}</span>
-          </label>
+            <Typography variant="caption">
+              {new Date(photo.uploaded_at).toLocaleString("en-GB")}
+            </Typography>
+          </Paper>
         ))}
-      </div>
+      </Box>
       {hasMore && (
-        <button
-          type="button"
+        <Button
+          sx={{ mt: 2 }}
           onClick={() =>
             void loadMore().catch(() =>
               setMessage("Could not load more photos."),
@@ -215,8 +269,8 @@ export function PhotoModeration() {
           }
         >
           Load more photos
-        </button>
+        </Button>
       )}
-    </main>
+    </Box>
   );
 }

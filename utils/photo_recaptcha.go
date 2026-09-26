@@ -42,6 +42,9 @@ func GoogleAccessToken(ctx context.Context) (string, error) {
 }
 
 func VerifyPhotoRecaptcha(ctx context.Context, token string) error {
+	if os.Getenv("PHOTO_RECAPTCHA_BYPASS_LOCAL") == "true" && os.Getenv("K_SERVICE") == "" {
+		return nil
+	}
 	project := strings.TrimSpace(os.Getenv("RECAPTCHA_PROJECT_ID"))
 	siteKey := strings.TrimSpace(os.Getenv("PHOTO_RECAPTCHA_SITE_KEY"))
 	if project == "" || siteKey == "" || token == "" {

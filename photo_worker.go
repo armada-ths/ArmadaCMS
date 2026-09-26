@@ -133,9 +133,6 @@ func cleanupPhotos(ctx context.Context) error {
 		return err
 	}
 	for _, event := range events {
-		if err := db.DB.Model(&event).Update("active", false).Error; err != nil {
-			return err
-		}
 		var running int64
 		if err := db.DB.Model(&models.PhotoExport{}).Where("event_id = ? AND status = 'running'", event.ID).Count(&running).Error; err != nil {
 			return err

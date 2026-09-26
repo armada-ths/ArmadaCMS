@@ -16,9 +16,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func photoS3() (*s3.Client, error) {
+func photoS3(endpointOverride string) (*s3.Client, error) {
 	region := getS3Region()
 	endpoint := strings.TrimSpace(os.Getenv("S3_ENDPOINT"))
+	if endpointOverride != "" {
+		endpoint = endpointOverride
+	}
 	options := []func(*config.LoadOptions) error{config.WithRegion(region)}
 	if endpoint != "" {
 		options = append(options, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), "")))
@@ -55,7 +58,7 @@ func UploadPrivatePhoto(ctx context.Context, key string, body io.Reader, content
 	if err != nil {
 		return err
 	}
-	client, err := photoS3()
+	client, err := photoS3("")
 	if err != nil {
 		return err
 	}
@@ -68,7 +71,7 @@ func DeletePrivatePhoto(ctx context.Context, key string, export bool) error {
 	if err != nil {
 		return err
 	}
-	client, err := photoS3()
+	client, err := photoS3("")
 	if err != nil {
 		return err
 	}
@@ -81,7 +84,7 @@ func ReadPrivatePhoto(ctx context.Context, key string, export bool) (io.ReadClos
 	if err != nil {
 		return nil, err
 	}
-	client, err := photoS3()
+	client, err := photoS3("")
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +100,7 @@ func SignPrivatePhoto(ctx context.Context, key string, export bool, duration tim
 	if err != nil {
 		return "", err
 	}
-	client, err := photoS3()
+	client, err := photoS3(strings.TrimSpace(os.Getenv("PHOTO_S3_PRESIGN_ENDPOINT")))
 	if err != nil {
 		return "", err
 	}
