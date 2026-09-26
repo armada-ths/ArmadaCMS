@@ -22,19 +22,19 @@ func TestPhotoEventValidatesTimes(t *testing.T) {
 		t.Fatal(err)
 	}
 	event.UploadsCloseAt = event.UploadsOpenAt
-	if err := validatePhotoEvent(event); err == nil || err.Error() != "Uploads must close after they open" {
+	if err := validatePhotoEvent(event); err == nil || err.Error() != "uploads must close after they open" {
 		t.Fatalf("expected upload window error, got %v", err)
 	}
 	event.UploadsCloseAt = now.Add(time.Hour)
 	event.GalleryCloseAt = now.Add(30 * time.Minute)
-	if err := validatePhotoEvent(event); err == nil || err.Error() != "Gallery must close no earlier than uploads close" {
+	if err := validatePhotoEvent(event); err == nil || err.Error() != "gallery must close no earlier than uploads close" {
 		t.Fatalf("expected gallery window error, got %v", err)
 	}
 }
 
 func TestPhotoEventBadRequestIsReadableByReactAdmin(t *testing.T) {
 	w := httptest.NewRecorder()
-	photoEventBadRequest(w, "Uploads must close after they open")
+	photoEventBadRequest(w, "uploads must close after they open")
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"message":"Uploads must close after they open"`) {
 		t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String())
 	}

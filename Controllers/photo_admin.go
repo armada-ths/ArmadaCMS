@@ -22,21 +22,24 @@ import (
 
 func validatePhotoEvent(event models.PhotoEvent) error {
 	if strings.TrimSpace(event.Name) == "" {
-		return fmt.Errorf("Event name is required")
+		return fmt.Errorf("event name is required")
 	}
 	if event.MaxPhotosPerGuest < 1 || event.MaxPhotosPerGuest > 25 {
-		return fmt.Errorf("Photos per guest must be between 1 and 25")
+		return fmt.Errorf("photos per guest must be between 1 and 25")
 	}
 	if !event.UploadsOpenAt.Before(event.UploadsCloseAt) {
-		return fmt.Errorf("Uploads must close after they open")
+		return fmt.Errorf("uploads must close after they open")
 	}
 	if event.UploadsCloseAt.After(event.GalleryCloseAt) {
-		return fmt.Errorf("Gallery must close no earlier than uploads close")
+		return fmt.Errorf("gallery must close no earlier than uploads close")
 	}
 	return nil
 }
 
 func photoEventBadRequest(w http.ResponseWriter, message string) {
+	if message != "" {
+		message = strings.ToUpper(message[:1]) + message[1:]
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": message})

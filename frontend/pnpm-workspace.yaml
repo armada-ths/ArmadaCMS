@@ -3,3 +3,4 @@ allowBuilds:
 overrides:
   '@mui/material': 7.3.11
   '@mui/icons-material': 7.3.11
+  lodash: ^4.18.1
