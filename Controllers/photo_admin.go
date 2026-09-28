@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -115,7 +116,7 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest}).Error
+		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return
@@ -198,7 +199,15 @@ func photoEventLink(w http.ResponseWriter, event models.PhotoEvent) {
 
 func writePhotoEventLink(w http.ResponseWriter, token string) {
 	w.Header().Set("Cache-Control", "no-store")
-	photoAdminJSON(w, map[string]string{"url": "https://photos.armada.nu/e/" + token})
+	photoAdminJSON(w, map[string]string{"url": photoEventURL(token)})
+}
+
+func photoEventURL(token string) string {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PHOTO_APP_BASE_URL")), "/")
+	if baseURL == "" {
+		baseURL = "https://photos.armada.nu"
+	}
+	return baseURL + "/e/" + token
 }
 
 func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +221,7 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "QR configuration missing", 500)
 		return
 	}
-	link := "https://photos.armada.nu/e/" + token
+	link := photoEventURL(token)
 	qr, err := qrcode.New(link, qrcode.Medium)
 	if err != nil {
 		http.Error(w, "QR generation failed", 500)
@@ -277,7 +286,7 @@ func ListEventPhotos(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(photos))
 	for _, photo := range photos {
-		item := map[string]any{"id": photo.ID, "event_id": photo.EventID, "status": photo.Status, "uploaded_at": photo.UploadedAt, "width": photo.Width, "height": photo.Height}
+		item := map[string]any{"id": photo.ID, "event_id": photo.EventID, "status": photo.Status, "uploaded_at": photo.UploadedAt, "width": photo.Width, "height": photo.Height, "moderation_source": photo.ModerationSource, "ai_review_status": photo.AIReviewStatus, "ai_likelihoods": photo.AILikelihoods, "ai_checked_at": photo.AICheckedAt}
 		if photo.ObjectKey != nil {
 			signed, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, 15*time.Minute)
 			if err != nil {
@@ -323,6 +332,8 @@ func ModerateEventPhoto(w http.ResponseWriter, r *http.Request) {
 	userID, _ := auth.GetUserIDFromContext(r)
 	moderator := uint(userID)
 	photo.ModeratedAt, photo.ModeratedBy = &now, &moderator
+	manual := "manual"
+	photo.ModerationSource = &manual
 	if input.Action == "approve" {
 		photo.Status = "approved"
 	} else {
@@ -330,7 +341,7 @@ func ModerateEventPhoto(w http.ResponseWriter, r *http.Request) {
 		photo.ObjectKey = nil
 	}
 	if err := updateWithAudit(r, "eventphotos", photo.ID, before, &photo, func(tx *gorm.DB) error {
-		return tx.Model(&models.EventPhoto{}).Where("id = ?", photo.ID).Updates(map[string]any{"status": photo.Status, "object_key": photo.ObjectKey, "moderated_at": now, "moderated_by": moderator}).Error
+		return tx.Model(&models.EventPhoto{}).Where("id = ?", photo.ID).Updates(map[string]any{"status": photo.Status, "object_key": photo.ObjectKey, "moderated_at": now, "moderated_by": moderator, "moderation_source": manual}).Error
 	}, nil); err != nil {
 		http.Error(w, "Moderation failed", 500)
 		return

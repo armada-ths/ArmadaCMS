@@ -1,4 +1,5 @@
 import {
+  BooleanInput,
   Create,
   Datagrid,
   DateField,
@@ -294,6 +295,12 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
       min={1}
       max={25}
       defaultValue={25}
+    />
+    <BooleanInput
+      source="auto_approve_safe_photos"
+      label="Automatically approve low-risk photos"
+      defaultValue={false}
+      helperText="Google SafeSearch checks explicit content only. It cannot verify event relevance, consent, or suitability for marketing. Uncertain photos still require manual review."
     />
   </SimpleForm>
 );

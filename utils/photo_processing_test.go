@@ -1,6 +1,12 @@
 package utils
 
-import "testing"
+import (
+	"bytes"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"testing"
+)
 
 func TestDetectPhotoFormat(t *testing.T) {
 	tests := []struct {
@@ -30,5 +36,25 @@ func TestDetectPhotoFormat(t *testing.T) {
 				t.Fatalf("format: got %q, err %v", got, err)
 			}
 		})
+	}
+}
+
+func TestPhotoSafeSearchImage(t *testing.T) {
+	original := image.NewRGBA(image.Rect(0, 0, 1200, 800))
+	original.Set(0, 0, color.RGBA{R: 255, A: 255})
+	var encoded bytes.Buffer
+	if err := jpeg.Encode(&encoded, original, nil); err != nil {
+		t.Fatal(err)
+	}
+	analysisImage, err := PhotoSafeSearchImage(encoded.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, err := jpeg.DecodeConfig(bytes.NewReader(analysisImage))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if max(config.Width, config.Height) > 640 || len(analysisImage) > 1024*1024 {
+		t.Fatalf("analysis image is too large: %dx%d, %d bytes", config.Width, config.Height, len(analysisImage))
 	}
 }

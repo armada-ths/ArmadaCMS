@@ -21,6 +21,7 @@ locals {
       "run.googleapis.com",
       "secretmanager.googleapis.com",
       "serviceusage.googleapis.com",
+      "vision.googleapis.com",
     ],
     var.enable_recaptcha ? [
       "apikeys.googleapis.com",
@@ -65,6 +66,7 @@ locals {
     S3_BUCKET                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
     PHOTO_S3_BUCKET               = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_storage_bucket"]), "event-photos")
     PHOTO_EXPORT_S3_BUCKET        = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_export_bucket"]), "event-photo-exports")
+    PHOTO_APP_BASE_URL            = "https://photos.armada.nu"
     PHOTO_RECAPTCHA_SITE_KEY      = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : ""
     RECAPTCHA_PROJECT_ID          = var.project_id
     PHOTO_WORKER_JOB_NAME         = "projects/${var.project_id}/locations/${var.region}/jobs/${var.service_name}-photo-worker"

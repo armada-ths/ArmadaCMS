@@ -47,6 +47,8 @@ services:
       - .env
     environment:
       PHOTO_RECAPTCHA_BYPASS_LOCAL: "true"
+      PHOTO_VISION_MOCK_RESULT: "safe"
+      PHOTO_APP_BASE_URL: "http://localhost:3000/photos"
       PHOTO_S3_PRESIGN_ENDPOINT: "http://127.0.0.1:9000"
     depends_on:
       postgres:

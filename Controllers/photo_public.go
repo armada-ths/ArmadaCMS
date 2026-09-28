@@ -139,13 +139,17 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash, _ := utils.HashPhotoGuest(event.ID, guestID)
-	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, Status: "pending", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
+	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
 	if err := db.DB.Create(&photo).Error; err != nil {
 		_ = utils.DeletePrivatePhoto(r.Context(), key, false)
 		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
-	result = "pending"
+	photoStatus := "pending"
+	if event.AutoApproveSafePhotos {
+		photoStatus = assessUploadedPhoto(r.Context(), photo, jpeg)
+	}
+	result = photoStatus
 	var pending int64
 	if db.DB.Model(&models.EventPhoto{}).Where("event_id = ? AND status = 'pending'", event.ID).Count(&pending).Error == nil {
 		log.Printf("photo_moderation_queue pending=%d", pending)
@@ -153,7 +157,7 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]any{"id": photo.ID, "status": "pending", "remaining": max(0, event.MaxPhotosPerGuest-int(count)-1)})
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": photo.ID, "status": photoStatus, "remaining": max(0, event.MaxPhotosPerGuest-int(count)-1)})
 }
 
 type galleryCursor struct {

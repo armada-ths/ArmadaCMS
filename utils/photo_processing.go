@@ -97,3 +97,31 @@ func ProcessPhoto(file multipart.File, size int64) ([]byte, int, int, error) {
 	}
 	return bytes.Clone(output), image.Width(), image.Height(), nil
 }
+
+// PhotoSafeSearchImage creates an in-memory, metadata-free copy small enough
+// for the Cloud Vision inline-image request. It is never stored.
+func PhotoSafeSearchImage(jpeg []byte) ([]byte, error) {
+	photoTransform <- struct{}{}
+	defer func() { <-photoTransform }()
+	if err := startPhotoVips(); err != nil {
+		return nil, fmt.Errorf("start image processor: %w", err)
+	}
+	image, err := vips.NewImageFromBuffer(jpeg)
+	if err != nil {
+		return nil, fmt.Errorf("decode processed photo: %w", err)
+	}
+	defer image.Close()
+	if longest := max(image.Width(), image.Height()); longest > 640 {
+		if err := image.Resize(float64(640)/float64(longest), vips.KernelLanczos3); err != nil {
+			return nil, err
+		}
+	}
+	output, _, err := image.ExportJpeg(&vips.JpegExportParams{Quality: 80, StripMetadata: true})
+	if err != nil {
+		return nil, err
+	}
+	if len(output) > 1024*1024 {
+		return nil, errors.New("analysis image exceeds size limit")
+	}
+	return output, nil
+}

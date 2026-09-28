@@ -42,6 +42,7 @@ func TestPhotoEventBadRequestIsReadableByReactAdmin(t *testing.T) {
 
 func TestPhotoEventLinkUsesConfiguredTokenSecret(t *testing.T) {
 	t.Setenv("PHOTO_TOKEN_SECRET", strings.Repeat("s", 48))
+	t.Setenv("PHOTO_APP_BASE_URL", "")
 	w := httptest.NewRecorder()
 	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2})
 	if w.Code != http.StatusOK {
@@ -57,5 +58,32 @@ func TestPhotoEventLinkUsesConfiguredTokenSecret(t *testing.T) {
 	id, version, err := utils.ParsePhotoEventToken(token)
 	if err != nil || id != 3 || version != 2 {
 		t.Fatalf("unexpected event token: id=%d version=%d err=%v", id, version, err)
+	}
+}
+
+func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
+	t.Setenv("PHOTO_TOKEN_SECRET", strings.Repeat("s", 48))
+	t.Setenv("PHOTO_APP_BASE_URL", "https://staging.armada.nu/photos/")
+	w := httptest.NewRecorder()
+	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2})
+	if w.Code != http.StatusOK {
+		t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	const prefix = "https://staging.armada.nu/photos/e/"
+	if !strings.HasPrefix(body.URL, prefix) {
+		t.Fatalf("unexpected staging URL: %q", body.URL)
+	}
+	id, version, err := utils.ParsePhotoEventToken(strings.TrimPrefix(body.URL, prefix))
+	if err != nil || id != 3 || version != 2 {
+		t.Fatalf("unexpected event token: id=%d version=%d err=%v", id, version, err)
+	}
+	if got := photoEventURL("test-token"); got != prefix+"test-token" {
+		t.Fatalf("QR URL source differs from event link: %q", got)
 	}
 }

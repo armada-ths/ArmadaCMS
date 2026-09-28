@@ -22,6 +22,9 @@ type Photo = {
   status: string;
   thumbnail_url?: string;
   uploaded_at: string;
+  moderation_source?: "manual" | "vision_safe_search" | null;
+  ai_review_status: "not_scanned" | "safe" | "review" | "error";
+  ai_likelihoods?: Record<string, string> | null;
 };
 type PhotoExport = { id: number; status: string; error?: string };
 
@@ -256,6 +259,28 @@ export function PhotoModeration() {
             <Typography variant="caption">
               {new Date(photo.uploaded_at).toLocaleString("en-GB")}
             </Typography>
+            {photo.ai_review_status !== "not_scanned" && (
+              <Typography variant="caption">
+                AI:{" "}
+                {photo.ai_review_status === "error"
+                  ? "unavailable — review manually"
+                  : photo.ai_review_status}
+              </Typography>
+            )}
+            {photo.ai_review_status === "review" && photo.ai_likelihoods && (
+              <Typography variant="caption">
+                {Object.entries(photo.ai_likelihoods)
+                  .filter(
+                    ([, likelihood]) =>
+                      !["VERY_UNLIKELY", "UNLIKELY"].includes(likelihood),
+                  )
+                  .map(([category, likelihood]) => `${category}: ${likelihood}`)
+                  .join(", ")}
+              </Typography>
+            )}
+            {photo.moderation_source === "vision_safe_search" && (
+              <Typography variant="caption">Automatically approved</Typography>
+            )}
           </Paper>
         ))}
       </Box>
