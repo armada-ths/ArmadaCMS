@@ -88,7 +88,7 @@ func (client *photoVisionHTTPClient) analyze(ctx context.Context, jpeg []byte) (
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return PhotoVisionAssessment{}, fmt.Errorf("Vision returned HTTP %d", response.StatusCode)
+		return PhotoVisionAssessment{}, fmt.Errorf("vision returned HTTP %d", response.StatusCode)
 	}
 	var result struct {
 		Responses []struct {
@@ -102,7 +102,7 @@ func (client *photoVisionHTTPClient) analyze(ctx context.Context, jpeg []byte) (
 		return PhotoVisionAssessment{}, err
 	}
 	if len(result.Responses) != 1 || result.Responses[0].Error != nil || result.Responses[0].SafeSearch == nil {
-		return PhotoVisionAssessment{}, errors.New("Vision returned no usable assessment")
+		return PhotoVisionAssessment{}, errors.New("vision returned no usable assessment")
 	}
 	likelihoods := make(map[string]string, len(photoVisionCategories))
 	for _, category := range photoVisionCategories {
