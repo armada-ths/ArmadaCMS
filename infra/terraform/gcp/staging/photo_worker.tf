@@ -30,7 +30,9 @@ resource "google_cloud_run_v2_job" "photo_worker" {
         }
       }
       containers {
-        image = local.container_image
+        # Reuse the service's deployed image when creating the Job. The
+        # derived :bootstrap tag may not exist after Cloud Build takes over.
+        image = google_cloud_run_v2_service.armadacms[0].template[0].containers[0].image
         resources { limits = { cpu = "1", memory = "1Gi" } }
         env {
           name  = "PHOTO_WORKER_MODE"
