@@ -1,4 +1,4 @@
-# Photo events rollout
+# Photo events rollout (delete after launch)
 
 The guest app is part of `armada.nu` and the API/admin/worker are part of ArmadaCMS. No separate Vercel project is needed.
 
