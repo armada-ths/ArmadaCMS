@@ -14,11 +14,6 @@ export type SpecialPermission = {
   formField: string;
   /** Label shown next to the toggle in the form */
   label: string;
-  /**
-   * When set, this resource is hidden from the permissions ArrayInput dropdown
-   * because all its actions are fully managed by this standalone toggle.
-   */
-  exclusiveResource?: string;
 };
 
 /**
@@ -37,12 +32,6 @@ export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
     formField: "eventroSyncAccess",
     label: "Can access Eventro sync on the dashboard",
   },
-  {
-    perms: ["auditlogs.view"],
-    formField: "auditLogsAccess",
-    label: "Can view audit logs",
-    exclusiveResource: "auditlogs",
-  },
 ];
 
 export const PERMISSION_ACTIONS = [
@@ -52,6 +41,35 @@ export const PERMISSION_ACTIONS = [
   { id: "edit", name: "Edit" },
   { id: "delete", name: "Delete" },
 ];
+
+/** Restrict resource choices to actions that the API actually accepts. */
+export const RESOURCE_ACTION_OVERRIDES = [
+  { id: "auditlogs", name: "Audit logs", actions: ["view"] },
+  {
+    id: "eventphotos",
+    name: "Guest photo moderation",
+    actions: ["view", "edit"],
+  },
+  { id: "photoexports", name: "Photo exports", actions: ["view", "create"] },
+];
+
+export const getPermissionActionChoices = (
+  resource?: string,
+  selectedActions: string[] = [],
+) => {
+  const apiResource = RESOURCE_ACTION_OVERRIDES.find(
+    (choice) => choice.id === resource,
+  );
+  if (!apiResource) return PERMISSION_ACTIONS;
+
+  // Keep previously stored actions visible so editing a role never silently drops them.
+  return PERMISSION_ACTIONS.filter(
+    (action) =>
+      action.id === "*" ||
+      apiResource.actions.includes(action.id) ||
+      selectedActions.includes(action.id),
+  );
+};
 
 /** Individual (non-wildcard) action IDs — used to expand/collapse the "all actions" shorthand. */
 export const NON_WILDCARD_ACTION_IDS = PERMISSION_ACTIONS.filter(
@@ -159,18 +177,20 @@ export const getSpecialPermCoveringWildcards = (
 
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
-  const exclusiveResources = new Set(
-    SPECIAL_PERMISSIONS.map((sp) => sp.exclusiveResource).filter(Boolean),
+  const registeredResources = Object.entries(resourceDefinitions).map(
+    ([resource, definition]) => ({
+      id: resource,
+      name: definition.options?.label ?? resource,
+    }),
   );
+  const registeredNames = new Set(registeredResources.map(({ id }) => id));
 
   return [
     { id: "*", name: "All resources" },
-    ...Object.entries(resourceDefinitions)
-      .filter(([resource]) => !exclusiveResources.has(resource))
-      .map(([resource, definition]) => ({
-        id: resource,
-        name: definition.options?.label ?? resource,
-      })),
+    ...registeredResources,
+    ...RESOURCE_ACTION_OVERRIDES.filter(
+      ({ id }) => !registeredNames.has(id),
+    ).map(({ id, name }) => ({ id, name })),
   ];
 };
 

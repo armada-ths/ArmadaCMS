@@ -16,7 +16,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
+
+var errPhotoLimitReached = errors.New("photo limit reached")
 
 func photoEventFromToken(w http.ResponseWriter, r *http.Request) (*models.PhotoEvent, bool) {
 	id, version, err := utils.ParsePhotoEventToken(mux.Vars(r)["token"])
@@ -40,8 +43,47 @@ func photoGuestQuota(event *models.PhotoEvent, guestID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	var recorded int64
+	if err := db.DB.Model(&models.EventPhoto{}).Where("event_id = ? AND guest_hash = ?", event.ID, hash).Count(&recorded).Error; err != nil {
+		return 0, err
+	}
+	var usage models.PhotoGuestUpload
+	result := db.DB.Where("event_id = ? AND guest_hash = ?", event.ID, hash).Limit(1).Find(&usage)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return recorded, nil
+	}
+	return max(recorded, usage.UploadCount), nil
+}
+
+// reservePhotoUpload atomically consumes one lifetime slot and registers the
+// photo. A rejected or later deleted photo does not return its slot.
+func reservePhotoUpload(event *models.PhotoEvent, photo *models.EventPhoto) (int64, error) {
 	var count int64
-	err = db.DB.Model(&models.EventPhoto{}).Where("event_id = ? AND guest_hash = ? AND status <> 'rejected'", event.ID, hash).Count(&count).Error
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Raw(`
+			insert into public.photo_guest_uploads as quota (event_id, guest_hash, upload_count)
+			select ?, ?, count(*) + 1
+			from public.event_photos
+			where event_id = ? and guest_hash = ?
+			having count(*) < ?
+			on conflict (event_id, guest_hash) do update
+			set upload_count = quota.upload_count + 1
+			where quota.upload_count < ?
+			returning upload_count`,
+			event.ID, photo.GuestHash, event.ID, photo.GuestHash,
+			event.MaxPhotosPerGuest, event.MaxPhotosPerGuest,
+		).Scan(&count)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errPhotoLimitReached
+		}
+		return tx.Create(photo).Error
+	})
 	return count, err
 }
 
@@ -138,10 +180,20 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Storage unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	hash, _ := utils.HashPhotoGuest(event.ID, guestID)
-	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
-	if err := db.DB.Create(&photo).Error; err != nil {
+	hash, err := utils.HashPhotoGuest(event.ID, guestID)
+	if err != nil {
 		_ = utils.DeletePrivatePhoto(r.Context(), key, false)
+		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
+		return
+	}
+	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
+	registeredCount, err := reservePhotoUpload(event, &photo)
+	if err != nil {
+		_ = utils.DeletePrivatePhoto(r.Context(), key, false)
+		if errors.Is(err, errPhotoLimitReached) {
+			http.Error(w, "Photo limit reached", http.StatusTooManyRequests)
+			return
+		}
 		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
@@ -157,7 +209,7 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]any{"id": photo.ID, "status": photoStatus, "remaining": max(0, event.MaxPhotosPerGuest-int(count)-1)})
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": photo.ID, "status": photoStatus, "remaining": max(0, event.MaxPhotosPerGuest-int(registeredCount))})
 }
 
 type galleryCursor struct {

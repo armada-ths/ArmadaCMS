@@ -36,6 +36,14 @@ type EventPhoto struct {
 	AICheckedAt      *time.Time        `gorm:"column:ai_checked_at" json:"ai_checked_at"`
 }
 
+// PhotoGuestUpload keeps the lifetime upload count even if a photo is rejected
+// or its moderation record is permanently deleted.
+type PhotoGuestUpload struct {
+	EventID     uint64 `gorm:"primaryKey;column:event_id"`
+	GuestHash   string `gorm:"primaryKey;column:guest_hash"`
+	UploadCount int64  `gorm:"column:upload_count"`
+}
+
 type PhotoExport struct {
 	ID          uint64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	EventID     uint64     `gorm:"column:event_id" json:"event_id"`

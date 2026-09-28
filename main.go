@@ -88,6 +88,7 @@ func main() {
 			models.HighlightCard{},
 			models.PhotoEvent{},
 			models.EventPhoto{},
+			models.PhotoGuestUpload{},
 			models.PhotoExport{},
 			// Enter your models here
 		); err != nil {

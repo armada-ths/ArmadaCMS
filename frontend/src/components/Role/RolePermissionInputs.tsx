@@ -8,8 +8,8 @@ import {
 import { useFormContext, useWatch } from "react-hook-form";
 import {
   getSpecialPermCoveringWildcards,
+  getPermissionActionChoices,
   isSpecialPermCoveredByWildcard,
-  PERMISSION_ACTIONS,
   PermissionGroup,
   SpecialPermission,
   normalizeActionsSelection,
@@ -41,7 +41,11 @@ export const PermissionActionsInput = () => {
     name: actionsSource,
     defaultValue: [],
   });
+  const resource: string | undefined = useWatch({
+    name: `permissions.${index}.resource`,
+  });
   const resources = useResourceChoices();
+  const actionChoices = getPermissionActionChoices(resource, currentActions);
   const prevActionsRef = useRef<string[]>(currentActions);
 
   useLayoutEffect(() => {
@@ -64,7 +68,7 @@ export const PermissionActionsInput = () => {
       <CheckboxGroupInput
         source="actions"
         label="Actions"
-        choices={PERMISSION_ACTIONS}
+        choices={actionChoices}
       />
     </>
   );
