@@ -66,6 +66,7 @@ locals {
     DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_name"])
     DB_SSLMODE                    = "require"
     DB_ENABLE_AUTOMIGRATE         = "false"
+    CORS_ALLOWED_ORIGINS          = "https://staging.armada.nu"
     S3_ENDPOINT                   = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
     S3_PUBLIC_URL                 = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"
     S3_BUCKET                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
