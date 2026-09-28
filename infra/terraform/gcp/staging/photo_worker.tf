@@ -89,7 +89,7 @@ resource "google_cloud_run_v2_job_iam_member" "photo_worker_invoker" {
 resource "google_cloud_scheduler_job" "photo_worker_retry" {
   count       = var.deploy_cloud_run_service ? 1 : 0
   project     = var.project_id
-  region      = var.region
+  region      = var.scheduler_region
   name        = "${var.service_name}-photo-worker-retry"
   description = "Retry queued photo exports and enforce retention"
   schedule    = "*/15 * * * *"

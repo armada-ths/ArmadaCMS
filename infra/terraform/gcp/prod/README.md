@@ -11,6 +11,7 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 - Serverless VPC egress with Cloud NAT and a static outbound IP
 - External HTTPS load balancer
 - Cloud Build triggers for the GitHub → Cloud Run deploy pipeline
+- Cloud Scheduler retry trigger in `europe-west4`; its target remains the photo worker Job in `europe-north2`
 
 ## Architecture notes
 

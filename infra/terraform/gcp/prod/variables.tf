@@ -9,6 +9,12 @@ variable "region" {
   default     = "europe-north2"
 }
 
+variable "scheduler_region" {
+  description = "Cloud Scheduler location; separate from the Cloud Run region because Scheduler is unavailable in europe-north1 and europe-north2."
+  type        = string
+  default     = "europe-west4"
+}
+
 variable "environment" {
   description = "Environment label applied to provisioned resources."
   type        = string

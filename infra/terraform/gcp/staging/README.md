@@ -10,6 +10,7 @@ This Terraform root manages the **Google Cloud staging runtime stack** for `Arma
 - Cloud Run custom domain mapping (`staging.cms.armada.nu`)
 - Optional serverless VPC egress with Cloud NAT and a static outbound IP (supported by the root but currently disabled)
 - Cloud Build triggers for the GitHub → Cloud Run deploy pipeline
+- Cloud Scheduler retry trigger in `europe-west4`; its target remains the photo worker Job in `europe-north1`
 
 Staging shares the production Artifact Registry repository — Cloud Build pushes
 images there and Cloud Run pulls from it. There is no separate Artifact Registry
