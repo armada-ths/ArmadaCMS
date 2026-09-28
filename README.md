@@ -98,8 +98,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    ```powershell
    cd frontend
-   pnpm install --frozen-lockfile
-   pnpm run dev -- --host 127.0.0.1
+   pnpm install
+   pnpm dev
    ```
 
    Local connection (e.g. for a DB GUI): `postgres:postgres@localhost:5432/armadacms`
