@@ -131,7 +131,7 @@ variable "cloud_run_cpu" {
 variable "cloud_run_memory" {
   description = "Memory limit for the ArmadaCMS Cloud Run container."
   type        = string
-  default     = "512Mi"
+  default     = "1Gi"
 }
 
 variable "cloud_run_timeout_seconds" {
@@ -306,5 +306,5 @@ variable "enable_recaptcha" {
 variable "recaptcha_allowed_domains" {
   description = "Domains authorised to use the reCAPTCHA Enterprise site key."
   type        = list(string)
-  default     = ["armada.nu"]
+  default     = ["armada.nu", "photos.armada.nu"]
 }
