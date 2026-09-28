@@ -10,6 +10,7 @@ import {
   getSpecialPermCoveringWildcards,
   getPermissionActionChoices,
   isSpecialPermCoveredByWildcard,
+  normalizeActionsForResource,
   PermissionGroup,
   SpecialPermission,
   normalizeActionsSelection,
@@ -47,20 +48,22 @@ export const PermissionActionsInput = () => {
   const resources = useResourceChoices();
   const actionChoices = getPermissionActionChoices(resource, currentActions);
   const prevActionsRef = useRef<string[]>(currentActions);
+  const prevResourceRef = useRef(resource);
 
   useLayoutEffect(() => {
     const previousActions = prevActionsRef.current;
-    const normalizedActions = normalizeActionsSelection(
-      previousActions,
-      currentActions,
-    );
+    const normalizedActions =
+      prevResourceRef.current === resource
+        ? normalizeActionsSelection(previousActions, currentActions, resource)
+        : normalizeActionsForResource(currentActions, resource);
 
     if (!actionsAreEqual(normalizedActions, currentActions)) {
       setValue(actionsSource, normalizedActions, { shouldDirty: true });
     }
 
-    prevActionsRef.current = currentActions;
-  }, [currentActions, actionsSource, setValue]);
+    prevActionsRef.current = normalizedActions;
+    prevResourceRef.current = resource;
+  }, [currentActions, actionsSource, resource, setValue]);
 
   return (
     <>

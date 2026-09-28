@@ -76,16 +76,40 @@ export const NON_WILDCARD_ACTION_IDS = PERMISSION_ACTIONS.filter(
   (a) => a.id !== "*",
 ).map((a) => a.id);
 
-export const areAllIndividualActionsSelected = (actions: string[]) =>
-  NON_WILDCARD_ACTION_IDS.every((action) => actions.includes(action));
+export const getSupportedActionIds = (resource?: string) =>
+  RESOURCE_ACTION_OVERRIDES.find((choice) => choice.id === resource)?.actions ??
+  NON_WILDCARD_ACTION_IDS;
+
+export const areAllIndividualActionsSelected = (
+  actions: string[],
+  resource?: string,
+) =>
+  getSupportedActionIds(resource).every((action) => actions.includes(action));
+
+/** Keep only applicable actions when a permission row changes resource. */
+export const normalizeActionsForResource = (
+  actions: string[],
+  resource?: string,
+) => {
+  const supportedActions = getSupportedActionIds(resource);
+  const validActions = actions.filter(
+    (action) => action === "*" || supportedActions.includes(action),
+  );
+  return validActions.includes("*") ? ["*", ...supportedActions] : validActions;
+};
 
 export const normalizeActionsSelection = (
   previousActions: string[],
   nextActions: string[],
+  resource?: string,
 ) => {
   const previousHadWildcard = previousActions.includes("*");
   const nextHasWildcard = nextActions.includes("*");
-  const allIndividualsSelected = areAllIndividualActionsSelected(nextActions);
+  const supportedActions = getSupportedActionIds(resource);
+  const allIndividualsSelected = areAllIndividualActionsSelected(
+    nextActions,
+    resource,
+  );
 
   // Unknown actions are those not in the standard CRUD set (and not "*").
   // They must be preserved through all toggle transitions.
@@ -95,7 +119,7 @@ export const normalizeActionsSelection = (
 
   if (!previousHadWildcard && nextHasWildcard) {
     // "All actions" just checked: expand and preserve unknowns.
-    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
+    return [...unknownNextActions, "*", ...supportedActions];
   }
 
   if (previousHadWildcard && !nextHasWildcard && allIndividualsSelected) {
@@ -113,7 +137,7 @@ export const normalizeActionsSelection = (
 
   if (!nextHasWildcard && allIndividualsSelected) {
     // All individual CRUD actions manually checked: auto-add wildcard, keep unknowns.
-    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
+    return [...unknownNextActions, "*", ...supportedActions];
   }
 
   return nextActions;
@@ -198,8 +222,8 @@ export const useResourceChoices = () => {
  * Converts stored permission strings from the API into the form's internal shape.
  * Groups by resource into { resource, actions[] } and extracts each special
  * permission into its own boolean form field. When a wildcard action
- * ("resource.*" or "*") is found, all individual action IDs are included so
- * every checkbox appears ticked.
+ * ("resource.*" or "*") is found, the resource's supported action IDs are
+ * included so every applicable checkbox appears ticked.
  */
 export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
@@ -216,7 +240,7 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
 
     if (p === "*") {
       // Global wildcard — expand so every checkbox is ticked
-      groupMap.set("*", ["*", ...NON_WILDCARD_ACTION_IDS]);
+      groupMap.set("*", ["*", ...getSupportedActionIds("*")]);
       continue;
     }
 
@@ -231,8 +255,8 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     const action = p.slice(dot + 1);
 
     if (action === "*") {
-      // resource.* — expand so every checkbox is ticked for this resource
-      groupMap.set(resource, ["*", ...NON_WILDCARD_ACTION_IDS]);
+      // resource.* — expand only the actions supported by this resource
+      groupMap.set(resource, ["*", ...getSupportedActionIds(resource)]);
     } else {
       const existing = groupMap.get(resource) ?? [];
       if (!existing.includes(action)) {
