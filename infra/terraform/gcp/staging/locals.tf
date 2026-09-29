@@ -56,16 +56,15 @@ locals {
 
   github_app_private_key_present = trimspace(nonsensitive(var.github_app_private_key)) != ""
 
-  # DB values come from the Supabase workspace via tfe_outputs. Storage values
-  # use the same generic S3 env vars as MinIO so no provider selector is needed.
-  # Photo bucket fallbacks allow PR plans before the Supabase outputs are applied.
+  # DB values come from the Supabase workspace via tfe_outputs. Storage uses
+  # the same generic S3 env vars in local and hosted environments. Photo bucket
+  # fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = {
     DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
     DB_PORT                       = "5432"
     DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])
     DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_name"])
     DB_SSLMODE                    = "require"
-    DB_ENABLE_AUTOMIGRATE         = "false"
     CORS_ALLOWED_ORIGINS          = "https://staging.armada.nu"
     S3_ENDPOINT                   = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
     S3_PUBLIC_URL                 = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"

@@ -15,12 +15,6 @@
 package main
 
 import (
-	controllers "ArmadaCMS/main/Controllers"
-	"ArmadaCMS/main/auth"
-	"ArmadaCMS/main/db"
-	_ "ArmadaCMS/main/docs"
-	"ArmadaCMS/main/models"
-	"ArmadaCMS/main/utils"
 	"context"
 	"fmt"
 	"log"
@@ -28,6 +22,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	controllers "ArmadaCMS/main/Controllers"
+	"ArmadaCMS/main/auth"
+	"ArmadaCMS/main/db"
+	_ "ArmadaCMS/main/docs"
+	"ArmadaCMS/main/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -66,44 +66,12 @@ func main() {
 
 	db.ConnectDB()
 
-	if shouldRunAutoMigrate() {
-		log.Println("DB_ENABLE_AUTOMIGRATE is enabled; running GORM AutoMigrate")
-		if err := db.DB.AutoMigrate(
-			models.AuditLog{},
-			models.Role{},
-			models.User{},
-			models.Blogpost{},
-			models.Profile{},
-			models.Team{},
-			models.RefreshToken{},
-			models.Industry{},
-			models.Program{},
-			models.Employment{},
-			models.Exhibitor{},
-			models.Event{},
-			models.RecruitmentPeriod{},
-			models.RecruitmentRole{},
-			models.FairDateConfig{},
-			models.FeatureFlag{},
-			models.HighlightCard{},
-			models.PhotoEvent{},
-			models.EventPhoto{},
-			models.PhotoGuestUpload{},
-			models.PhotoExport{},
-			// Enter your models here
-		); err != nil {
-			log.Fatalf("failed to run database migrations: %v", err)
-		}
-	} else {
-		log.Println("DB_ENABLE_AUTOMIGRATE is disabled; expecting checked-in SQL migrations to own schema state")
-	}
 	if os.Getenv("PHOTO_WORKER_MODE") == "1" {
 		if err := runPhotoWorker(context.Background()); err != nil {
 			log.Fatal("photo worker failed: ", err)
 		}
 		return
 	}
-
 	if err := controllers.SeedRoles(db.DB); err != nil {
 		log.Printf("failed to seed roles: %v", err)
 	}
@@ -131,23 +99,6 @@ func getListenAddr() string {
 	}
 
 	return fmt.Sprintf(":%s", port)
-}
-
-func shouldRunAutoMigrate() bool {
-	value := strings.TrimSpace(strings.ToLower(os.Getenv("DB_ENABLE_AUTOMIGRATE")))
-	if value == "" {
-		return true
-	}
-
-	switch value {
-	case "1", "true", "yes", "on":
-		return true
-	case "0", "false", "no", "off":
-		return false
-	default:
-		log.Printf("invalid DB_ENABLE_AUTOMIGRATE=%q, defaulting to enabled", value)
-		return true
-	}
 }
 
 func CreateMuxClient() http.Handler {

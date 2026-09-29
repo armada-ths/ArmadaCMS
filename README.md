@@ -55,13 +55,13 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 - **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
 - **Ingress**: External HTTPS load balancing in production; Cloud Run domain mapping in staging
 - **Database**: Supabase PostgreSQL (production project with a persistent staging branch)
-- **File storage**: Supabase Storage (local dev: MinIO)
+- **File storage**: Supabase Storage in local development, staging, and production
 
 ## Prerequisites
 
 - [Docker](https://www.docker.com/) and Docker Compose _(required for local development)_
 - [Go 1.26+](https://go.dev/dl/) _(optional, for running Go tooling directly)_
-- [Node.js 24+](https://nodejs.org/) and pnpm _(optional, for running frontend tooling directly)_
+- [Node.js 24+](https://nodejs.org/) and pnpm _(required for the pinned local Supabase CLI and frontend tooling)_
 
 ## Getting Started
 
@@ -78,49 +78,43 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
    cp .env.example .env
    ```
 
-   The defaults are pre-configured for the local Docker stack. See `.env.example` for the full list of variables.
+   The defaults are pre-configured for local Supabase and Docker. See `.env.example` for the full list of variables.
 
 3. **Start the local development stack**
 
-   ```bash
-   docker compose -f docker-compose.dev.yml up --build
+   ```powershell
+   ./scripts/dev-up.ps1 -Build
    ```
 
-   This starts the Go API (Air hot reload), Postgres, and MinIO. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
+   This starts a minimal local Supabase profile (Postgres, Storage API, and its Kong gateway) followed by the Go API with Air hot reload. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
+
+   The checked-in migrations also create the guest photo buckets. The local Storage limit permits multi-gigabyte ZIP exports, while the photo bucket still limits individual JPEGs to 25 MB. For local photo testing, Compose supplies a development-only event-token secret, a browser-reachable signed-photo endpoint, a local reCAPTCHA bypass, and a SafeSearch mock. Hosted environments require their real secrets and Google assessments; see [the photo rollout guide](docs/photo-events-rollout.md).
 
    Only the first run requires `--build`. After that, use:
 
-   ```bash
-   docker compose -f docker-compose.dev.yml up
+   ```powershell
+   ./scripts/dev-up.ps1
    ```
 
    In a second terminal, start the admin frontend:
 
    ```powershell
    cd frontend
-   pnpm install --frozen-lockfile
-   pnpm run dev -- --host 127.0.0.1
+   pnpm install
+   pnpm dev
    ```
 
-   Local connection (e.g. for a DB GUI): `postgres:postgres@localhost:5432/armadacms`
+   Local database connection (e.g. for a DB GUI): `postgres:postgres@localhost:54322/postgres`
 
-   MinIO console: [http://localhost:9001](http://localhost:9001) (login: `minioadmin` / `minioadmin`)
+   To stop the backend and Supabase while preserving local Supabase data:
 
-   To stop the stack without deleting data:
-
-   ```bash
-   docker compose -f docker-compose.dev.yml stop
-   ```
-
-   To remove the containers while keeping named volumes available for reuse:
-
-   ```bash
-   docker compose -f docker-compose.dev.yml down
+   ```powershell
+   ./scripts/dev-down.ps1
    ```
 
 4. **Optionally clone a remote database**
 
-   `scripts/import-remote-db.ps1` clones a remote PostgreSQL database into the local Postgres container, replacing the local `armadacms` database. Fill in the `SOURCE_DB_*` vars in `.env` (see `.env.example`), then run:
+   `scripts/import-remote-db.ps1` replaces only the `public` schema in local Supabase Postgres, preserving Supabase's system and Storage schemas. Fill in the `SOURCE_DB_*` vars in `.env` (see `.env.example`), start the local stack, then run:
 
    ```powershell
    ./scripts/import-remote-db.ps1
@@ -128,7 +122,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
 
-   After cloning a Supabase database, AutoMigrate needs to be disabled in order to avoid schema conflicts. Set `DB_ENABLE_AUTOMIGRATE=false` in `.env` before starting the server. To apply a local SQL migration file manually, run `cat supabase/migrations/<migration-file>.sql | docker compose -f docker-compose.dev.yml exec -T postgres psql -U postgres -d armadacms`.
+   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx --yes supabase@2.118.0 db reset --local`.
 
 5. **Verify the app is running**
 
@@ -139,9 +133,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ## Database migrations
 
-**Local development** uses GORM AutoMigrate, which runs automatically on every server startup (controlled by `DB_ENABLE_AUTOMIGRATE`, default `true`). No extra steps are needed.
-
-**Remote environments (staging, production)** use checked-in SQL migrations. The Supabase project is connected to this GitHub repository, so migrations are applied automatically on every push/merge to the tracked branches — no manual CLI commands required.
+**Local development, staging, and production** use checked-in SQL migrations. The hosted Supabase project is connected to this GitHub repository, so remote migrations are applied automatically on every push/merge to the tracked branches — no manual CLI commands required.
 
 - `supabase/config.toml` configures the Supabase project link.
 - `supabase/seed.sql` bootstraps deterministic roles and feature flags for remote environment resets.
@@ -150,13 +142,13 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 To create a new migration, generate a diff against the current remote schema:
 
 ```bash
-pnpx supabase db diff -f <migration-name>
+pnpx --yes supabase@2.118.0 db diff -f <migration-name>
 ```
 
 To validate that all migrations apply cleanly from scratch:
 
 ```bash
-pnpx supabase db reset
+pnpx --yes supabase@2.118.0 db reset --local
 ```
 
 Roles and feature flags are seeded from `supabase/seed.sql` alongside the initial admin user (username and password: `admin`). This seed only runs in non-production contexts (new branches, `db reset`) so hardcoded credentials are acceptable.
@@ -165,8 +157,8 @@ Roles and feature flags are seeded from `supabase/seed.sql` alongside the initia
 
 This repo includes shared VS Code configuration in `.vscode/`:
 
-- `tasks.json` — Docker tasks plus an `admin frontend + docker` task that runs Vite from `frontend/` and starts the Docker task as a dependency.
-- `launch.json` — an `Admin Frontend + Docker` launch using the `admin frontend + docker` task.
+- `tasks.json` — tasks for starting the backend with local Supabase, rebuilding the backend before start, starting the complete admin development environment, and stopping either the services or the complete local environment. The complete stop task also terminates the associated VS Code background tasks.
+- `launch.json` — `Dev: Open Admin UI (Starts Frontend + Backend + Local Supabase)` opens the admin UI after starting the complete development environment. Stopping the debug session runs the complete cleanup task automatically.
 
 If you work across both repos, use the shared workspace file committed in `armada.nu`:
 
@@ -178,7 +170,7 @@ That workspace opens both repositories with portable relative paths and includes
 
 ```text
 ArmadaCMS/
-├── main.go               # Entry point — routing, auto-migration, server startup
+├── main.go               # Entry point — routing and server startup
 ├── auth/
 │   └── middleware.go      # JWT Bearer token auth middleware
 ├── Controllers/           # HTTP handlers (one per resource)
@@ -214,6 +206,16 @@ ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and
 
   ```bash
   go test ./auth/... ./utils/...
+  ```
+
+- Run the opt-in Storage integration test while the local stack is running:
+
+  ```powershell
+  $env:RUN_S3_INTEGRATION = "1"
+  $status = pnpx --yes supabase@2.118.0 status -o env
+  $env:AWS_ACCESS_KEY_ID = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_ID=').Line.Split('=', 2)[1].Trim('"')
+  $env:AWS_SECRET_ACCESS_KEY = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_SECRET=').Line.Split('=', 2)[1].Trim('"')
+  go test -tags=integration -count=1 ./utils
   ```
 
 - Run frontend unit tests:
@@ -322,8 +324,8 @@ Use those documents as the canonical source for infrastructure specifics rather 
 ## Adding a New Resource
 
 1. Create a model in `models/` with GORM struct tags and camelCase JSON tags.
-2. Register the model in `db.DB.AutoMigrate(...)` in `main.go`.
-3. Write a SQL migration in `supabase/migrations/` for the schema change.
+2. Write a SQL migration in `supabase/migrations/` for the schema change.
+3. Validate the migration with a local Supabase reset.
 4. Create a controller in `Controllers/` following existing CRUD patterns.
 5. Add routes in `main.go` (public for reads, protected for writes).
 6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
