@@ -80,15 +80,15 @@ $sourceName = Get-RequiredValue -Config $config -Key "SOURCE_DB_NAME"
 $sourceSslMode = if ($config.ContainsKey("SOURCE_DB_SSLMODE") -and -not [string]::IsNullOrWhiteSpace($config["SOURCE_DB_SSLMODE"])) { $config["SOURCE_DB_SSLMODE"] } else { "require" }
 $sourceToolsImage = if ($config.ContainsKey("SOURCE_DB_TOOLS_IMAGE") -and -not [string]::IsNullOrWhiteSpace($config["SOURCE_DB_TOOLS_IMAGE"])) { $config["SOURCE_DB_TOOLS_IMAGE"] } else { "postgres:17" }
 
-$localContainer = if ($config.ContainsKey("LOCAL_DB_CONTAINER") -and -not [string]::IsNullOrWhiteSpace($config["LOCAL_DB_CONTAINER"])) { $config["LOCAL_DB_CONTAINER"] } else { "armadacms-postgres" }
-$localPort = if ($config.ContainsKey("DB_PORT") -and -not [string]::IsNullOrWhiteSpace($config["DB_PORT"])) { $config["DB_PORT"] } else { "5432" }
-$localUser = Get-RequiredValue -Config $config -Key "DB_USER"
-$localPassword = Get-RequiredValue -Config $config -Key "DB_PASSWORD"
-$localName = Get-RequiredValue -Config $config -Key "DB_NAME"
+$localContainer = if ($config.ContainsKey("LOCAL_DB_CONTAINER") -and -not [string]::IsNullOrWhiteSpace($config["LOCAL_DB_CONTAINER"])) { $config["LOCAL_DB_CONTAINER"] } else { "supabase_db_armadacms" }
+$localPort = "5432"
+$localUser = "postgres"
+$localPassword = "postgres"
+$localName = "postgres"
 
 $runningState = (& docker inspect -f "{{.State.Running}}" $localContainer 2>$null)
 if ($LASTEXITCODE -ne 0 -or $runningState.Trim() -ne "true") {
-    throw "Local Postgres container '$localContainer' is not running. Start it first with docker compose -f docker-compose.dev.yml up -d postgres."
+    throw "Local Supabase Postgres container '$localContainer' is not running. Start it first with scripts/dev-up.ps1."
 }
 
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("armadacms-db-clone-" + [guid]::NewGuid().ToString("N"))
@@ -97,6 +97,7 @@ $dumpFileName = "remote-clone.sql"
 $dumpFilePath = Join-Path $tempDir $dumpFileName
 $containerDumpPath = "/tmp/$dumpFileName"
 
+try {
 Write-Host "Dumping remote database..." -ForegroundColor Cyan
 $dumpArgs = @(
     'run',
@@ -111,82 +112,31 @@ $dumpArgs = @(
     '--username', $sourceUser,
     '--dbname', $sourceName,
     '--encoding', 'UTF8',
-    '--clean',
-    '--if-exists',
+    '--schema', 'public',
     '--no-owner',
     '--no-privileges',
-    '--exclude-schema=vault',
-    '--exclude-schema=pgsodium',
     '--file', "/dump/$dumpFileName"
 )
 Invoke-Docker -Arguments $dumpArgs
 
-# Strip Supabase-specific content that is not available in vanilla PostgreSQL.
-# - Remove extension registration lines for Supabase-platform-only extensions.
-# - Filter statement blocks that reference Supabase-specific schemas (vault, pgsodium).
-#   These appear as policies/triggers/functions in the public schema that the platform injects.
-$supabaseOnlyExtensions = @('supabase_vault', 'pgsodium', 'pg_net')
-$supabaseOnlySchemas = @('vault', 'pgsodium')
-Write-Host "Stripping Supabase-specific extensions and schema references from dump..." -ForegroundColor Cyan
 $dumpContent = [System.IO.File]::ReadAllText($dumpFilePath, [System.Text.Encoding]::UTF8)
+$schemaReset = @'
+DROP SCHEMA IF EXISTS public CASCADE;
+'@
+$schemaGrants = @'
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+'@
+[System.IO.File]::WriteAllText(
+    $dumpFilePath,
+    ($schemaReset + "`n" + $dumpContent + "`n" + $schemaGrants + "`n"),
+    [System.Text.Encoding]::UTF8
+)
 
-# Remove single-line extension declarations
-foreach ($ext in $supabaseOnlyExtensions) {
-    $dumpContent = $dumpContent -replace "(?m)^CREATE EXTENSION( IF NOT EXISTS)? $ext\b[^\r\n]*(\r?\n)?", ''
-    $dumpContent = $dumpContent -replace "(?m)^COMMENT ON EXTENSION $ext\b[^\r\n]*(\r?\n)?", ''
-}
-
-# Split on blank lines to get individual statement blocks, then drop any block
-# that references a Supabase-specific schema (e.g. vault.secrets in an RLS policy).
-$schemaPattern = ($supabaseOnlySchemas | ForEach-Object { [regex]::Escape($_) + '\.' }) -join '|'
-$blocks = $dumpContent -split '(?:\r?\n){2,}'
-$blocks = $blocks | Where-Object { $_ -notmatch $schemaPattern }
-$dumpContent = $blocks -join "`n`n"
-
-[System.IO.File]::WriteAllText($dumpFilePath, $dumpContent, [System.Text.Encoding]::UTF8)
-
-Write-Host "Copying dump into local Postgres container..." -ForegroundColor Cyan
+Write-Host "Copying the public-schema dump into local Supabase Postgres..." -ForegroundColor Cyan
 Invoke-Docker -Arguments @('cp', $dumpFilePath, ($localContainer + ':' + $containerDumpPath))
 
-Write-Host "Resetting local database '$localName'..." -ForegroundColor Cyan
-Invoke-Docker -Arguments @(
-    'exec',
-    '-e', "PGPASSWORD=$localPassword",
-    $localContainer,
-    'psql',
-    '--host', 'localhost',
-    '--port', $localPort,
-    '--username', $localUser,
-    '--dbname', 'postgres',
-    '-v', 'ON_ERROR_STOP=1',
-    '-c', "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$localName' AND pid <> pg_backend_pid();"
-)
-Invoke-Docker -Arguments @(
-    'exec',
-    '-e', "PGPASSWORD=$localPassword",
-    $localContainer,
-    'psql',
-    '--host', 'localhost',
-    '--port', $localPort,
-    '--username', $localUser,
-    '--dbname', 'postgres',
-    '-v', 'ON_ERROR_STOP=1',
-    '-c', ('DROP DATABASE IF EXISTS "{0}";' -f $localName)
-)
-Invoke-Docker -Arguments @(
-    'exec',
-    '-e', "PGPASSWORD=$localPassword",
-    $localContainer,
-    'psql',
-    '--host', 'localhost',
-    '--port', $localPort,
-    '--username', $localUser,
-    '--dbname', 'postgres',
-    '-v', 'ON_ERROR_STOP=1',
-    '-c', ('CREATE DATABASE "{0}";' -f $localName)
-)
-
-Write-Host "Importing dump into local database '$localName'..." -ForegroundColor Cyan
+Write-Host "Replacing the local public schema in database '$localName' transactionally..." -ForegroundColor Cyan
 Invoke-Docker -Arguments @(
     'exec',
     '-e', "PGPASSWORD=$localPassword",
@@ -197,17 +147,22 @@ Invoke-Docker -Arguments @(
     '--username', $localUser,
     '--dbname', $localName,
     '-v', 'ON_ERROR_STOP=1',
+    '--single-transaction',
     '-f', $containerDumpPath
 )
+}
+finally {
+    & docker exec $localContainer rm -f $containerDumpPath 2>$null
+    if (-not $KeepDump -and (Test-Path -LiteralPath $tempDir)) {
+        Remove-Item -LiteralPath $tempDir -Recurse -Force
+    }
+}
 
-Invoke-Docker -Arguments @('exec', $localContainer, 'rm', '-f', $containerDumpPath)
-
-if (-not $KeepDump) {
-    Remove-Item -Path $tempDir -Recurse -Force
-    Write-Host "Temporary dump removed." -ForegroundColor DarkGray
+if ($KeepDump) {
+    Write-Host "Temporary dump kept at: $dumpFilePath" -ForegroundColor Yellow
 }
 else {
-    Write-Host "Temporary dump kept at: $dumpFilePath" -ForegroundColor Yellow
+    Write-Host "Temporary dump removed." -ForegroundColor DarkGray
 }
 
 Write-Host "Remote clone completed successfully." -ForegroundColor Green
