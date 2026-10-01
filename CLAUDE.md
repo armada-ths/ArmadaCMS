@@ -12,7 +12,7 @@ Also check:
 - Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
 - This repo owns the Go API and React-Admin app; public-site changes belong in `../armada.nu` as well.
 - In controllers, do not write directly with `db.DB.Create/Save/Delete`; use the audit helpers so mutations, audit logs, and cache revalidation stay consistent.
-- Register new DB models in `main.go` auto-migration.
+- Add a checked-in Supabase migration for every persistent schema change.
 - If a resource handles uploads, update `frontend/src/dataProvider.ts` so the admin app sends `FormData`.
 - Regenerate Swagger docs when routes or annotations change.
 - When the validation policy above warrants it, validate backend changes with `go test -race -count=1 ./...`, and admin UI changes in `frontend/` with `pnpm run lint:check`, `pnpm run type-check`, and `pnpm run format:check`.
