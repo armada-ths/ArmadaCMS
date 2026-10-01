@@ -149,7 +149,9 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 	item.UserID = int64(userID)
 	item.Title = r.FormValue("title")
+	item.TitleSv = utils.StringPtr(r.FormValue("titleSv"))
 	item.Text = r.FormValue("text")
+	item.TextSv = utils.StringPtr(r.FormValue("textSv"))
 	item.Author = r.FormValue("author")
 	item.Published = r.FormValue("published") != "false"
 	item.ShowCoverInPost = r.FormValue("showCoverInPost") != "false"
@@ -219,7 +221,9 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 
 	updateMap := map[string]interface{}{
 		"title":              r.FormValue("title"),
+		"title_sv":           utils.StringPtr(r.FormValue("titleSv")),
 		"text":               r.FormValue("text"),
+		"text_sv":            utils.StringPtr(r.FormValue("textSv")),
 		"author":             r.FormValue("author"),
 		"published":          r.FormValue("published") != "false",
 		"show_cover_in_post": r.FormValue("showCoverInPost") != "false",

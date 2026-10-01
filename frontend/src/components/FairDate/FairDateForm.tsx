@@ -107,6 +107,12 @@ export const FairDateForm = () => (
       helperText='e.g. "THS Armada 2026"'
     />
 
+    <TextInput
+      source="descriptionSv"
+      label="Description (Swedish)"
+      helperText="Swedish translation of the description (optional)"
+    />
+
     <FairDaysInput />
 
     <DateInput

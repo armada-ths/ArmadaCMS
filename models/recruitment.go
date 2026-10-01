@@ -20,5 +20,7 @@ type RecruitmentRole struct {
 	TeamID        *uint              `gorm:"column:team_id;index" json:"team_id,omitempty"`
 	Team          *Team              `gorm:"foreignKey:TeamID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team,omitempty"`
 	Name          string             `gorm:"column:name;not null;default:''" json:"name"`
+	NameSv        *string            `gorm:"column:name_sv" json:"nameSv,omitempty"` // Nullable: Swedish translation
 	Description   string             `gorm:"column:description;not null;default:''" json:"description"`
+	DescriptionSv *string            `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 }

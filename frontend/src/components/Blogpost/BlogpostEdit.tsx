@@ -29,9 +29,20 @@ export const BlogpostEdit = (props: EditProps) => {
     <Edit {...props}>
       <SimpleForm>
         <TextInput source="title" fullWidth />
+        <TextInput
+          source="titleSv"
+          label="Title (Swedish)"
+          helperText="Swedish translation of the title (optional)"
+          fullWidth
+        />
         <TextInput source="author" fullWidth />
         <BooleanInput source="published" label="Published" />
         <MarkdownInput source="text" label="Content (Markdown)" />
+        <MarkdownInput
+          source="textSv"
+          label="Content (Swedish - Markdown)"
+          helperText="Swedish translation of the content (optional)"
+        />
         <BooleanInput
           source="showCoverInPost"
           label="Show cover image inside the post"
