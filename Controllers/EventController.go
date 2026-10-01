@@ -72,6 +72,7 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	query.Offset(start).Limit(limit).Find(&events)
 	for i := range events {
 		events[i].Description = utils.SanitizeEventDescription(events[i].Description)
+		events[i].DescriptionSv = utils.SanitizeEventDescription(events[i].DescriptionSv)
 	}
 
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
@@ -96,6 +97,7 @@ func GetEventByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event.Description = utils.SanitizeEventDescription(event.Description)
+	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(event)
 }
@@ -150,6 +152,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		event.Name = r.FormValue("name")
+		event.NameSv = utils.StringPtr(r.FormValue("nameSv"))
 		event.EventroID = r.FormValue("eventroId")
 		event.Location = r.FormValue("location")
 		event.OpenTo = utils.StringPtr(r.FormValue("openTo"))
@@ -175,6 +178,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		event.Description = utils.StringPtr(r.FormValue("description"))
+		event.DescriptionSv = utils.StringPtr(r.FormValue("descriptionSv"))
 		event.Food = utils.StringPtr(r.FormValue("food"))
 		event.SignupLink = utils.StringPtr(r.FormValue("signupLink"))
 		event.RegistrationRequired = r.FormValue("registrationRequired") == "true"
@@ -206,6 +210,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	event.Description = utils.SanitizeEventDescription(event.Description)
 	NormalizeOptionalStringPointers(&event.OpenTo, &event.MapURL)
+	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 
 	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
 		return tx.Create(&event).Error
@@ -266,7 +271,9 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 
 	var updates models.Event
 	updates.Name = r.FormValue("name")
+	updates.NameSv = utils.StringPtr(r.FormValue("nameSv"))
 	updates.Description = utils.SanitizeEventDescription(utils.StringPtr(r.FormValue("description")))
+	updates.DescriptionSv = utils.SanitizeEventDescription(utils.StringPtr(r.FormValue("descriptionSv")))
 	updates.Location = r.FormValue("location")
 	updates.OpenTo = utils.StringPtr(r.FormValue("openTo"))
 	updates.MapURL = utils.StringPtr(r.FormValue("mapUrl"))
@@ -305,7 +312,7 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldsToUpdate := []string{
-		"name", "description", "location", "event_start",
+		"name", "name_sv", "description", "description_sv", "location", "event_start",
 		"event_end", "food", "registration_end", "signup_link",
 		"registration_required", "show", "fee", "open_to", "map_url",
 	}

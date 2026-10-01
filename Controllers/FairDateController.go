@@ -132,7 +132,9 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 	updateMap := BuildNormalizedSnakeCaseUpdateMap(
 		rawUpdates,
-		nil,
+		map[string]struct{}{
+			"descriptionSv": {},
+		},
 		map[string]struct{}{
 			"id":         {},
 			"eventroId":  {},
