@@ -28,7 +28,7 @@ export const Dashboard = () => {
   });
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: 3 }}>
       <Title title="Dashboard" />
 
       {/* Welcome */}
@@ -55,7 +55,7 @@ export const Dashboard = () => {
 
       {/* Activity + Blog posts */}
       {!permsPending && (
-        <Grid container spacing={2} alignItems="flex-start">
+        <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
           {hasPerm(perms, "auditlogs.list") && (
             <Grid
               size={{

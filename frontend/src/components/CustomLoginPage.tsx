@@ -18,7 +18,7 @@ export const CustomLoginPage = () => (
       <Typography
         variant="body2"
         color="text.secondary"
-        textAlign="center"
+        sx={{ textAlign: "center" }}
         gutterBottom
       >
         Sign in with your credentials to manage the Armada platform.

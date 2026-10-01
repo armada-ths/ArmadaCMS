@@ -1,6 +1,6 @@
 ---
 name: new-cms-resource
-description: "Create or update an ArmadaCMS resource end to end. Use for new Go REST resources, admin CRUD screens, React-Admin resource registration, AutoMigrate wiring, audit-helper write paths, multipart upload resources, Swagger updates, and cache revalidation tag setup when the resource feeds armada.nu."
+description: "Create or update an ArmadaCMS resource end to end. Use for new Go REST resources, admin CRUD screens, React-Admin resource registration, Supabase migrations, audit-helper write paths, multipart upload resources, Swagger updates, and cache revalidation tag setup when the resource feeds armada.nu."
 argument-hint: "[resource name] [public/private] [has uploads?] [revalidates armada.nu?]"
 ---
 
@@ -35,8 +35,8 @@ Confirm these details before writing code:
 
 1. Add the GORM model in `models/`.
 2. Use camelCase JSON tags to match existing API responses.
-3. If the resource introduces persistent schema changes, register it in `db.DB.AutoMigrate(...)` in `main.go`.
-4. If the resource introduces persistent schema changes, generate or update the checked-in migration under `supabase/migrations/` in the same task.
+3. If the resource introduces persistent schema changes, generate or update the checked-in migration under `supabase/migrations/` in the same task.
+4. Validate persistent schema changes with a local Supabase reset.
 
 ### 2. Controller implementation
 
@@ -97,17 +97,15 @@ If the resource feeds the public site:
 - Skip revalidation tags.
 - Do not add speculative frontend hooks in the sibling repo.
 
-### If the resource changes the remote schema
+### If the resource changes the database schema
 
-- Do not stop at AutoMigrate.
-- Ensure the checked-in Supabase migration exists so staging and production stay aligned.
+- Ensure the checked-in Supabase migration exists so local development, staging, and production stay aligned.
 
 ## Completion Checklist
 
 Do not consider the resource done until you have checked all relevant items:
 
 - Model exists in `models/`.
-- Model is registered in `db.DB.AutoMigrate(...)` when needed.
 - Checked-in Supabase migration exists for every persisted schema change.
 - Controller uses response helpers.
 - Every write path uses audit helpers.
@@ -128,10 +126,8 @@ Run the checks that match the scope of the change:
 
 ## Common Pitfalls
 
-- Forgetting `db.DB.AutoMigrate(...)` after adding a model.
 - Adding or changing persistent schema locally without a checked-in migration under `supabase/migrations/`.
 - Writing directly with GORM and bypassing audit logs and revalidation.
 - Adding an upload field but forgetting the multipart resource list in `frontend/src/dataProvider.ts`.
 - Adding a public-site resource without passing the revalidation tag.
 - Updating routes but forgetting to regenerate `docs/`.
-- Treating local AutoMigrate as sufficient for staging/production schema changes.

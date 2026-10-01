@@ -2,10 +2,16 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "docker dev up",
+      "label": "Dev: Start Backend + Local Supabase",
       "type": "shell",
-      "command": "docker",
-      "args": ["compose", "-f", "docker-compose.dev.yml", "up"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-up.ps1"
+      ],
       "isBackground": true,
       "presentation": {
         "reveal": "always",
@@ -23,7 +29,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".+",
-          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+          "endsPattern": "Server running on http://localhost:8080"
         }
       },
       "group": {
@@ -32,10 +38,17 @@
       }
     },
     {
-      "label": "docker dev up --build",
+      "label": "Dev: Rebuild Backend + Start Local Supabase",
       "type": "shell",
-      "command": "docker",
-      "args": ["compose", "-f", "docker-compose.dev.yml", "up", "--build"],
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-up.ps1",
+        "-Build"
+      ],
       "isBackground": true,
       "presentation": {
         "reveal": "always",
@@ -53,30 +66,103 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".+",
-          "endsPattern": "Local:\\s+(https?://[^\\s]+)"
+          "endsPattern": "Server running on http://localhost:8080"
         }
       },
       "group": "build"
     },
     {
-      "label": "docker dev stop",
+      "label": "Dev: Start Admin Frontend + Backend + Local Supabase",
+      "dependsOn": ["Dev: Start Backend + Local Supabase"],
+      "dependsOrder": "parallel",
       "type": "shell",
-      "command": "docker",
-      "args": ["compose", "-f", "docker-compose.dev.yml", "stop"],
+      "command": "pnpm",
+      "args": ["run", "dev", "--", "--host", "127.0.0.1"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(__never_match_this__)$",
+          "kind": "file",
+          "file": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".+",
+          "endsPattern": "Local:\\s+http://[^\\s]+:5173"
+        }
+      }
+    },
+    {
+      "label": "Dev: Stop Backend + Local Supabase",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-down.ps1"
+      ],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
       }
     },
     {
-      "label": "docker dev down",
+      "label": "Dev: Stop Complete Local Environment",
+      "dependsOn": [
+        "Dev: Stop Backend + Local Supabase",
+        "Internal: Terminate Admin Frontend Task",
+        "Internal: Terminate Backend Task"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Internal: Terminate Admin Frontend Task",
       "type": "shell",
-      "command": "docker",
-      "args": ["compose", "-f", "docker-compose.dev.yml", "down"],
+      "command": "echo ${input:terminateAdminFrontendTask}",
+      "hide": true,
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
+        "reveal": "never",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Internal: Terminate Backend Task",
+      "type": "shell",
+      "command": "echo ${input:terminateBackendTask}",
+      "hide": true,
+      "presentation": {
+        "reveal": "never",
+        "close": true
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "terminateAdminFrontendTask",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "Dev: Start Admin Frontend + Backend + Local Supabase"
+    },
+    {
+      "id": "terminateBackendTask",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "Dev: Start Backend + Local Supabase"
     }
   ]
 }

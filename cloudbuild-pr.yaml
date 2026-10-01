@@ -3,7 +3,6 @@ steps:
     id: Build
     args:
       - build
-      - --no-cache
       - -t
       - local/${_SERVICE_NAME}:pr-${_PR_NUMBER}
       - .

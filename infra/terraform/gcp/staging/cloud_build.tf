@@ -12,6 +12,7 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
   name               = local.cloud_build_staging_trigger_name
   description        = local.cloud_build_staging_trigger_description
   filename           = "cloudbuild.yaml"
+  ignored_files      = ["**/*.md", ".github/**", "infra/terraform/**"]
   service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_service_account_email}"
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
 

@@ -17,26 +17,34 @@ Go REST API (Gorilla Mux, GORM, Postgres) + React-Admin SPA in one repo. The Go 
 Deployed to **Google Cloud Run** (containerised).
 
 - **Database**: Supabase PostgreSQL for both production and staging (staging uses a Supabase branch).
-- **File storage**: S3-compatible storage API — local MinIO in Docker dev, Supabase Storage's S3 endpoint in staging/production.
+- **File storage**: Supabase Storage's S3-compatible endpoint in local development, staging, and production.
 
 ## Developer workflows
 
 **Validation policy:** Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
 
-**Docker dev (recommended):**
+**Local dev (recommended):**
 
-```bash
-docker compose -f docker-compose.dev.yml up --build  # first run
-docker compose -f docker-compose.dev.yml up           # subsequent
+```powershell
+./scripts/dev-up.ps1 -Build  # first run
+./scripts/dev-up.ps1         # subsequent
 ```
 
-This runs the Go API, React-Admin frontend, Postgres, and MinIO together with hot reload.
+This starts a minimal local Supabase profile (Postgres, Storage API, and Kong) and the Go API in Docker. Start the admin frontend separately from `frontend/` so Vite's Windows file watching and HMR do not run through a Docker bind mount:
 
-Default credentials: host `localhost`, db `armadacms`, user/password `postgres`. Copy `.env.example` → `.env`.
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm run dev -- --host 127.0.0.1
+```
+
+The API is published at `http://localhost:8080`; `frontend/.env` points the dev data provider to `http://127.0.0.1:8080/api/v1`. The backend's default CORS allowlist includes both local frontend origins.
+
+Default database credentials: host `localhost`, port `54322`, db `postgres`, user/password `postgres`. Copy `.env.example` → `.env`. Stop the complete stack with `./scripts/dev-down.ps1`.
 
 `pnpm run build` outputs to `frontend/dist`, which the Go server serves at `/admin/`.
 
-**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). When warranted by the validation policy above, run `go test -race -count=1 ./...` locally for backend changes. Frontend unit tests live in `frontend/src/` alongside the source files and use **vitest** (`pnpm run test` in `frontend/`). There is no end-to-end/integration test suite yet, so use relevant targeted API checks when needed (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
+**Tests**: Go unit tests are available (notably in `auth/` and `utils/`). When warranted by the validation policy above, run `go test -race -count=1 ./...` locally for backend changes. Frontend unit tests live in `frontend/src/` alongside the source files and use **vitest** (`pnpm run test` in `frontend/`). The opt-in local Storage test uses the `integration` build tag and runs in the Supabase workflow; otherwise use relevant targeted API checks when needed (for example `curl http://localhost:8080/health` and affected `/api/v1` endpoints).
 
 **CI checks**: `.github/workflows/go-checks.yml` runs `go vet`, `golangci-lint`, and `go test -race -count=1 ./...` when Go files change (push to `main`/`staging` and pull requests).
 
@@ -48,7 +56,7 @@ swag init --generalInfo main.go --output docs --parseInternal
 
 Commit the generated `docs/` files alongside your code. Install the CLI once with `go install github.com/swaggo/swag/cmd/swag@latest`.
 
-**Local data**: `scripts/import-remote-db.ps1` clones a remote Postgres DB into the local container.
+**Local data**: `scripts/import-remote-db.ps1` replaces local Supabase's `public` schema while preserving its system and Storage schemas.
 
 **Terraform / HCP Terraform:** active roots are `gcp/prod`, `gcp/staging`, and `supabase/prod`. Avoid running `terraform plan` locally — the CLI-driven remote plan upload is slow. Prefer queueing plans from HCP Terraform when possible, and use local Terraform mainly for `validate`, `import`, or other targeted state operations. See [`infra/terraform/README.md`](../infra/terraform/README.md) and the per-root READMEs for workspace details.
 
@@ -58,7 +66,7 @@ Commit the generated `docs/` files alongside your code. Install the CLI once wit
 - **Controllers** (`Controllers/`): read from `db.DB` (GORM global), JSON-encode responses. Use shared helpers from `Controllers/response_helpers.go` (`writeJSONResponse`, `writeCreatedJSONResponse`, `writeDeleteResponse`).
 - **List endpoints**: use `utils.ParseListParams` (parses react-admin `sort`/`range`/`filter` query params) and set `Content-Range` header for react-admin pagination.
 - **Models** (`models/`): GORM structs with camelCase JSON tags. Many-to-many via GORM `many2many` tag. Not all files in `models/` are DB models — `person.go` and `token.go` are response shapes.
-- **Auto-migration**: every DB model must be registered in `db.DB.AutoMigrate(...)` in `main.go`.
+- **Database schema**: every persistent schema change requires a checked-in migration under `supabase/migrations/`.
 - **Audit system** (critical): all write operations **must** use the generic helpers in `Controllers/audit_write_helpers.go` — `createWithAudit[T]`, `updateWithAudit[T]`, `writeDeleteResponseWithAudit[T]`. These wrap the mutation + audit log insert in one transaction atomically. Do **not** call `db.DB.Create/Save/Delete` directly from controllers. Old logs are automatically pruned on each audit insert (rate-limited to once per hour) based on `AUDIT_LOG_RETENTION_DAYS`. All three helpers accept a variadic `revalidateTags ...string` trailing argument — on success they fire `go utils.RevalidateTag(tag)` for each tag to purge the public site's ISR cache (see _Cache revalidation_ below).
 - **File uploads**: controllers accepting files use `multipart/form-data`; files go through the S3-compatible upload helper in `utils/aws_s3.go` (validates MIME, generates timestamped key). In staging/production this is configured against Supabase Storage's S3 endpoint.
 - **Auth** (`auth/middleware.go`): validates HS256 JWT (`jwtsecret_laganda` secret), injects `user_id`, `role`, `permissions` into request context. Per-route permission check via `auth.RequirePermission("resource.action", handler)`. Permissions follow `"resource.action"` format; `"*"` grants full access. Use `auth.GetUserIDFromContext` etc. to read from context in controllers.
@@ -86,9 +94,9 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 | -------------------------------------------- | ------------------------------------------------------------------------------- |
 | `DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE`    | Postgres connection                                                             |
 | `jwtsecret_laganda`                          | HMAC-SHA256 secret for JWT signing. **Required.**                               |
-| `S3_BUCKET`, `S3_ENDPOINT`, `S3_PUBLIC_URL`  | S3-compatible storage target (MinIO locally, Supabase Storage in hosted envs)   |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_PUBLIC_URL`  | Supabase Storage's S3-compatible and public object endpoints                   |
 | `S3_REGION`                                  | Optional S3 region override when required by the endpoint                       |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Access credentials for the S3-compatible API (e.g. MinIO/Supabase storage keys) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Access credentials for Supabase Storage's S3-compatible API                    |
 | `EVENTRO_API`, `EVENTRO_ORG`                 | Eventro API authentication                                                      |
 | `AUDIT_LOG_RETENTION_DAYS`                   | Prune audit logs older than N days (default: 7)                                 |
 | `PORT`                                       | Server port (default: 8080)                                                     |
@@ -114,8 +122,8 @@ All vars loaded from `.env` (see `.env.example`). Key vars:
 ## Adding a new resource (checklist)
 
 1. Create model in `models/` with GORM + camelCase JSON tags.
-2. Register in `db.DB.AutoMigrate(...)` in `main.go`.
-3. Write a SQL migration in `supabase/migrations/` for the schema change.
+2. Write a SQL migration in `supabase/migrations/` for the schema change.
+3. Validate the migration with a local Supabase reset.
 4. Create controller in `Controllers/` using `response_helpers.go` and **`audit_write_helpers.go`** for all writes.
 5. Add routes in `main.go` — public GETs in `publicAPI`, write routes in `protectedAPI` with `auth.RequirePermission("resource.action", handler)`.
 6. Create `List`, `Create`, `Edit` in `frontend/src/components/{Resource}/`.

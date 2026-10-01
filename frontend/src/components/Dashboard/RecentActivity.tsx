@@ -48,11 +48,9 @@ export const RecentActivity = ({ perms }: { perms: string[] }) => {
       <CardContent>
         <Stack
           direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={1}
+          sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
         >
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <History color="action" />
             <Typography variant="h6">Recent activity</Typography>
           </Stack>
@@ -70,7 +68,7 @@ export const RecentActivity = ({ perms }: { perms: string[] }) => {
         </Stack>
         <Divider />
         {isPending ? (
-          <Stack spacing={1} mt={1}>
+          <Stack spacing={1} sx={{ mt: 1 }}>
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} height={40} />
             ))}

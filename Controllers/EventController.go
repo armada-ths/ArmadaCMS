@@ -70,6 +70,9 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	db.DB.Model(&models.Event{}).Count(&total)
 
 	query.Offset(start).Limit(limit).Find(&events)
+	for i := range events {
+		events[i].Description = utils.SanitizeEventDescription(events[i].Description)
+	}
 
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
 	w.Header().Set("Content-Range", fmt.Sprintf("events %d-%d/%d", start, end, total))
@@ -92,6 +95,7 @@ func GetEventByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Event not found", http.StatusNotFound)
 		return
 	}
+	event.Description = utils.SanitizeEventDescription(event.Description)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(event)
 }
@@ -196,6 +200,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	event.Description = utils.SanitizeEventDescription(event.Description)
 
 	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
 		return tx.Create(&event).Error
@@ -254,7 +259,7 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 
 	var updates models.Event
 	updates.Name = r.FormValue("name")
-	updates.Description = utils.StringPtr(r.FormValue("description"))
+	updates.Description = utils.SanitizeEventDescription(utils.StringPtr(r.FormValue("description")))
 	updates.Location = r.FormValue("location")
 	eventStart, err := parseTime("eventStart")
 	if err != nil {

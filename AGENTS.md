@@ -4,7 +4,7 @@ This file exists for cross-agent compatibility. The canonical project instructio
 
 Also consult:
 
-- `README.md` for setup, scripts, project structure, and developer workflows
+- `README.md` for setup, scripts, project structure, and developer workflows. In local development, Docker runs the API/infrastructure while the admin Vite frontend runs from `frontend/` on the host.
 - `.github/instructions/terraform.instructions.md` when editing `infra/terraform/**`
 
 ## Project scope
@@ -17,7 +17,7 @@ If a task changes the public website, also update the sibling `../armada.nu` rep
 
 - Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
 - Keep write operations in controllers on the audit helper path: use `createWithAudit[T]`, `updateWithAudit[T]`, and `writeDeleteResponseWithAudit[T]` rather than calling `db.DB.Create/Save/Delete` directly from controllers.
-- Register every new DB model in `db.DB.AutoMigrate(...)` in `main.go`.
+- Create a checked-in Supabase SQL migration for every persistent schema change.
 - When a change affects a public-site resource, pass the correct revalidation tag through the audit helper so the Next.js site cache is purged.
 - If a resource uploads files, add it to the multipart handling list in `frontend/src/dataProvider.ts`.
 - When routes or Swagger annotations change, regenerate the docs with `swag init --generalInfo main.go --output docs --parseInternal` and commit the generated files in `docs/`.

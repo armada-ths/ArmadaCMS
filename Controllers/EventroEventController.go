@@ -205,7 +205,7 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 	return models.Event{
 		EventroID:        e.ID,
 		Name:             e.Name,
-		Description:      e.Description,
+		Description:      utils.SanitizeEventDescription(e.Description),
 		Food:             nil,
 		EventStart:       derefOrNow(parseTime(e.EventStartsAt)),
 		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),

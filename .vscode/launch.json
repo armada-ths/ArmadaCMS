@@ -2,19 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Docker",
+      "name": "Dev: Open Admin UI (Starts Frontend + Backend + Local Supabase)",
       "type": "editor-browser",
       "request": "launch",
-      "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}",
-      "preLaunchTask": "docker dev up"
-    },
-    {
-      "name": "MinIO Console",
-      "type": "editor-browser",
-      "request": "launch",
-      "url": "http://localhost:9001",
-      "webRoot": "${workspaceFolder}"
+      "url": "http://localhost:5173/admin",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "Dev: Start Admin Frontend + Backend + Local Supabase",
+      "postDebugTask": "Dev: Stop Complete Local Environment"
     }
   ]
 }
