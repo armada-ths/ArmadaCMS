@@ -1,4 +1,6 @@
 import {
+  ImageField,
+  ImageInput,
   NumberInput,
   ReferenceInput,
   SelectInput,
@@ -41,5 +43,13 @@ export const TimelineEntryForm = () => (
       helperText="Order within the era. Equal numbers are shown in entry ID order."
       validate={required()}
     />
+    <ImageInput
+      source="imageUrl"
+      label="Image (optional)"
+      accept={{ "image/*": [] }}
+      helperText="Displayed alongside this entry on the public timeline."
+    >
+      <ImageField source="src" title="title" />
+    </ImageInput>
   </SimpleForm>
 );

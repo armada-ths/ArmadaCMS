@@ -8,6 +8,7 @@ type TimelineEntry struct {
 	EraRecord TimelineEra `gorm:"foreignKey:EraID" json:"-"`
 	SortOrder int         `gorm:"column:sort_order;not null" json:"sortOrder"`
 	EraTitle  string      `gorm:"-" json:"eraTitle"`
+	ImageUrl  *string     `gorm:"column:image_url" json:"imageUrl"`
 }
 
 func (entry *TimelineEntry) SetEraPresentation() {

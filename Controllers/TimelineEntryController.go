@@ -5,8 +5,10 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -107,18 +109,55 @@ func validateTimelineEntry(w http.ResponseWriter, entry *models.TimelineEntry) b
 // CreateTimelineEntry creates a timeline entry.
 // @Summary Create timeline entry
 // @Tags timeline-entries
-// @Accept json
+// @Accept mpfd
 // @Produce json
-// @Param body body models.TimelineEntry true "Timeline entry data"
+// @Param title formData string true "Entry title"
+// @Param body formData string true "Entry body (Markdown)"
+// @Param eraId formData int true "Era ID"
+// @Param sortOrder formData int true "Sort order within era"
+// @Param file formData file false "Optional image"
 // @Success 201 {object} models.TimelineEntry
 // @Security BearerAuth
 // @Router /timeline-entries [post]
 func CreateTimelineEntry(w http.ResponseWriter, r *http.Request) {
-	var entry models.TimelineEntry
-	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
-		http.Error(w, "Invalid body", http.StatusBadRequest)
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
+
+	var entry models.TimelineEntry
+	entry.Title = r.FormValue("title")
+	entry.Body = r.FormValue("body")
+	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, 64); err == nil {
+		entry.EraID = uint(eraID)
+	}
+	if so, err := strconv.Atoi(r.FormValue("sortOrder")); err == nil {
+		entry.SortOrder = so
+	}
+
+	if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
+		entry.ImageUrl = &imageUrl
+	} else {
+		file, header, err := r.FormFile("file")
+		if err == nil {
+			defer file.Close()
+			fileURL, err := utils.UploadImage(file, header)
+			if err != nil {
+				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+					return
+				}
+				if errors.Is(err, utils.ErrFileTooLarge) {
+					http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
+					return
+				}
+				http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+				return
+			}
+			entry.ImageUrl = &fileURL
+		}
+	}
+
 	if !validateTimelineEntry(w, &entry) {
 		return
 	}
@@ -137,10 +176,14 @@ func CreateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 // UpdateTimelineEntry updates a timeline entry by ID.
 // @Summary Update timeline entry
 // @Tags timeline-entries
-// @Accept json
+// @Accept mpfd
 // @Produce json
 // @Param id path int true "Timeline Entry ID"
-// @Param body body models.TimelineEntry true "Updated timeline entry data"
+// @Param title formData string false "Entry title"
+// @Param body formData string false "Entry body (Markdown)"
+// @Param eraId formData int false "Era ID"
+// @Param sortOrder formData int false "Sort order within era"
+// @Param file formData file false "Optional image"
 // @Success 200 {object} models.TimelineEntry
 // @Security BearerAuth
 // @Router /timeline-entries/{id} [put]
@@ -152,20 +195,57 @@ func UpdateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entry.SetEraPresentation()
-	var updates models.TimelineEntry
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid body", http.StatusBadRequest)
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
+
+	var updates models.TimelineEntry
+	updates.Title = r.FormValue("title")
+	updates.Body = r.FormValue("body")
+	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, 64); err == nil {
+		updates.EraID = uint(eraID)
+	}
+	if so, err := strconv.Atoi(r.FormValue("sortOrder")); err == nil {
+		updates.SortOrder = so
+	}
+
+	updateMap := map[string]any{
+		"title":      updates.Title,
+		"body":       updates.Body,
+		"era_id":     updates.EraID,
+		"sort_order": updates.SortOrder,
+	}
+
+	// A newly uploaded file takes priority over an existing imageUrl string.
+	file, header, err := r.FormFile("file")
+	if err == nil {
+		defer file.Close()
+		fileURL, err := utils.UploadImage(file, header)
+		if err != nil {
+			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
+				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
+				return
+			}
+			if errors.Is(err, utils.ErrFileTooLarge) {
+				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
+			return
+		}
+		updateMap["image_url"] = fileURL
+	} else if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
+		updateMap["image_url"] = imageUrl
+	}
+
 	if !validateTimelineEntry(w, &updates) {
 		return
 	}
 	before := entry
 	if err := updateWithAudit(r, "timeline-entries", id, before, &entry, func(tx *gorm.DB) error {
-		return tx.Model(&entry).Updates(map[string]any{
-			"title": updates.Title, "body": updates.Body,
-			"era_id": updates.EraID, "sort_order": updates.SortOrder,
-		}).Error
+		return tx.Model(&entry).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("EraRecord").First(&entry, id).Error
 	}, "timeline-entries"); err != nil {
