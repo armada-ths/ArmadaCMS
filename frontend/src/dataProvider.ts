@@ -170,8 +170,20 @@ const buildMultipartFormDataOrHttpError = (
 export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
+  getOne: (resource, params) => {
+    return baseDataProvider.getOne(resource, params);
+  },
+
   create: (resource, params) => {
-    if (["profiles", "events", "exhibitors", "blogposts"].includes(resource)) {
+    if (
+      [
+        "profiles",
+        "events",
+        "exhibitors",
+        "blogposts",
+        "timeline-entries",
+      ].includes(resource)
+    ) {
       try {
         const formData = buildMultipartFormDataOrHttpError(params);
         return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
@@ -183,7 +195,15 @@ export const dataProvider: DataProvider = {
   },
 
   update: (resource, params) => {
-    if (["profiles", "events", "exhibitors", "blogposts"].includes(resource)) {
+    if (
+      [
+        "profiles",
+        "events",
+        "exhibitors",
+        "blogposts",
+        "timeline-entries",
+      ].includes(resource)
+    ) {
       try {
         const formData = buildMultipartFormDataOrHttpError(params);
         return uploadFormData(
@@ -196,5 +216,9 @@ export const dataProvider: DataProvider = {
       }
     }
     return baseDataProvider.update(resource, params);
+  },
+
+  delete: (resource, params) => {
+    return baseDataProvider.delete(resource, params);
   },
 };
