@@ -31,8 +31,10 @@ export const EventCreate = (props: CreateProps) => {
     <Create {...props}>
       <SimpleForm>
         <TextInput source="name" />
+        <TextInput source="nameSv" label="Name (Swedish)" />
         <TextInput source="location" />
         <TextInput source="description" />
+        <TextInput source="descriptionSv" label="Description (Swedish)" />
         <TextInput source="food" />
         <DateTimeInput
           source="eventStart"

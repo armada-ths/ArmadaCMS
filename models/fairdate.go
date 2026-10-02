@@ -5,10 +5,11 @@ import "strings"
 // FairDateConfig is the GORM database model for fair date configuration.
 // It stores all dates as flat fields for easy editing in the admin GUI.
 type FairDateConfig struct {
-	ID           uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
-	EventroID    *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
-	Description  string  `gorm:"column:description;not null" json:"description"`
-	FairDays     string  `gorm:"column:fair_days;not null" json:"fairDays"` // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
+	ID            uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	EventroID     *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
+	Description   string  `gorm:"column:description;not null" json:"description"`
+	DescriptionSv *string `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
+	FairDays      string  `gorm:"column:fair_days;not null" json:"fairDays"` // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
 	IRStart      string  `gorm:"column:ir_start;not null" json:"irStart"`
 	IREnd        string  `gorm:"column:ir_end;not null" json:"irEnd"`
 	IRAcceptance string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
@@ -21,8 +22,9 @@ type FairDateConfig struct {
 // This preserves backward compatibility with the armada.nu frontend.
 type FairDate struct {
 	Fair struct {
-		Description string   `json:"description"`
-		Days        []string `json:"days"`
+		Description   string   `json:"description"`
+		DescriptionSv *string  `json:"descriptionSv,omitempty"`
+		Days          []string `json:"days"`
 	} `json:"fair"`
 	IR struct {
 		Start      string `json:"start"`
@@ -44,6 +46,7 @@ func (c *FairDateConfig) ToFairDate() FairDate {
 	var fd FairDate
 
 	fd.Fair.Description = c.Description
+	fd.Fair.DescriptionSv = c.DescriptionSv
 	fd.Fair.Days = splitDays(c.FairDays)
 
 	fd.IR.Start = c.IRStart

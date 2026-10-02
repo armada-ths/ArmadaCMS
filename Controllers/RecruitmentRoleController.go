@@ -19,7 +19,9 @@ type recruitmentRolePayload struct {
 	RecruitmentID *uint   `json:"recruitmentId"`
 	TeamID        *uint   `json:"team_id"`
 	Name          string  `json:"name"`
+	NameSv        *string `json:"nameSv"`
 	Description   string  `json:"description"`
+	DescriptionSv *string `json:"descriptionSv"`
 }
 
 // GetRecruitmentRoles returns a paginated list of recruitment roles.
@@ -112,7 +114,9 @@ func CreateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		RecruitmentID: recruitmentID,
 		TeamID:        payload.TeamID,
 		Name:          strings.TrimSpace(payload.Name),
+		NameSv:        trimStringPointer(payload.NameSv),
 		Description:   strings.TrimSpace(payload.Description),
+		DescriptionSv: trimStringPointer(payload.DescriptionSv),
 	}
 
 	if err := createWithAudit(r, "recruitmentroles", &item, func(tx *gorm.DB) error {
@@ -159,7 +163,9 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		"eventro_role_id": trimStringPointer(payload.EventroRoleID),
 		"team_id":         payload.TeamID,
 		"name":            strings.TrimSpace(payload.Name),
+		"name_sv":         trimStringPointer(payload.NameSv),
 		"description":     strings.TrimSpace(payload.Description),
+		"description_sv":  trimStringPointer(payload.DescriptionSv),
 	}
 	if payload.RecruitmentID != nil {
 		updates["recruitment_id"] = *payload.RecruitmentID

@@ -4,6 +4,7 @@ export const IndustryCreate = (props: CreateProps) => (
   <Create {...props}>
     <SimpleForm>
       <TextInput source="name" />
+      <TextInput source="nameSv" label="Name (Swedish)" />
     </SimpleForm>
   </Create>
 );
