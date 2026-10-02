@@ -88,6 +88,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    This starts a minimal local Supabase profile (Postgres, Storage API, and its Kong gateway) followed by the Go API with Air hot reload. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
 
+   The checked-in migrations also create the guest photo buckets. The local Storage limit permits multi-gigabyte ZIP exports, while the photo bucket still limits individual JPEGs to 25 MB. For local photo testing, Compose supplies a development-only event-token secret, a browser-reachable signed-photo endpoint, a local reCAPTCHA bypass, and a SafeSearch mock. Hosted environments require their real secrets and Google assessments; see [the photo rollout guide](docs/photo-events-rollout.md).
+
    Only the first run requires `--build`. After that, use:
 
    ```powershell

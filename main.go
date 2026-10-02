@@ -15,17 +15,19 @@
 package main
 
 import (
-	controllers "ArmadaCMS/main/Controllers"
-	"ArmadaCMS/main/auth"
-	"ArmadaCMS/main/db"
-	_ "ArmadaCMS/main/docs"
-	"ArmadaCMS/main/utils"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	controllers "ArmadaCMS/main/Controllers"
+	"ArmadaCMS/main/auth"
+	"ArmadaCMS/main/db"
+	_ "ArmadaCMS/main/docs"
+	"ArmadaCMS/main/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -64,6 +66,12 @@ func main() {
 
 	db.ConnectDB()
 
+	if os.Getenv("PHOTO_WORKER_MODE") == "1" {
+		if err := runPhotoWorker(context.Background()); err != nil {
+			log.Fatal("photo worker failed: ", err)
+		}
+		return
+	}
 	if err := controllers.SeedRoles(db.DB); err != nil {
 		log.Printf("failed to seed roles: %v", err)
 	}
@@ -98,7 +106,9 @@ func CreateMuxClient() http.Handler {
 
 	mux.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+			if !strings.Contains(r.URL.Path, "/photo-events/access/") {
+				log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+			}
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -198,6 +208,25 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
 	publicAPI.HandleFunc("/login", controllers.Login)
+	publicAPI.HandleFunc("/photo-events/access/{token}", controllers.PhotoEventAccess).Methods("GET")
+	publicAPI.HandleFunc("/photo-events/access/{token}/photos", controllers.PhotoEventUpload).Methods("POST")
+	publicAPI.HandleFunc("/photo-events/access/{token}/gallery", controllers.PhotoEventGallery).Methods("GET")
+	publicAPI.HandleFunc("/photo-events/access/{token}/gallery/refresh", controllers.PhotoEventRefreshURLs).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.view", controllers.ListPhotoEvents)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.create", controllers.CreatePhotoEvent)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.view", controllers.GetPhotoEvent)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.edit", controllers.UpdatePhotoEvent)).Methods("PUT")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.delete", controllers.DeletePhotoEvent)).Methods("DELETE")
+	protectedAPI.HandleFunc("/photoevents/{id}/link", auth.RequirePermission("photoevents.view", controllers.PhotoEventLink)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}/qr", auth.RequirePermission("photoevents.view", controllers.PhotoEventQR)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}/rotate", auth.RequirePermission("photoevents.edit", controllers.RotatePhotoEventToken)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}/retention-delete", auth.RequirePermission("photoevents.delete", controllers.RequestPhotoEventDeletion)).Methods("POST")
+	protectedAPI.HandleFunc("/eventphotos", auth.RequirePermission("eventphotos.view", controllers.ListEventPhotos)).Methods("GET")
+	protectedAPI.HandleFunc("/eventphotos/batch", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhotosBatch)).Methods("POST")
+	protectedAPI.HandleFunc("/eventphotos/{id}/moderate", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhoto)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}/exports", auth.RequirePermission("photoexports.create", controllers.StartPhotoExport)).Methods("POST")
+	protectedAPI.HandleFunc("/photoexports", auth.RequirePermission("photoexports.view", controllers.ListPhotoExports)).Methods("GET")
+	protectedAPI.HandleFunc("/photoexports/{id}", auth.RequirePermission("photoexports.view", controllers.GetPhotoExport)).Methods("GET")
 	publicAPI.HandleFunc("/refreshAccessToken", controllers.RefreshAccessToken).Methods("POST")
 
 	// Current user info (for frontend permissions)
@@ -354,10 +383,12 @@ func HandleCORS(next http.Handler) http.Handler {
 }
 
 var defaultCORSOrigins = map[string]struct{}{
-	"https://armada.nu":     {},
-	"https://www.armada.nu": {},
-	"http://localhost:3000": {},
-	"http://localhost:5173": {},
+	"https://armada.nu":        {},
+	"https://www.armada.nu":    {},
+	"https://photos.armada.nu": {},
+	"http://localhost:3000":    {},
+	"http://localhost:8000":    {},
+	"http://localhost:5173":    {},
 }
 
 func isAllowedCORSOrigin(origin string) bool {
