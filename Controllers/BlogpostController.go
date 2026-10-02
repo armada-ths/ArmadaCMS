@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -130,6 +131,7 @@ func GetBlogpostByID(w http.ResponseWriter, r *http.Request) {
 // @Param text formData string true "Markdown content"
 // @Param author formData string true "Author name"
 // @Param file formData file false "Cover image"
+// @Param headerImages formData string false "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names."
 // @Success 201 {object} models.Blogpost
 // @Failure 400 {string} string "Bad request"
 // @Failure 500 {string} string "Create failed"
@@ -140,6 +142,12 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
+
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	var item models.Blogpost
 	userID, ok := auth.GetUserIDFromContext(r)
@@ -178,6 +186,13 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	images, err := readBlogpostHeaderImages(r, nil, utils.UploadImage)
+	if err != nil {
+		writeBlogpostImageError(w, err)
+		return
+	}
+	item.ImageURLs = images
+
 	if err := createWithAudit(r, "blogposts", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil, "blog-posts"); err != nil {
@@ -198,6 +213,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 // @Param text formData string false "Markdown content"
 // @Param author formData string false "Author name"
 // @Param file formData file false "Cover image"
+// @Param headerImages formData string false "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names."
 // @Success 200 {object} models.Blogpost
 // @Failure 400 {string} string "Bad request"
 // @Failure 404 {string} string "Not found"
@@ -216,6 +232,12 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
+
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	updateMap := map[string]interface{}{
 		"title":              r.FormValue("title"),
@@ -245,9 +267,29 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		updateMap["image_url"] = fileURL
 	} else {
 		// No new file — use the imageUrl field only if it was explicitly provided.
-		if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
-			updateMap["image_url"] = imageUrl
+		if _, present := r.MultipartForm.Value["imageUrl"]; present {
+			if imageURL := r.FormValue("imageUrl"); imageURL != "" {
+				updateMap["image_url"] = imageURL
+			} else {
+				updateMap["image_url"] = nil
+			}
 		}
+	}
+
+	// Omitted header images must not overwrite concurrent image changes.
+	if _, present := r.MultipartForm.Value["headerImages"]; present {
+		images, err := readBlogpostHeaderImages(r, item.ImageURLs, utils.UploadImage)
+		if err != nil {
+			writeBlogpostImageError(w, err)
+			return
+		}
+		// Map updates bypass GORM field serializers, so encode the JSON explicitly.
+		encodedImages, err := json.Marshal(images)
+		if err != nil {
+			http.Error(w, "Failed to encode header images", http.StatusInternalServerError)
+			return
+		}
+		updateMap["image_urls"] = string(encodedImages)
 	}
 
 	before := item
