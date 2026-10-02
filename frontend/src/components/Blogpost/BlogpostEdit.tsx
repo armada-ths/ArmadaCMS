@@ -1,3 +1,4 @@
+import { BlogpostHeaderImagesInput } from "./BlogpostHeaderImagesInput";
 import { useState } from "react";
 import {
   Edit,
@@ -34,7 +35,7 @@ export const BlogpostEdit = (props: EditProps) => {
         <MarkdownInput source="text" label="Content (Markdown)" />
         <BooleanInput
           source="showCoverInPost"
-          label="Show cover image inside the post"
+          label="Show header photos inside the post"
         />
         <div>
           <label>
@@ -73,6 +74,7 @@ export const BlogpostEdit = (props: EditProps) => {
           <p>Current cover image:</p>
           <ImageField source="imageUrl" label="Current cover image" />
         </div>
+        <BlogpostHeaderImagesInput />
       </SimpleForm>
     </Edit>
   );

@@ -1,3 +1,4 @@
+import { BlogpostHeaderImagesInput } from "./BlogpostHeaderImagesInput";
 import { useState } from "react";
 import {
   Create,
@@ -75,7 +76,7 @@ export const BlogpostCreate = (props: CreateProps) => {
         />
         <BooleanInput
           source="showCoverInPost"
-          label="Show cover image inside the post"
+          label="Show header photos inside the post"
           defaultValue={true}
         />
         <div>
@@ -110,6 +111,7 @@ export const BlogpostCreate = (props: CreateProps) => {
         ) : (
           <TextInput label="Image URL" source="imageUrl" fullWidth />
         )}
+        <BlogpostHeaderImagesInput />
       </SimpleForm>
     </Create>
   );

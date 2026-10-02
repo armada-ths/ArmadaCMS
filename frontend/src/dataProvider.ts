@@ -1,3 +1,4 @@
+import { appendBlogpostHeaderImages } from "./utils/blogpostHeaderImages";
 import simpleRestDataProvider from "ra-data-simple-rest";
 import {
   CreateParams,
@@ -82,6 +83,10 @@ const createMultipartFormData = (
   };
 
   Object.entries(params.data).forEach(([key, value]) => {
+    if (key === "headerImages" && Array.isArray(value)) {
+      appendBlogpostHeaderImages(formData, value);
+      return;
+    }
     if (key === "team_id" && value == null) {
       formData.append("team_id", "");
       return;

@@ -200,6 +200,12 @@ const docTemplate = `{
                         "description": "Cover image",
                         "name": "file",
                         "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.",
+                        "name": "headerImages",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -354,6 +360,12 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Cover image",
                         "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.",
+                        "name": "headerImages",
                         "in": "formData"
                     }
                 ],
@@ -4667,6 +4679,12 @@ const docTemplate = `{
                 },
                 "imageUrl": {
                     "type": "string"
+                },
+                "imageUrls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "published": {
                     "type": "boolean"
