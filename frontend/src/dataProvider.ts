@@ -82,7 +82,26 @@ const createMultipartFormData = (
     return false;
   };
 
+  const hasBlogpostImages = Array.isArray(params.data.blogpostImages);
   Object.entries(params.data).forEach(([key, value]) => {
+    if (hasBlogpostImages) {
+      if (
+        ["imageUrl", "imageUrls", "imageFile", "file", "headerImages"].includes(
+          key,
+        )
+      ) {
+        return;
+      }
+      if (key === "blogpostImages") {
+        appendBlogpostHeaderImages(
+          formData,
+          value,
+          true,
+          params.data.showCoverInPost !== false,
+        );
+        return;
+      }
+    }
     if (key === "headerImages" && Array.isArray(value)) {
       appendBlogpostHeaderImages(formData, value);
       return;

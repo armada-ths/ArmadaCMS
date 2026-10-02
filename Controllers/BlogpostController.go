@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -142,7 +143,11 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer r.MultipartForm.RemoveAll()
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	var item models.Blogpost
 	userID, ok := auth.GetUserIDFromContext(r)
@@ -228,7 +233,11 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer r.MultipartForm.RemoveAll()
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	updateMap := map[string]interface{}{
 		"title":              r.FormValue("title"),
@@ -258,23 +267,30 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		updateMap["image_url"] = fileURL
 	} else {
 		// No new file — use the imageUrl field only if it was explicitly provided.
-		if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
-			updateMap["image_url"] = imageUrl
+		if _, present := r.MultipartForm.Value["imageUrl"]; present {
+			if imageURL := r.FormValue("imageUrl"); imageURL != "" {
+				updateMap["image_url"] = imageURL
+			} else {
+				updateMap["image_url"] = nil
+			}
 		}
 	}
 
-	images, err := readBlogpostHeaderImages(r, item.ImageURLs, utils.UploadImage)
-	if err != nil {
-		writeBlogpostImageError(w, err)
-		return
+	// Omitted header images must not overwrite concurrent image changes.
+	if _, present := r.MultipartForm.Value["headerImages"]; present {
+		images, err := readBlogpostHeaderImages(r, item.ImageURLs, utils.UploadImage)
+		if err != nil {
+			writeBlogpostImageError(w, err)
+			return
+		}
+		// Map updates bypass GORM field serializers, so encode the JSON explicitly.
+		encodedImages, err := json.Marshal(images)
+		if err != nil {
+			http.Error(w, "Failed to encode header images", http.StatusInternalServerError)
+			return
+		}
+		updateMap["image_urls"] = string(encodedImages)
 	}
-	// Map updates bypass GORM field serializers, so encode the JSON explicitly.
-	encodedImages, err := json.Marshal(images)
-	if err != nil {
-		http.Error(w, "Failed to encode header images", http.StatusInternalServerError)
-		return
-	}
-	updateMap["image_urls"] = string(encodedImages)
 
 	before := item
 	if err := updateWithAudit(r, "blogposts", id, before, &item, func(tx *gorm.DB) error {

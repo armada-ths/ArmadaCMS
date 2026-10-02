@@ -46,7 +46,11 @@ func TestReadBlogpostHeaderImages(t *testing.T) {
 			if err := r.ParseMultipartForm(1024); err != nil {
 				t.Fatal(err)
 			}
-			defer r.MultipartForm.RemoveAll()
+			t.Cleanup(func() {
+				if err := r.MultipartForm.RemoveAll(); err != nil {
+					t.Errorf("Failed to remove multipart temporary files: %v", err)
+				}
+			})
 			got, err := readBlogpostHeaderImages(r, []string{"https://example.com/old.jpg"}, func(_ multipart.File, header *multipart.FileHeader) (string, error) {
 				return "https://example.com/" + header.Filename, nil
 			})
