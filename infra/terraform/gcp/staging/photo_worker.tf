@@ -92,7 +92,7 @@ resource "google_cloud_scheduler_job" "photo_worker_retry" {
   region      = var.scheduler_region
   name        = "${var.service_name}-photo-worker-retry"
   description = "Retry queued photo exports and enforce retention"
-  schedule    = "*/15 * * * *"
+  schedule    = "0 * * * *"
   time_zone   = "Europe/Stockholm"
   http_target {
     http_method = "POST"
