@@ -40,7 +40,7 @@ services:
       PHOTO_EXPORT_S3_BUCKET: event-photo-exports
       PHOTO_S3_PRESIGN_ENDPOINT: http://127.0.0.1:54321/storage/v1/s3
       PHOTO_TOKEN_SECRET: ${PHOTO_TOKEN_SECRET:-local-development-photo-token-secret-change-before-deploy}
-      PHOTO_APP_BASE_URL: http://localhost:3000/photos
+      PHOTO_APP_BASE_URL: http://localhost:8001
       PHOTO_RECAPTCHA_BYPASS_LOCAL: "true"
       PHOTO_VISION_MOCK_RESULT: ${PHOTO_VISION_MOCK_RESULT:-safe}
     networks:
