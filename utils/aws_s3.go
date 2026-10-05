@@ -165,7 +165,7 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		return "", fmt.Errorf("file with the name %s already exists", filename)
 	}
 
-	tm := transfermanager.New(client)
+	tm := newImageUploader(client)
 	_, err = tm.UploadObject(context.TODO(), &transfermanager.UploadObjectInput{
 		Bucket:      aws.String(target.bucket),
 		Key:         aws.String(filename),
@@ -194,4 +194,14 @@ func firstNonEmpty(values ...string) string {
 	}
 
 	return ""
+}
+
+// Supabase rejects aws-chunked payload chunks larger than 8 MiB. The SDK's
+// default 16 MiB multipart threshold would send allowed 8-15 MiB images as
+// one oversized HTTPS chunk. Keep both the threshold and part size at 8 MiB.
+func newImageUploader(client transfermanager.S3APIClient) *transfermanager.Client {
+	return transfermanager.New(client, func(o *transfermanager.Options) {
+		o.MultipartUploadThreshold = 8 << 20
+		o.PartSizeBytes = 8 << 20
+	})
 }
