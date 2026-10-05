@@ -68,7 +68,7 @@ func TestReadBlogpostHeaderImages(t *testing.T) {
 }
 
 func TestWriteBlogpostImageError(t *testing.T) {
-	for _, err := range []error{errInvalidHeaderImages, utils.ErrFileTooLarge, utils.ErrUnsupportedImageFormat} {
+	for _, err := range []error{errInvalidHeaderImages, utils.ErrFileTooLarge, utils.ErrUnsupportedImageFormat, &blogpostImageFailure{Index: 1, Field: "headerImage1", Header: &multipart.FileHeader{Filename: "large.jpg"}, Stage: "upload", Err: utils.ErrFileTooLarge}} {
 		w := httptest.NewRecorder()
 		writeBlogpostImageError(w, err)
 		if w.Code != 400 {
