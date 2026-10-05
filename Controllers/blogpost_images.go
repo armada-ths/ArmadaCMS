@@ -48,7 +48,7 @@ func readBlogpostHeaderImages(r *http.Request, existing []string, upload func(mu
 		}
 	}
 	images := make([]string, 0, len(entries))
-	for _, entry := range entries {
+	for index, entry := range entries {
 		if entry.File == "" {
 			images = append(images, entry.URL)
 			continue
@@ -56,12 +56,12 @@ func readBlogpostHeaderImages(r *http.Request, existing []string, upload func(mu
 		header := r.MultipartForm.File[entry.File][0]
 		file, err := header.Open()
 		if err != nil {
-			return nil, err
+			return nil, &blogpostImageFailure{Index: index + 1, Field: entry.File, Header: header, Stage: "open", Err: err}
 		}
 		imageURL, err := upload(file, header)
 		file.Close()
 		if err != nil {
-			return nil, err
+			return nil, &blogpostImageFailure{Index: index + 1, Field: entry.File, Header: header, Stage: "upload", Err: err}
 		}
 		images = append(images, imageURL)
 	}

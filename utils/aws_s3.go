@@ -143,7 +143,7 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		)
 	}
 	if err != nil {
-		return "", fmt.Errorf("unable to load SDK config, %v", err)
+		return "", fmt.Errorf("unable to load SDK config: %w", err)
 	}
 
 	var client *s3.Client
@@ -173,7 +173,7 @@ func uploadWithS3CompatibleBackend(file multipart.File, filename string, content
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to upload file to S3, %v", err)
+		return "", fmt.Errorf("unable to upload file to S3 (bucket=%q, key=%q): %w", target.bucket, filename, err)
 	}
 
 	if target.publicBaseURL != "" {
