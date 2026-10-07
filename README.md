@@ -279,6 +279,8 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 ## CI / CD
 
+GitHub Actions are pinned to full commit SHAs with version comments. Dependabot checks for version updates every Monday at 08:00 Europe/Stockholm, covering GitHub Actions, pnpm dependencies, Terraform providers, and Go modules. Minor and patch updates are grouped per ecosystem; major updates remain separate PRs and all updates use the existing review and CI requirements. See [the Dependabot configuration](.github/dependabot.yml).
+
 CI is handled by GitHub Actions and CD by Google Cloud Build.
 
 ### GitHub Actions (CI)
