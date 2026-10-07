@@ -28,7 +28,7 @@ TLS termination instead).
 - Plain env vars include DB settings plus `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, and `S3_REGION`, all read from `armadacms-supabase-prod` unless an explicit DB override is set.
 - The Cloud Run container image is ignored by Terraform after the first deploy so
   Cloud Build can ship new revisions freely.
-- Cloud Run, trusted deploys, and untrusted pull requests use separate `armadacms-staging-runtime`, `armadacms-staging-deploy`, and `armadacms-staging-pr-build` service accounts. Runtime can read only staging secrets; the deployer can write images, update only the staging Cloud Run service, write build logs, read the shared GitHub App secret, and act as the staging runtime identity. The PR builder can only write build logs and uses the secret-free `cloudbuild-pr.yaml` configuration; it validates the container build without publishing an image. External contributors additionally require an owner or collaborator to comment `/gcbrun` before Cloud Build runs.
+- Cloud Run and trusted deploys use separate runtime and deployment service accounts. Runtime can read only its own secrets; the deployer can publish images, update its Cloud Run service, write build logs, read the GitHub App secret, and act as the runtime identity. Pull request container builds run in GitHub Actions without Google credentials or secrets; no PR build identity or trigger is provisioned in GCP.
 
 ## Files
 
@@ -42,7 +42,7 @@ TLS termination instead).
 | `iam.tf`              | Runtime service account and Cloud Build permissions                                                      |
 | `secrets.tf`          | Secret Manager secrets                                                                                   |
 | `networking.tf`       | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                                        |
-| `cloud_build.tf`      | GitHub-backed Cloud Build triggers for the `staging` branch and PRs targeting it                         |
+| `cloud_build.tf`      | GitHub-backed Cloud Build triggers for deployments from the `staging` branch                         |
 | `cloud_run.tf`        | Cloud Run service                                                                                        |
 | `domain_mapping.tf`   | Cloud Run custom domain mapping for `staging.cms.armada.nu`                                              |
 | `outputs.tf`          | Useful outputs (service account emails, image URI, secret IDs)                                           |

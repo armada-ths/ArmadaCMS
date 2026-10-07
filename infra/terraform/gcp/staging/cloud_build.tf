@@ -39,34 +39,3 @@ resource "google_cloudbuild_trigger" "staging_deploy" {
 
   depends_on = [google_project_service.enabled]
 }
-
-# Untrusted PR validation trigger — fires on PRs targeting staging. It uses a
-# secret-free build config and an identity that cannot publish or deploy.
-
-resource "google_cloudbuild_trigger" "staging_pr_build" {
-  count = var.manage_cloud_build_triggers ? 1 : 0
-
-  project            = var.project_id
-  location           = "global"
-  name               = local.cloud_build_staging_pr_trigger_name
-  description        = local.cloud_build_staging_pr_trigger_description
-  filename           = "cloudbuild-pr.yaml"
-  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_pr_service_account_email}"
-  include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
-
-  github {
-    owner = "armada-ths"
-    name  = "ArmadaCMS"
-
-    pull_request {
-      branch          = "^staging$"
-      comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
-    }
-  }
-
-  substitutions = {
-    _SERVICE_NAME = var.service_name
-  }
-
-  depends_on = [google_project_service.enabled]
-}
