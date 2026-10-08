@@ -147,7 +147,19 @@ export const dataProvider: DataProvider = {
   ...baseDataProvider,
 
   getOne: (resource, params) => {
-    return baseDataProvider.getOne(resource, params);
+    return baseDataProvider.getOne(resource, params).then((result) => {
+      if (
+        resource === "timeline-entries" &&
+        result.data.imageUrl &&
+        typeof result.data.imageUrl === "string"
+      ) {
+        return {
+          ...result,
+          data: { ...result.data, imageUrl: { src: result.data.imageUrl } },
+        };
+      }
+      return result;
+    });
   },
 
   create: (resource, params) => {
