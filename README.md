@@ -88,6 +88,8 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    This starts a minimal local Supabase profile (Postgres, Storage API, and its Kong gateway) followed by the Go API with Air hot reload. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
 
+   The checked-in migrations also create the guest photo buckets. The local Storage limit permits multi-gigabyte ZIP exports, while the photo bucket still limits individual JPEGs to 25 MB. For local photo testing, Compose supplies a development-only event-token secret, a browser-reachable signed-photo endpoint, a local reCAPTCHA bypass, and a SafeSearch mock. Hosted environments require their real secrets and Google assessments; see [the photo rollout guide](docs/photo-events-rollout.md).
+
    Only the first run requires `--build`. After that, use:
 
    ```powershell
@@ -277,12 +279,18 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 ## CI / CD
 
+GitHub Actions are pinned to full commit SHAs with version comments. Dependabot checks for version updates every Monday at 08:00 Europe/Stockholm, covering GitHub Actions, pnpm dependencies, Terraform providers, and Go modules. Minor and patch updates are grouped per ecosystem; major updates remain separate PRs and all updates use the existing review and CI requirements. See [the Dependabot configuration](.github/dependabot.yml).
+
 CI is handled by GitHub Actions and CD by Google Cloud Build.
 
 ### GitHub Actions (CI)
 
+CodeQL uses the checked-in Advanced setup workflow in `.github/workflows/codeql.yml`. It analyzes Actions, JavaScript/TypeScript and Go, on pull requests to `main`/`staging` (including Dependabot), pushes to those branches, a weekly schedule, and manual dispatch. The query suite remains the CodeQL default. Actions are SHA-pinned; analysis has only source-read and security-event-upload permissions. Dependabot and fork uploads use GitHub's `pull_request` support.
+
 Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
 
+- `container-build.yml` — builds `Dockerfile.prod` on every PR targeting main/staging, with a read-only GitHub token, no image publishing or deployment.
+- `codeql.yml` — Advanced CodeQL analysis, including a manual Go build with libvips.
 - `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
 - `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
 - `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
@@ -295,11 +303,10 @@ Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbui
 
 - Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
 - Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- PR builds use the secret-free `cloudbuild-pr.yaml` configuration with a dedicated unprivileged service account. They validate the container build without publishing or deploying an image; external contributors require an owner or collaborator to comment `/gcbrun` first.
 - Trusted branch builds always build the commit SHA, publish that image, and deploy it.
 - The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
 
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers; `cloudbuild.yaml` defines the trusted branch build/deploy flow and `cloudbuild-pr.yaml` defines unprivileged PR validation.
+The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision only the trusted branch deployment triggers; `cloudbuild.yaml` defines their build/deploy flow. PR container validation is defined in `.github/workflows/container-build.yml`.
 
 ## Operations notes
 

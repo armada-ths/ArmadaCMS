@@ -137,6 +137,10 @@ definitions:
         type: integer
       imageUrl:
         type: string
+      imageUrls:
+        items:
+          type: string
+        type: array
       published:
         type: boolean
       showCoverInPost:
@@ -630,6 +634,10 @@ paths:
         in: formData
         name: file
         type: file
+      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+        in: formData
+        name: headerImages
+        type: string
       produces:
       - application/json
       responses:
@@ -718,6 +726,10 @@ paths:
         in: formData
         name: file
         type: file
+      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+        in: formData
+        name: headerImages
+        type: string
       produces:
       - application/json
       responses:

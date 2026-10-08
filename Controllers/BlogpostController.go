@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -130,6 +131,7 @@ func GetBlogpostByID(w http.ResponseWriter, r *http.Request) {
 // @Param text formData string true "Markdown content"
 // @Param author formData string true "Author name"
 // @Param file formData file false "Cover image"
+// @Param headerImages formData string false "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names."
 // @Success 201 {object} models.Blogpost
 // @Failure 400 {string} string "Bad request"
 // @Failure 500 {string} string "Create failed"
@@ -137,9 +139,16 @@ func GetBlogpostByID(w http.ResponseWriter, r *http.Request) {
 // @Router /blogposts [post]
 func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		logBlogpostFailure(r, "parse_multipart", err, nil)
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
+
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	var item models.Blogpost
 	userID, ok := auth.GetUserIDFromContext(r)
@@ -163,6 +172,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 			defer file.Close()
 			fileURL, err := utils.UploadImage(file, header)
 			if err != nil {
+				logBlogpostFailure(r, "upload_cover", err, header)
 				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 					return
@@ -178,9 +188,18 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	images, err := readBlogpostHeaderImages(r, nil, utils.UploadImage)
+	if err != nil {
+		logBlogpostFailure(r, "upload_header_images", err, nil)
+		writeBlogpostImageError(w, err)
+		return
+	}
+	item.ImageURLs = images
+
 	if err := createWithAudit(r, "blogposts", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil, "blog-posts"); err != nil {
+		logBlogpostFailure(r, "create_database_audit", err, nil)
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -198,6 +217,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 // @Param text formData string false "Markdown content"
 // @Param author formData string false "Author name"
 // @Param file formData file false "Cover image"
+// @Param headerImages formData string false "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names."
 // @Success 200 {object} models.Blogpost
 // @Failure 400 {string} string "Bad request"
 // @Failure 404 {string} string "Not found"
@@ -213,9 +233,16 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		logBlogpostFailure(r, "parse_multipart", err, nil)
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
+
+	defer func() {
+		if err := r.MultipartForm.RemoveAll(); err != nil {
+			log.Printf("Failed to remove blogpost multipart temporary files: %v", err)
+		}
+	}()
 
 	updateMap := map[string]interface{}{
 		"title":              r.FormValue("title"),
@@ -231,6 +258,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		fileURL, err := utils.UploadImage(file, header)
 		if err != nil {
+			logBlogpostFailure(r, "upload_cover", err, header)
 			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 				return
@@ -245,9 +273,31 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		updateMap["image_url"] = fileURL
 	} else {
 		// No new file — use the imageUrl field only if it was explicitly provided.
-		if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
-			updateMap["image_url"] = imageUrl
+		if _, present := r.MultipartForm.Value["imageUrl"]; present {
+			if imageURL := r.FormValue("imageUrl"); imageURL != "" {
+				updateMap["image_url"] = imageURL
+			} else {
+				updateMap["image_url"] = nil
+			}
 		}
+	}
+
+	// Omitted header images must not overwrite concurrent image changes.
+	if _, present := r.MultipartForm.Value["headerImages"]; present {
+		images, err := readBlogpostHeaderImages(r, item.ImageURLs, utils.UploadImage)
+		if err != nil {
+			logBlogpostFailure(r, "upload_header_images", err, nil)
+			writeBlogpostImageError(w, err)
+			return
+		}
+		// Map updates bypass GORM field serializers, so encode the JSON explicitly.
+		encodedImages, err := json.Marshal(images)
+		if err != nil {
+			logBlogpostFailure(r, "encode_header_images", err, nil)
+			http.Error(w, "Failed to encode header images", http.StatusInternalServerError)
+			return
+		}
+		updateMap["image_urls"] = string(encodedImages)
 	}
 
 	before := item
@@ -256,6 +306,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
 	}, "blog-posts"); err != nil {
+		logBlogpostFailure(r, "update_database_audit", err, nil)
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
@@ -277,6 +328,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 // @Router /blogposts/upload [post]
 func UploadBlogImage(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		logBlogpostFailure(r, "parse_multipart", err, nil)
 		http.Error(w, "Unable to parse multipart form", http.StatusBadRequest)
 		return
 	}
@@ -290,6 +342,7 @@ func UploadBlogImage(w http.ResponseWriter, r *http.Request) {
 
 	fileURL, err := utils.UploadImage(file, header)
 	if err != nil {
+		logBlogpostFailure(r, "upload_inline", err, header)
 		if errors.Is(err, utils.ErrUnsupportedImageFormat) {
 			http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
 			return

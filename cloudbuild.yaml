@@ -245,6 +245,13 @@ steps:
           "--region=${_DEPLOY_REGION}" \
           --quiet
         DEPLOY_EXIT_CODE=$$?
+        if [[ "$${DEPLOY_EXIT_CODE}" == "0" ]]; then
+          gcloud run jobs update "${_SERVICE_NAME}-photo-worker" \
+            "--image=$${IMAGE_URI}" \
+            "--region=${_DEPLOY_REGION}" \
+            --quiet
+          DEPLOY_EXIT_CODE=$$?
+        fi
         set -e
 
         echo "$${DEPLOY_EXIT_CODE}" > /workspace/deploy_exit_code

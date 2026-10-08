@@ -1,0 +1,56 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Europe/Stockholm
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Europe/Stockholm
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Europe/Stockholm
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/gcp/prod
+      - /infra/terraform/gcp/staging
+      - /infra/terraform/supabase/prod
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Europe/Stockholm
+    open-pull-requests-limit: 5
+    groups:
+      terraform-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]

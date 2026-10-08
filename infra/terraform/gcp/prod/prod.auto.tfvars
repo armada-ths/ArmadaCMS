@@ -24,6 +24,6 @@ enable_https_load_balancer     = true
 lb_managed_certificate_domains = ["cms.armada.nu"]
 
 enable_recaptcha          = true
-recaptcha_allowed_domains = ["armada.nu"]
+recaptcha_allowed_domains = ["armada.nu", "photos.armada.nu"]
 
 revalidation_url = "https://armada.nu/api/revalidate"

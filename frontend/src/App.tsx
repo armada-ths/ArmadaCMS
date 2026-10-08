@@ -7,6 +7,13 @@ import {
   Layout,
   UserMenu,
 } from "react-admin";
+import { Route } from "react-router-dom";
+import {
+  PhotoEventList,
+  PhotoEventCreate,
+  PhotoEventEdit,
+} from "./components/Photos/PhotoEvents";
+import { PhotoModeration } from "./components/Photos/PhotoModeration";
 import { dataProvider } from "./dataProvider";
 import { UserList } from "./components/User/UserList";
 import { UserCreate } from "./components/User/UserCreate";
@@ -98,6 +105,15 @@ export const App = () => (
     loginPage={CustomLoginPage}
     dashboard={Dashboard}
   >
+    <Resource
+      name="photoevents"
+      options={{ label: "Guest photos" }}
+      list={PhotoEventList}
+      create={PhotoEventCreate}
+      edit={PhotoEventEdit}
+    >
+      <Route path=":id/photos" element={<PhotoModeration />} />
+    </Resource>
     <Resource
       name="customusers"
       options={{ label: "Custom users" }}

@@ -25,27 +25,3 @@ resource "google_cloudbuild_trigger" "main_deploy" {
 
   depends_on = [google_project_service.enabled]
 }
-
-resource "google_cloudbuild_trigger" "pr_build" {
-  count = var.manage_cloud_build_triggers ? 1 : 0
-
-  project            = var.project_id
-  location           = "global"
-  name               = local.cloud_build_pr_trigger_name
-  description        = local.cloud_build_pr_trigger_description
-  filename           = "cloudbuild-pr.yaml"
-  service_account    = "projects/${var.project_id}/serviceAccounts/${local.cloud_build_pr_service_account_email}"
-  include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
-
-  github {
-    owner = "armada-ths"
-    name  = "ArmadaCMS"
-
-    pull_request {
-      branch          = "^main$"
-      comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
-    }
-  }
-
-  depends_on = [google_project_service.enabled]
-}
