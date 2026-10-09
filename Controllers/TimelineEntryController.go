@@ -220,31 +220,9 @@ func UpdateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 		"sort_order": updates.SortOrder,
 	}
 
-	// A newly uploaded file takes priority over an existing imageUrl string.
-	file, header, err := r.FormFile("file")
-	if err == nil {
-		defer file.Close()
-		fileURL, err := utils.UploadImage(file, header)
-		if err != nil {
-			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
-				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
-				return
-			}
-			if errors.Is(err, utils.ErrFileTooLarge) {
-				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
-				return
-			}
-			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
-			return
-		}
-		updateMap["image_url"] = fileURL
-	} else if _, present := r.MultipartForm.Value["imageUrl"]; present {
-		// Omission preserves the image; an explicit empty field removes it.
-		if imageURL := r.FormValue("imageUrl"); imageURL != "" {
-			updateMap["image_url"] = imageURL
-		} else {
-			updateMap["image_url"] = nil
-		}
+	if _, err := applyMultipartImageUpdate(r, updateMap, utils.UploadImage); err != nil {
+		writeImageUploadError(w, err)
+		return
 	}
 
 	if !validateTimelineEntry(w, &updates) {

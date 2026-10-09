@@ -1,14 +1,10 @@
-import { appendBlogpostHeaderImages } from "./utils/blogpostHeaderImages";
-import simpleRestDataProvider from "ra-data-simple-rest";
 import {
-  CreateParams,
-  UpdateParams,
-  DataProvider,
-  fetchUtils,
-  HttpError,
-} from "react-admin";
+  createMultipartFormData,
+  isMultipartResource,
+} from "./utils/multipartFormData";
+import simpleRestDataProvider from "ra-data-simple-rest";
+import { DataProvider, fetchUtils, HttpError } from "react-admin";
 import globalApi from "./context/globalApi";
-import { assertValidImageUpload } from "./utils/imageUploadValidation";
 
 const endpoint = globalApi();
 
@@ -41,100 +37,6 @@ export const httpClient: (
 
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
 
-/** Build FormData for multipart upload (profiles, events, etc.) */
-const createMultipartFormData = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  params: CreateParams<any> | UpdateParams<any>,
-) => {
-  const formData = new FormData();
-
-  const appendFirstRawFile = (value: unknown) => {
-    if (value == null) return false;
-
-    if (Array.isArray(value)) {
-      const fileEntry = value.find(
-        (
-          entry,
-        ): entry is {
-          rawFile?: File;
-        } =>
-          typeof entry === "object" &&
-          entry !== null &&
-          "rawFile" in entry &&
-          (entry as { rawFile?: File }).rawFile instanceof File,
-      );
-
-      if (fileEntry?.rawFile) {
-        formData.append("file", fileEntry.rawFile);
-        return true;
-      }
-    }
-
-    if (
-      typeof value === "object" &&
-      "rawFile" in value &&
-      (value as { rawFile?: File }).rawFile instanceof File
-    ) {
-      formData.append("file", (value as { rawFile: File }).rawFile);
-      return true;
-    }
-
-    return false;
-  };
-
-  const hasBlogpostImages = Array.isArray(params.data.blogpostImages);
-  Object.entries(params.data).forEach(([key, value]) => {
-    if (hasBlogpostImages) {
-      if (
-        ["imageUrl", "imageUrls", "imageFile", "file", "headerImages"].includes(
-          key,
-        )
-      ) {
-        return;
-      }
-      if (key === "blogpostImages") {
-        appendBlogpostHeaderImages(
-          formData,
-          value,
-          true,
-          params.data.showCoverInPost !== false,
-        );
-        return;
-      }
-    }
-    if (key === "headerImages" && Array.isArray(value)) {
-      appendBlogpostHeaderImages(formData, value);
-      return;
-    }
-    if (key === "team_id" && value == null) {
-      formData.append("team_id", "");
-      return;
-    }
-    if (value == null) return;
-
-    // Handle React Admin ImageInput
-    assertValidImageUpload(value);
-    if (appendFirstRawFile(value)) {
-      return;
-    }
-
-    // Handle logo/image/link fields
-    else if (typeof value === "string" && /(photo|image|logo|img)/i.test(key)) {
-      // ✅ For exhibitors: logoFreesize, logoSquared, mapImg
-      formData.append(key, value);
-    } else if (Array.isArray(value)) {
-      // 👇 include all arrays (programs, industries, employments) as JSON
-      formData.append(key, JSON.stringify(value));
-    }
-    // Handle scalar values
-    else if (typeof value !== "object") {
-      formData.append(key, String(value));
-    }
-  });
-
-  return formData;
-};
-
 /** Upload helper */
 const uploadFormData = (
   url: string,
@@ -155,10 +57,11 @@ const uploadFormData = (
 };
 
 const buildMultipartFormDataOrHttpError = (
-  params: CreateParams | UpdateParams,
+  resource: string,
+  data: Record<string, unknown>,
 ) => {
   try {
-    return createMultipartFormData(params);
+    return createMultipartFormData(resource, data);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unsupported file format.";
@@ -187,17 +90,12 @@ export const dataProvider: DataProvider = {
   },
 
   create: (resource, params) => {
-    if (
-      [
-        "profiles",
-        "events",
-        "exhibitors",
-        "blogposts",
-        "timeline-entries",
-      ].includes(resource)
-    ) {
+    if (isMultipartResource(resource)) {
       try {
-        const formData = buildMultipartFormDataOrHttpError(params);
+        const formData = buildMultipartFormDataOrHttpError(
+          resource,
+          params.data,
+        );
         return uploadFormData(`${endpoint}/${resource}`, "POST", formData);
       } catch (error) {
         return Promise.reject(error);
@@ -207,27 +105,12 @@ export const dataProvider: DataProvider = {
   },
 
   update: (resource, params) => {
-    if (
-      [
-        "profiles",
-        "events",
-        "exhibitors",
-        "blogposts",
-        "timeline-entries",
-      ].includes(resource)
-    ) {
+    if (isMultipartResource(resource)) {
       try {
-        const formData = buildMultipartFormDataOrHttpError(params);
-        if (
-          resource === "timeline-entries" &&
-          Object.prototype.hasOwnProperty.call(params.data, "imageUrl") &&
-          (params.data.imageUrl === null ||
-            (Array.isArray(params.data.imageUrl) &&
-              params.data.imageUrl.length === 0))
-        ) {
-          // React Admin uses null/[] when the editor removes an image.
-          formData.set("imageUrl", "");
-        }
+        const formData = buildMultipartFormDataOrHttpError(
+          resource,
+          params.data,
+        );
         return uploadFormData(
           `${endpoint}/${resource}/${params.id}`,
           "PUT",

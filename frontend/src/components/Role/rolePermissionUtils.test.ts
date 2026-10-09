@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   RESOURCE_ACTION_OVERRIDES,
   getPermissionActionChoices,
@@ -21,6 +21,28 @@ const photoPermissions = [
 ];
 
 describe("guest photo role permissions", () => {
+  it("returns grouped permissions, typed special toggles and the original record fields", () => {
+    const record = normalizeRecord({
+      id: 7,
+      name: "Editor",
+      permissions: ["auditlogs.view"],
+    });
+    expectTypeOf(record.changeOwnPassword).toEqualTypeOf<boolean>();
+    expectTypeOf(record.eventroSyncAccess).toEqualTypeOf<boolean>();
+    expectTypeOf(record.permissions).toEqualTypeOf<
+      import("./rolePermissionUtils").PermissionGroup[]
+    >();
+    expectTypeOf(record.id).toEqualTypeOf<number>();
+    expectTypeOf(record.name).toEqualTypeOf<string>();
+    expect(record).toEqual({
+      id: 7,
+      name: "Editor",
+      permissions: [{ resource: "auditlogs", actions: ["view"] }],
+      changeOwnPassword: false,
+      eventroSyncAccess: false,
+    });
+  });
+
   it("keeps photo permissions in the regular resource selector", () => {
     expect(
       SPECIAL_PERMISSIONS.flatMap((spec) => spec.perms).filter((permission) =>
