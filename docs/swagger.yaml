@@ -463,6 +463,32 @@ definitions:
     - TierBronze
     - TierSilver
     - TierGold
+  models.TimelineEntry:
+    properties:
+      body:
+        type: string
+      eraId:
+        type: integer
+      eraTitle:
+        type: string
+      id:
+        type: integer
+      imageUrl:
+        type: string
+      sortOrder:
+        type: integer
+      title:
+        type: string
+    type: object
+  models.TimelineEra:
+    properties:
+      id:
+        type: integer
+      sortOrder:
+        type: integer
+      title:
+        type: string
+    type: object
   models.Tokens:
     properties:
       accessToken:
@@ -610,7 +636,9 @@ paths:
         in: formData
         name: file
         type: file
-      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+      - description: Ordered JSON array of {url} or {file} entries for additional
+          header images; [] removes all; omitted preserves existing images. File entries
+          reference multipart file field names.
         in: formData
         name: headerImages
         type: string
@@ -702,7 +730,9 @@ paths:
         in: formData
         name: file
         type: file
-      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+      - description: Ordered JSON array of {url} or {file} entries for additional
+          header images; [] removes all; omitted preserves existing images. File entries
+          reference multipart file field names.
         in: formData
         name: headerImages
         type: string
@@ -3323,6 +3353,256 @@ paths:
       summary: Update team
       tags:
       - teams
+  /timeline-entries:
+    get:
+      parameters:
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.TimelineEntry'
+            type: array
+      summary: List timeline entries
+      tags:
+      - timeline-entries
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Entry title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Entry body (Markdown)
+        in: formData
+        name: body
+        required: true
+        type: string
+      - description: Era ID
+        in: formData
+        name: eraId
+        required: true
+        type: integer
+      - description: Sort order within era
+        in: formData
+        name: sortOrder
+        required: true
+        type: integer
+      - description: Existing image URL
+        in: formData
+        name: imageUrl
+        type: string
+      - description: Optional image
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.TimelineEntry'
+      security:
+      - BearerAuth: []
+      summary: Create timeline entry
+      tags:
+      - timeline-entries
+  /timeline-entries/{id}:
+    delete:
+      parameters:
+      - description: Timeline Entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Deleted
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete timeline entry
+      tags:
+      - timeline-entries
+    get:
+      parameters:
+      - description: Timeline Entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TimelineEntry'
+      summary: Get timeline entry by ID
+      tags:
+      - timeline-entries
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Timeline Entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Entry title
+        in: formData
+        name: title
+        type: string
+      - description: Entry body (Markdown)
+        in: formData
+        name: body
+        type: string
+      - description: Era ID
+        in: formData
+        name: eraId
+        type: integer
+      - description: Sort order within era
+        in: formData
+        name: sortOrder
+        type: integer
+      - description: Existing image URL; an empty value removes the image
+        in: formData
+        name: imageUrl
+        type: string
+      - description: Optional image
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TimelineEntry'
+      security:
+      - BearerAuth: []
+      summary: Update timeline entry
+      tags:
+      - timeline-entries
+  /timeline-eras:
+    get:
+      parameters:
+      - description: Pagination range, e.g. [0,24]
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.TimelineEra'
+            type: array
+      summary: List timeline eras
+      tags:
+      - timeline-eras
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Timeline era data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.TimelineEra'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.TimelineEra'
+      security:
+      - BearerAuth: []
+      summary: Create timeline era
+      tags:
+      - timeline-eras
+  /timeline-eras/{id}:
+    delete:
+      parameters:
+      - description: Timeline Era ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Deleted
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete timeline era
+      tags:
+      - timeline-eras
+    get:
+      parameters:
+      - description: Timeline Era ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TimelineEra'
+      summary: Get timeline era by ID
+      tags:
+      - timeline-eras
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Timeline Era ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Timeline era data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.TimelineEra'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TimelineEra'
+      security:
+      - BearerAuth: []
+      summary: Update timeline era
+      tags:
+      - timeline-eras
 securityDefinitions:
   BearerAuth:
     description: 'Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer

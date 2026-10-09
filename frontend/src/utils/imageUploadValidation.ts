@@ -27,7 +27,7 @@ const getExtension = (fileName: string) => {
   return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
 };
 
-const getRawFileFromValue = (value: unknown): File | null => {
+export const getRawFileFromValue = (value: unknown): File | null => {
   if (value == null) return null;
 
   if (Array.isArray(value)) {

@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { httpClient } from "../../dataProvider";
 import globalApi from "../../context/globalApi";
+import { parsePositiveIntegerId } from "../../utils/parsePositiveIntegerId";
 
 type Photo = {
   id: number;
@@ -30,10 +31,11 @@ type PhotoExport = { id: number; status: string; error?: string };
 
 export function PhotoModeration() {
   const { id } = useParams();
+  const eventId = parsePositiveIntegerId(id);
   const { data: event } = useGetOne<{ id: number; name: string }>(
     "photoevents",
-    { id: id ?? "" },
-    { enabled: Boolean(id) },
+    { id: eventId ?? 0 },
+    { enabled: eventId !== null },
   );
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -45,19 +47,20 @@ export function PhotoModeration() {
   const [hasMore, setHasMore] = useState(false);
 
   const refresh = useCallback(async () => {
+    if (eventId === null) return;
     const result = await httpClient(
-      `${globalApi()}/eventphotos?event_id=${id}&status=${status}`,
+      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}`,
     );
     setPhotos(result.json as Photo[]);
     setPage(0);
     setHasMore((result.json as Photo[]).length === 200);
     setSelected([]);
-  }, [id, status]);
+  }, [eventId, status]);
 
   const loadMore = async () => {
     const nextPage = page + 1;
     const result = await httpClient(
-      `${globalApi()}/eventphotos?event_id=${id}&status=${status}&page=${nextPage}`,
+      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}&page=${nextPage}`,
     );
     const incoming = result.json as Photo[];
     setPhotos((current) => [...current, ...incoming]);
@@ -66,15 +69,17 @@ export function PhotoModeration() {
   };
 
   const refreshExports = useCallback(async () => {
+    if (eventId === null) return;
     const result = await httpClient(
-      `${globalApi()}/photoexports?event_id=${id}`,
+      `${globalApi()}/photoexports?event_id=${eventId}`,
     );
     setExports(result.json as PhotoExport[]);
-  }, [id]);
+  }, [eventId]);
 
   useEffect(() => {
+    if (eventId === null) return;
     void httpClient(
-      `${globalApi()}/eventphotos?event_id=${id}&status=${status}`,
+      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}`,
     )
       .then((result) => {
         setPhotos(result.json as Photo[]);
@@ -83,16 +88,17 @@ export function PhotoModeration() {
         setHasMore((result.json as Photo[]).length === 200);
       })
       .catch(() => setMessage("Could not load the photos."));
-  }, [id, status]);
+  }, [eventId, status]);
   useEffect(() => {
-    void httpClient(`${globalApi()}/photoexports?event_id=${id}`)
+    if (eventId === null) return;
+    void httpClient(`${globalApi()}/photoexports?event_id=${eventId}`)
       .then((result) => setExports(result.json as PhotoExport[]))
       .catch(() => setMessage("Could not load the export jobs."));
-  }, [id]);
+  }, [eventId]);
 
   const startExport = async () => {
     try {
-      await httpClient(`${globalApi()}/photoevents/${id}/exports`, {
+      await httpClient(`${globalApi()}/photoevents/${eventId}/exports`, {
         method: "POST",
       });
       setMessage("The export is queued. Refresh its status in a moment.");
@@ -128,6 +134,10 @@ export function PhotoModeration() {
     setBusy(false);
     await refresh();
   };
+
+  if (eventId === null) {
+    return <Alert severity="error">Invalid photo event ID.</Alert>;
+  }
 
   return (
     <Box component="main" sx={{ p: 3 }}>
