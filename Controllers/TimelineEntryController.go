@@ -115,6 +115,7 @@ func validateTimelineEntry(w http.ResponseWriter, entry *models.TimelineEntry) b
 // @Param body formData string true "Entry body (Markdown)"
 // @Param eraId formData int true "Era ID"
 // @Param sortOrder formData int true "Sort order within era"
+// @Param imageUrl formData string false "Existing image URL"
 // @Param file formData file false "Optional image"
 // @Success 201 {object} models.TimelineEntry
 // @Security BearerAuth
@@ -128,7 +129,7 @@ func CreateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	var entry models.TimelineEntry
 	entry.Title = r.FormValue("title")
 	entry.Body = r.FormValue("body")
-	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, 64); err == nil {
+	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, strconv.IntSize); err == nil {
 		entry.EraID = uint(eraID)
 	}
 	if so, err := strconv.Atoi(r.FormValue("sortOrder")); err == nil {
@@ -183,6 +184,7 @@ func CreateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 // @Param body formData string false "Entry body (Markdown)"
 // @Param eraId formData int false "Era ID"
 // @Param sortOrder formData int false "Sort order within era"
+// @Param imageUrl formData string false "Existing image URL; an empty value removes the image"
 // @Param file formData file false "Optional image"
 // @Success 200 {object} models.TimelineEntry
 // @Security BearerAuth
@@ -204,7 +206,7 @@ func UpdateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	var updates models.TimelineEntry
 	updates.Title = r.FormValue("title")
 	updates.Body = r.FormValue("body")
-	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, 64); err == nil {
+	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, strconv.IntSize); err == nil {
 		updates.EraID = uint(eraID)
 	}
 	if so, err := strconv.Atoi(r.FormValue("sortOrder")); err == nil {
@@ -236,8 +238,13 @@ func UpdateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		updateMap["image_url"] = fileURL
-	} else if imageUrl := r.FormValue("imageUrl"); imageUrl != "" {
-		updateMap["image_url"] = imageUrl
+	} else if _, present := r.MultipartForm.Value["imageUrl"]; present {
+		// Omission preserves the image; an explicit empty field removes it.
+		if imageURL := r.FormValue("imageUrl"); imageURL != "" {
+			updateMap["image_url"] = imageURL
+		} else {
+			updateMap["image_url"] = nil
+		}
 	}
 
 	if !validateTimelineEntry(w, &updates) {

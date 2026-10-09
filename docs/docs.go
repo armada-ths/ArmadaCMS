@@ -4505,7 +4505,7 @@ const docTemplate = `{
                     }
                 ],
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -4516,13 +4516,44 @@ const docTemplate = `{
                 "summary": "Create timeline entry",
                 "parameters": [
                     {
-                        "description": "Timeline entry data",
+                        "type": "string",
+                        "description": "Entry title",
+                        "name": "title",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry body (Markdown)",
                         "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.TimelineEntry"
-                        }
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Era ID",
+                        "name": "eraId",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sort order within era",
+                        "name": "sortOrder",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Existing image URL",
+                        "name": "imageUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Optional image",
+                        "name": "file",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -4569,7 +4600,7 @@ const docTemplate = `{
                     }
                 ],
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -4587,13 +4618,40 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Updated timeline entry data",
+                        "type": "string",
+                        "description": "Entry title",
+                        "name": "title",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry body (Markdown)",
                         "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.TimelineEntry"
-                        }
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Era ID",
+                        "name": "eraId",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sort order within era",
+                        "name": "sortOrder",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Existing image URL; an empty value removes the image",
+                        "name": "imageUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Optional image",
+                        "name": "file",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -5524,6 +5582,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "imageUrl": {
+                    "type": "string"
                 },
                 "sortOrder": {
                     "type": "integer"

@@ -218,6 +218,16 @@ export const dataProvider: DataProvider = {
     ) {
       try {
         const formData = buildMultipartFormDataOrHttpError(params);
+        if (
+          resource === "timeline-entries" &&
+          Object.prototype.hasOwnProperty.call(params.data, "imageUrl") &&
+          (params.data.imageUrl === null ||
+            (Array.isArray(params.data.imageUrl) &&
+              params.data.imageUrl.length === 0))
+        ) {
+          // React Admin uses null/[] when the editor removes an image.
+          formData.set("imageUrl", "");
+        }
         return uploadFormData(
           `${endpoint}/${resource}/${params.id}`,
           "PUT",

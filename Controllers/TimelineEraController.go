@@ -27,7 +27,7 @@ func normalizeTimelineEra(era *models.TimelineEra) bool {
 // @Router /timeline-eras [get]
 func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
-	direction := "ASC"
+	descending := false
 	if rawSort := r.URL.Query().Get("sort"); rawSort != "" {
 		var sort []string
 		if err := json.Unmarshal([]byte(rawSort), &sort); err != nil ||
@@ -36,7 +36,7 @@ func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "unsupported era sort", http.StatusBadRequest)
 			return
 		}
-		direction = sort[1]
+		descending = sort[1] == "DESC"
 	}
 	query := db.DB.Model(&models.TimelineEra{})
 	// React Admin's getMany uses filter={"id":[...]}. Keep reference fields
@@ -55,7 +55,11 @@ func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "List failed", http.StatusInternalServerError)
 		return
 	}
-	query = query.Order("sort_order " + direction).Order("id " + direction)
+	if descending {
+		query = query.Order("sort_order DESC").Order("id DESC")
+	} else {
+		query = query.Order("sort_order ASC").Order("id ASC")
+	}
 	start := 0
 	if r.URL.Query().Has("range") {
 		start = params.Range[0]

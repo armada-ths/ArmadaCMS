@@ -473,6 +473,8 @@ definitions:
         type: string
       id:
         type: integer
+      imageUrl:
+        type: string
       sortOrder:
         type: integer
       title:
@@ -634,7 +636,9 @@ paths:
         in: formData
         name: file
         type: file
-      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+      - description: Ordered JSON array of {url} or {file} entries for additional
+          header images; [] removes all; omitted preserves existing images. File entries
+          reference multipart file field names.
         in: formData
         name: headerImages
         type: string
@@ -726,7 +730,9 @@ paths:
         in: formData
         name: file
         type: file
-      - description: Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.
+      - description: Ordered JSON array of {url} or {file} entries for additional
+          header images; [] removes all; omitted preserves existing images. File entries
+          reference multipart file field names.
         in: formData
         name: headerImages
         type: string
@@ -3368,14 +3374,36 @@ paths:
       - timeline-entries
     post:
       consumes:
-      - application/json
+      - multipart/form-data
       parameters:
-      - description: Timeline entry data
-        in: body
+      - description: Entry title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Entry body (Markdown)
+        in: formData
         name: body
         required: true
-        schema:
-          $ref: '#/definitions/models.TimelineEntry'
+        type: string
+      - description: Era ID
+        in: formData
+        name: eraId
+        required: true
+        type: integer
+      - description: Sort order within era
+        in: formData
+        name: sortOrder
+        required: true
+        type: integer
+      - description: Existing image URL
+        in: formData
+        name: imageUrl
+        type: string
+      - description: Optional image
+        in: formData
+        name: file
+        type: file
       produces:
       - application/json
       responses:
@@ -3427,19 +3455,37 @@ paths:
       - timeline-entries
     put:
       consumes:
-      - application/json
+      - multipart/form-data
       parameters:
       - description: Timeline Entry ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated timeline entry data
-        in: body
+      - description: Entry title
+        in: formData
+        name: title
+        type: string
+      - description: Entry body (Markdown)
+        in: formData
         name: body
-        required: true
-        schema:
-          $ref: '#/definitions/models.TimelineEntry'
+        type: string
+      - description: Era ID
+        in: formData
+        name: eraId
+        type: integer
+      - description: Sort order within era
+        in: formData
+        name: sortOrder
+        type: integer
+      - description: Existing image URL; an empty value removes the image
+        in: formData
+        name: imageUrl
+        type: string
+      - description: Optional image
+        in: formData
+        name: file
+        type: file
       produces:
       - application/json
       responses:
