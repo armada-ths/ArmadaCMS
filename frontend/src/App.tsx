@@ -233,14 +233,14 @@ export const App = () => (
 
     <Resource
       name="timeline-eras"
-      options={{ label: "History timeline" }}
+      options={{ label: "History timeline eras" }}
       list={TimelineEraList}
       create={TimelineEraCreate}
       edit={TimelineEraEdit}
     />
     <Resource
       name="timeline-entries"
-      options={{ label: "Timeline Entries" }}
+      options={{ label: "History timeline entries" }}
       list={TimelineEntryList}
       create={TimelineEntryCreate}
       edit={TimelineEntryEdit}
