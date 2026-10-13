@@ -252,34 +252,11 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		"show_cover_in_post": r.FormValue("showCoverInPost") != "false",
 	}
 
-	// A newly uploaded file takes priority over imageUrl.
-	file, header, err := r.FormFile("file")
-	if err == nil {
-		defer file.Close()
-		fileURL, err := utils.UploadImage(file, header)
-		if err != nil {
-			logBlogpostFailure(r, "upload_cover", err, header)
-			if errors.Is(err, utils.ErrUnsupportedImageFormat) {
-				http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
-				return
-			}
-			if errors.Is(err, utils.ErrFileTooLarge) {
-				http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
-				return
-			}
-			http.Error(w, "Failed to upload image", http.StatusInternalServerError)
-			return
-		}
-		updateMap["image_url"] = fileURL
-	} else {
-		// No new file — use the imageUrl field only if it was explicitly provided.
-		if _, present := r.MultipartForm.Value["imageUrl"]; present {
-			if imageURL := r.FormValue("imageUrl"); imageURL != "" {
-				updateMap["image_url"] = imageURL
-			} else {
-				updateMap["image_url"] = nil
-			}
-		}
+	header, err := applyMultipartImageUpdate(r, updateMap, utils.UploadImage)
+	if err != nil {
+		logBlogpostFailure(r, "upload_cover", err, header)
+		writeImageUploadError(w, err)
+		return
 	}
 
 	// Omitted header images must not overwrite concurrent image changes.
