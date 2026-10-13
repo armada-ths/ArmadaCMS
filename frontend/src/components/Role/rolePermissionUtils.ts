@@ -9,7 +9,7 @@ export type PermissionGroup = {
 /** Configuration for a special permission shown as a standalone toggle. */
 export type SpecialPermission = {
   /** One or more full permission strings granted/revoked together, e.g. ["customusers.changeownpassword"] */
-  perms: string[];
+  perms: readonly string[];
   /** Form field name for the boolean toggle, e.g. "changeOwnPassword" */
   formField: string;
   /** Label shown next to the toggle in the form */
@@ -21,7 +21,7 @@ export type SpecialPermission = {
  * permissions ArrayInput. To add a new one, append an entry here — no other
  * changes to this file or the form components are needed.
  */
-export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
+export const SPECIAL_PERMISSIONS = [
   {
     perms: ["customusers.changeownpassword"],
     formField: "changeOwnPassword",
@@ -32,7 +32,16 @@ export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
     formField: "eventroSyncAccess",
     label: "Can access Eventro sync on the dashboard",
   },
-];
+] as const satisfies readonly SpecialPermission[];
+
+type SpecialPermissionField = (typeof SPECIAL_PERMISSIONS)[number]["formField"];
+type SpecialPermissionValues = Record<SpecialPermissionField, boolean>;
+export type NormalizedRole<T> = Omit<
+  T,
+  "permissions" | SpecialPermissionField
+> & {
+  permissions: PermissionGroup[];
+} & SpecialPermissionValues;
 
 export const PERMISSION_ACTIONS = [
   { id: "*", name: "All actions" },
@@ -227,9 +236,11 @@ export const useResourceChoices = () => {
  */
 export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
-) => {
+): NormalizedRole<T> => {
   const groupMap = new Map<string, string[]>();
-  const specialPermSet = new Set(SPECIAL_PERMISSIONS.flatMap((sp) => sp.perms));
+  const specialPermSet = new Set<string>(
+    SPECIAL_PERMISSIONS.flatMap((sp) => sp.perms),
+  );
   const explicitSpecials = new Set<string>();
 
   for (const p of record.permissions ?? []) {
@@ -270,12 +281,14 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     ([resource, actions]) => ({ resource, actions }),
   );
 
-  const specialFieldValues: Record<string, boolean> = {};
-  for (const spec of SPECIAL_PERMISSIONS) {
-    specialFieldValues[spec.formField] =
+  // Every configured toggle is present, including those that are false.
+  const specialFieldValues = Object.fromEntries(
+    SPECIAL_PERMISSIONS.map((spec) => [
+      spec.formField,
       spec.perms.some((p) => explicitSpecials.has(p)) ||
-      isSpecialPermCoveredByWildcard(spec, permissions);
-  }
+        isSpecialPermCoveredByWildcard(spec, permissions),
+    ]),
+  ) as SpecialPermissionValues;
 
   return { ...record, permissions, ...specialFieldValues };
 };
