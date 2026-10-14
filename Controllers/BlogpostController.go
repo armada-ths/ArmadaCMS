@@ -31,7 +31,7 @@ func requestHasValidAccessToken(r *http.Request) bool {
 	return err == nil
 }
 
-// allowedBlogpostColumns maps client-supplied field names to safe column names. gkldsjgkl
+// allowedBlogpostColumns maps client-supplied field names to safe column names.
 var allowedBlogpostColumns = map[string]string{
 	"id":         "id",
 	"title":      "title",
