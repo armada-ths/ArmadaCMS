@@ -24,7 +24,7 @@ $excludedServices = @(
 function Invoke-Supabase {
     param([string[]]$Arguments)
 
-    $null = & pnpx --yes "supabase@$supabaseVersion" @Arguments
+    $null = & pnpx "supabase@$supabaseVersion" @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Supabase CLI failed: supabase $($Arguments -join ' ')"
     }
@@ -58,7 +58,7 @@ Push-Location $repoRoot
 try {
     Invoke-Supabase -Arguments @("start", "--exclude", ($excludedServices -join ','))
 
-    $statusLines = & pnpx --yes "supabase@$supabaseVersion" status -o env
+    $statusLines = & pnpx "supabase@$supabaseVersion" status -o env
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to read local Supabase status."
     }

@@ -122,7 +122,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
 
-   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx --yes supabase@2.118.0 db reset --local`.
+   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx supabase@2.118.0 db reset --local`.
 
 5. **Verify the app is running**
 
@@ -142,13 +142,13 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 To create a new migration, generate a diff against the current remote schema:
 
 ```bash
-pnpx --yes supabase@2.118.0 db diff -f <migration-name>
+pnpx supabase@2.118.0 db diff -f <migration-name>
 ```
 
 To validate that all migrations apply cleanly from scratch:
 
 ```bash
-pnpx --yes supabase@2.118.0 db reset --local
+pnpx supabase@2.118.0 db reset --local
 ```
 
 Roles and feature flags are seeded from `supabase/seed.sql` alongside the initial admin user (username and password: `admin`). This seed only runs in non-production contexts (new branches, `db reset`) so hardcoded credentials are acceptable.
@@ -212,7 +212,7 @@ ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and
 
   ```powershell
   $env:RUN_S3_INTEGRATION = "1"
-  $status = pnpx --yes supabase@2.118.0 status -o env
+  $status = pnpx supabase@2.118.0 status -o env
   $env:AWS_ACCESS_KEY_ID = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_ID=').Line.Split('=', 2)[1].Trim('"')
   $env:AWS_SECRET_ACCESS_KEY = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_SECRET=').Line.Split('=', 2)[1].Trim('"')
   go test -tags=integration -count=1 ./utils
