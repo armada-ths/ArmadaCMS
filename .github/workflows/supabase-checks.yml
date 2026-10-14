@@ -8,6 +8,10 @@ on:
     paths:
       - "supabase/**"
       - "docker-compose.dev.yml"
+      - "Dockerfile.dev"
+      - ".air.toml"
+      - "go.mod"
+      - "go.sum"
       - ".env.example"
       - "scripts/dev-*.ps1"
       - "utils/aws_s3.go"
@@ -41,44 +45,24 @@ jobs:
             supabase:
               - 'supabase/**'
               - 'docker-compose.dev.yml'
+              - 'Dockerfile.dev'
+              - '.air.toml'
+              - 'go.mod'
+              - 'go.sum'
               - '.env.example'
               - 'scripts/dev-*.ps1'
               - 'utils/aws_s3.go'
               - 'utils/aws_s3_integration_test.go'
               - '.github/workflows/supabase-checks.yml'
 
-  validate-local-reset:
-    needs: changes
-    if: needs.changes.outputs.supabase == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
-        with:
-          version: 2.118.0
-
-      - name: Start database-only Supabase stack
-        run: supabase start --exclude gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null
-
-      - name: Verify migrations reset cleanly
-        run: supabase db reset --local
-
-      - name: Show migration status
-        run: supabase migration list --local
-
-      - name: Stop local Supabase stack
-        if: always()
-        run: supabase stop --no-backup
-
   validate-local-runtime:
     needs: changes
     if: needs.changes.outputs.supabase == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: armadacms-runtime-ci
+      CI_BACKEND_IMAGE: armadacms-backend:runtime-ci
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -99,13 +83,83 @@ jobs:
         with:
           version: 2.118.0
 
-      - name: Start minimal local runtime
-        run: supabase start --exclude gotrue,realtime,imgproxy,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
-      - name: Reset database and export local storage credentials
+      # Inline buildx commands need the cache service environment explicitly.
+      - name: Expose GitHub Actions cache runtime
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Set CI cache paths
+        run: |
+          echo "CI_GO_CACHE=$RUNNER_TEMP/armadacms-container-go" >> "$GITHUB_ENV"
+          echo "CI_COMPOSE_OVERRIDE=$RUNNER_TEMP/armadacms-runtime-compose.yml" >> "$GITHUB_ENV"
+
+      - name: Restore container Go caches
+        id: container-go-cache
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ env.CI_GO_CACHE }}
+          key: container-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Dockerfile.dev', 'go.mod', 'go.sum', '.air.toml') }}-${{ github.sha }}
+          restore-keys: |
+            container-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Dockerfile.dev', 'go.mod', 'go.sum', '.air.toml') }}-
+
+      - name: Prepare CI Compose override
         shell: bash
         run: |
+          mkdir -p "$CI_GO_CACHE/mod" "$CI_GO_CACHE/build"
+          cat > "$CI_COMPOSE_OVERRIDE" <<'YAML'
+          services:
+            backend:
+              image: ${CI_BACKEND_IMAGE}
+              volumes:
+                - type: bind
+                  source: ${CI_GO_CACHE}/mod
+                  target: /go/pkg/mod
+                - type: bind
+                  source: ${CI_GO_CACHE}/build
+                  target: /root/.cache/go-build
+          YAML
+
+      - name: Build backend while starting and resetting Supabase
+        shell: bash
+        run: |
+          build_log="$RUNNER_TEMP/backend-build.log"
+          build_pid=""
+          cleanup_build() {
+            result=$?
+            trap - EXIT INT TERM
+            if [[ -n "$build_pid" ]]; then
+              kill "$build_pid" 2>/dev/null || true
+              wait "$build_pid" 2>/dev/null || true
+            fi
+            if [[ -f "$build_log" ]]; then
+              cat "$build_log"
+            fi
+            exit "$result"
+          }
+          trap cleanup_build EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+
+          docker buildx build --file Dockerfile.dev --tag "$CI_BACKEND_IMAGE" \
+            --load --progress plain \
+            --cache-from type=gha,version=2,scope=armadacms-runtime-dev \
+            --cache-to type=gha,version=2,scope=armadacms-runtime-dev,mode=max,ignore-error=true,timeout=2m \
+            . > "$build_log" 2>&1 &
+          build_pid=$!
+
+          supabase start --exclude gotrue,realtime,imgproxy,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null
           supabase db reset --local
+          wait "$build_pid"
+          build_pid=""
+
+      - name: Show migration status
+        run: supabase migration list --local
+
+      - name: Export local storage credentials
+        shell: bash
+        run: |
           eval "$(supabase status -o env)"
           echo "::add-mask::$S3_PROTOCOL_ACCESS_KEY_SECRET"
           echo "LOCAL_SUPABASE_S3_ACCESS_KEY=$S3_PROTOCOL_ACCESS_KEY_ID" >> "$GITHUB_ENV"
@@ -119,14 +173,36 @@ jobs:
         shell: bash
         run: |
           cp .env.example .env
-          docker compose -f docker-compose.dev.yml up -d --build backend
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:8080/health > /dev/null; then
+          if [[ -z "$(ls -A "$CI_GO_CACHE/mod")" ]]; then
+            docker run --rm --entrypoint sh \
+              --volume "$CI_GO_CACHE/mod:/ci-go-mod" "$CI_BACKEND_IMAGE" \
+              -c 'cp -a /go/pkg/mod/. /ci-go-mod/'
+          fi
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" up -d --no-build backend
+          # A cold container Go cache can take longer than 60 seconds to compile.
+          startup_timeout=180
+          startup_deadline=$((SECONDS + startup_timeout))
+          failure_reason="Backend did not become healthy within ${startup_timeout}s; compilation or startup may still be in progress."
+          while (( SECONDS < startup_deadline )); do
+            if curl --fail --silent --connect-timeout 1 --max-time 2 http://127.0.0.1:8080/health > /dev/null; then
               exit 0
+            fi
+            if [[ -s build-errors.log ]]; then
+              failure_reason="Air reported a backend compilation error (see build-errors.log below)."
+              break
+            fi
+            if [[ -z "$(docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" ps --status running --quiet backend)" ]]; then
+              failure_reason="Backend container stopped before its healthcheck succeeded."
+              break
             fi
             sleep 2
           done
-          docker compose -f docker-compose.dev.yml logs backend
+          echo "::error::$failure_reason"
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" ps --all backend || true
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" logs --no-color backend || true
+          if [[ -s build-errors.log ]]; then
+            cat build-errors.log
+          fi
           exit 1
 
       - name: Verify local Supabase Storage upload path
@@ -141,20 +217,32 @@ jobs:
         if: always()
         shell: bash
         run: |
-          docker compose -f docker-compose.dev.yml down || true
+          # A setup failure can occur before the override or .env exists.
+          if [[ -f "$CI_COMPOSE_OVERRIDE" && -f .env ]]; then
+            docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" down || true
+          fi
           supabase stop --no-backup || true
+
+      - name: Make container Go caches readable by the runner
+        run: sudo chown -R "$(id -u):$(id -g)" "$CI_GO_CACHE"
+
+      - name: Save container Go caches after successful validation
+        if: success() && steps.container-go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ env.CI_GO_CACHE }}
+          key: ${{ steps.container-go-cache.outputs.cache-primary-key }}
 
   supabase-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [changes, validate-local-reset, validate-local-runtime]
+    needs: [changes, validate-local-runtime]
     if: always()
     steps:
       - name: All checks passed or skipped
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
-          VALIDATE_RESULT: ${{ needs.validate-local-reset.result }}
           RUNTIME_RESULT: ${{ needs.validate-local-runtime.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
@@ -169,11 +257,6 @@ jobs:
           expected_result="skipped"
           if [[ "$SUPABASE_CHANGED" == "true" ]]; then
             expected_result="success"
-          fi
-
-          if [[ "$VALIDATE_RESULT" != "$expected_result" ]]; then
-            echo "Unexpected Supabase check result: $VALIDATE_RESULT (expected $expected_result)."
-            exit 1
           fi
 
           if [[ "$RUNTIME_RESULT" != "$expected_result" ]]; then
