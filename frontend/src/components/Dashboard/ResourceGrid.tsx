@@ -1,6 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { useGetList } from "react-admin";
-import { useNavigate } from "react-router";
+import { useBasename, useGetList } from "react-admin";
+import { Link } from "react-router-dom";
 import {
   Box,
   Card,
@@ -11,170 +10,22 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  AccountCircle,
-  AdminPanelSettings,
-  Badge,
-  Business,
-  CalendarMonth,
-  Category,
-  DateRange,
-  Event,
-  Group,
-  Person,
-  School,
-  Stars,
-  WorkHistory,
-} from "@mui/icons-material";
-import { type SvgIconComponent } from "@mui/icons-material";
-import { hasPerm } from "../../utils/permissions";
+import type { NavigationNode, ResourceLink } from "../../navigation/catalog";
+import { useNavigation } from "../../navigation/useNavigation";
 
-// ─── Resource catalog (priority-ordered) ─────────────────────────────────────
-
-interface ResourceConfig {
-  resource: string;
-  label: string;
-  Icon: SvgIconComponent;
-  permission: string;
-  to: string;
-}
-
-const ALL_RESOURCES: ResourceConfig[] = [
-  {
-    resource: "exhibitors",
-    label: "Exhibitors",
-    Icon: Business,
-    permission: "exhibitors.list",
-    to: "/admin/exhibitors",
-  },
-  {
-    resource: "events",
-    label: "Events",
-    Icon: Event,
-    permission: "events.list",
-    to: "/admin/events",
-  },
-  {
-    resource: "customusers",
-    label: "Users",
-    Icon: Person,
-    permission: "customusers.list",
-    to: "/admin/customusers",
-  },
-  {
-    resource: "highlightcards",
-    label: "Highlight cards",
-    Icon: Stars,
-    permission: "highlightcards.list",
-    to: "/admin/highlightcards",
-  },
-  {
-    resource: "fairdates",
-    label: "Fair dates",
-    Icon: CalendarMonth,
-    permission: "fairdates.list",
-    to: "/admin/fairdates",
-  },
-  {
-    resource: "recruitmentperiods",
-    label: "Recruitment periods",
-    Icon: DateRange,
-    permission: "recruitmentperiods.list",
-    to: "/admin/recruitmentperiods",
-  },
-  {
-    resource: "recruitmentroles",
-    label: "Recruitment roles",
-    Icon: Badge,
-    permission: "recruitmentroles.list",
-    to: "/admin/recruitmentroles",
-  },
-  {
-    resource: "profiles",
-    label: "Profiles",
-    Icon: AccountCircle,
-    permission: "profiles.list",
-    to: "/admin/profiles",
-  },
-  {
-    resource: "teams",
-    label: "Teams",
-    Icon: Group,
-    permission: "teams.list",
-    to: "/admin/teams",
-  },
-  {
-    resource: "programs",
-    label: "Programs",
-    Icon: School,
-    permission: "programs.list",
-    to: "/admin/programs",
-  },
-  {
-    resource: "industries",
-    label: "Industries",
-    Icon: Category,
-    permission: "industries.list",
-    to: "/admin/industries",
-  },
-  {
-    resource: "employments",
-    label: "Employments",
-    Icon: WorkHistory,
-    permission: "employments.list",
-    to: "/admin/employments",
-  },
-  {
-    resource: "roles",
-    label: "Roles",
-    Icon: AdminPanelSettings,
-    permission: "roles.list",
-    to: "/admin/roles",
-  },
-];
-
-// ─── Count fetcher (headless) ─────────────────────────────────────────────────
-
-const CountFetcher = ({
-  resource,
-  onCount,
-}: {
-  resource: string;
-  onCount: (resource: string, total: number) => void;
-}) => {
-  const { total, isPending } = useGetList(resource, {
+const ResourceCard = ({ node }: { node: ResourceLink }) => {
+  const basename = useBasename();
+  const { total, isPending, error } = useGetList(node.resource, {
     pagination: { page: 1, perPage: 1 },
     sort: { field: "id", order: "ASC" },
   });
-
-  useEffect(() => {
-    if (!isPending && total !== undefined) {
-      onCount(resource, total);
-    }
-  }, [total, isPending, resource, onCount]);
-
-  return null;
-};
-
-// ─── Resource card (presentational) ──────────────────────────────────────────
-
-const ResourceCard = ({
-  label,
-  Icon,
-  to,
-  total,
-}: {
-  label: string;
-  Icon: SvgIconComponent;
-  to: string;
-  total: number;
-}) => {
-  const navigate = useNavigate();
+  const { Icon } = node;
   return (
     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
       <Card variant="outlined" sx={{ height: "100%" }}>
         <CardActionArea
-          onClick={() => navigate(to)}
+          component={Link}
+          to={`${basename}${node.to}`}
           sx={{ height: "100%", p: 0.5 }}
         >
           <CardContent>
@@ -183,13 +34,25 @@ const ResourceCard = ({
               <Box sx={{ flexGrow: 1 }}>
                 <Typography
                   variant="h6"
-                  component="div"
+                  component="h4"
                   sx={{ lineHeight: 1.2 }}
                 >
-                  {label}
+                  {node.label}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {total} {total === 1 ? "entry" : "entries"}
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  component="div"
+                >
+                  {error ? (
+                    "Count unavailable"
+                  ) : isPending ? (
+                    <Skeleton width={80} />
+                  ) : total === undefined ? (
+                    "Count unavailable"
+                  ) : (
+                    `${total} ${total === 1 ? "entry" : "entries"}`
+                  )}
                 </Typography>
               </Box>
             </Stack>
@@ -200,67 +63,52 @@ const ResourceCard = ({
   );
 };
 
-// ─── Resource grid ────────────────────────────────────────────────────────────
-
-export const ResourceGrid = ({
-  perms,
-  permsPending,
+const ResourceSection = ({
+  nodes,
+  depth = 0,
 }: {
-  perms: string[];
-  permsPending: boolean;
-}) => {
-  const [resourceCounts, setResourceCounts] = useState<Record<string, number>>(
-    {},
-  );
+  nodes: readonly NavigationNode[];
+  depth?: number;
+}) => (
+  <Grid container spacing={2} sx={{ mb: 3 }}>
+    {nodes.map((node) => {
+      if (node.kind === "dashboard") return null;
+      if (node.kind === "resource")
+        return <ResourceCard key={node.id} node={node} />;
+      return (
+        <Grid key={node.id} size={12}>
+          <Box component="section" aria-labelledby={`resources-${node.id}`}>
+            <Typography
+              id={`resources-${node.id}`}
+              variant={depth === 0 ? "h6" : "subtitle1"}
+              component={depth === 0 ? "h3" : "h4"}
+              sx={{ mb: 1, fontWeight: 600 }}
+            >
+              {node.label}
+            </Typography>
+            <ResourceSection nodes={node.children} depth={depth + 1} />
+          </Box>
+        </Grid>
+      );
+    })}
+  </Grid>
+);
 
-  const handleResourceCount = useCallback((resource: string, total: number) => {
-    setResourceCounts((prev) => ({ ...prev, [resource]: total }));
-  }, []);
-
-  const permittedResources = permsPending
-    ? []
-    : ALL_RESOURCES.filter((r) => hasPerm(perms, r.permission));
-
-  const countsLoaded = permittedResources.every(
-    (r) => resourceCounts[r.resource] !== undefined,
-  );
-
-  const visibleResources = countsLoaded
-    ? permittedResources
-        .filter((r) => (resourceCounts[r.resource] ?? 0) > 0)
-        .slice(0, 6)
-    : [];
-
-  return (
-    <>
-      {permittedResources.map((r) => (
-        <CountFetcher
-          key={r.resource}
-          resource={r.resource}
-          onCount={handleResourceCount}
-        />
-      ))}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {permsPending || !countsLoaded
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Skeleton
-                  variant="rectangular"
-                  height={80}
-                  sx={{ borderRadius: 1 }}
-                />
-              </Grid>
-            ))
-          : visibleResources.map((r) => (
-              <ResourceCard
-                key={r.resource}
-                label={r.label}
-                Icon={r.Icon}
-                to={r.to}
-                total={resourceCounts[r.resource] ?? 0}
-              />
-            ))}
-      </Grid>
-    </>
-  );
+export const ResourceGrid = () => {
+  const { nodes, isPending, error } = useNavigation();
+  if (isPending)
+    return (
+      <Skeleton
+        variant="rectangular"
+        height={80}
+        sx={{ mb: 3, borderRadius: 1 }}
+      />
+    );
+  if (error)
+    return (
+      <Typography color="error" sx={{ mb: 3 }}>
+        Resources unavailable
+      </Typography>
+    );
+  return <ResourceSection nodes={nodes} />;
 };
