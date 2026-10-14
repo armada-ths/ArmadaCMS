@@ -55,33 +55,6 @@ jobs:
               - 'utils/aws_s3_integration_test.go'
               - '.github/workflows/supabase-checks.yml'
 
-  validate-local-reset:
-    needs: changes
-    if: needs.changes.outputs.supabase == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
-        with:
-          version: 2.118.0
-
-      - name: Start database-only Supabase stack
-        run: supabase start --exclude gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null
-
-      - name: Verify migrations reset cleanly
-        run: supabase db reset --local
-
-      - name: Show migration status
-        run: supabase migration list --local
-
-      - name: Stop local Supabase stack
-        if: always()
-        run: supabase stop --no-backup
-
   validate-local-runtime:
     needs: changes
     if: needs.changes.outputs.supabase == 'true'
@@ -181,6 +154,9 @@ jobs:
           wait "$build_pid"
           build_pid=""
 
+      - name: Show migration status
+        run: supabase migration list --local
+
       - name: Export local storage credentials
         shell: bash
         run: |
@@ -203,13 +179,30 @@ jobs:
               -c 'cp -a /go/pkg/mod/. /ci-go-mod/'
           fi
           docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" up -d --no-build backend
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:8080/health > /dev/null; then
+          # A cold container Go cache can take longer than 60 seconds to compile.
+          startup_timeout=180
+          startup_deadline=$((SECONDS + startup_timeout))
+          failure_reason="Backend did not become healthy within ${startup_timeout}s; compilation or startup may still be in progress."
+          while (( SECONDS < startup_deadline )); do
+            if curl --fail --silent --connect-timeout 1 --max-time 2 http://127.0.0.1:8080/health > /dev/null; then
               exit 0
+            fi
+            if [[ -s build-errors.log ]]; then
+              failure_reason="Air reported a backend compilation error (see build-errors.log below)."
+              break
+            fi
+            if [[ -z "$(docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" ps --status running --quiet backend)" ]]; then
+              failure_reason="Backend container stopped before its healthcheck succeeded."
+              break
             fi
             sleep 2
           done
-          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" logs backend
+          echo "::error::$failure_reason"
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" ps --all backend || true
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" logs --no-color backend || true
+          if [[ -s build-errors.log ]]; then
+            cat build-errors.log
+          fi
           exit 1
 
       - name: Verify local Supabase Storage upload path
@@ -243,14 +236,13 @@ jobs:
   supabase-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [changes, validate-local-reset, validate-local-runtime]
+    needs: [changes, validate-local-runtime]
     if: always()
     steps:
       - name: All checks passed or skipped
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
-          VALIDATE_RESULT: ${{ needs.validate-local-reset.result }}
           RUNTIME_RESULT: ${{ needs.validate-local-runtime.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
@@ -265,11 +257,6 @@ jobs:
           expected_result="skipped"
           if [[ "$SUPABASE_CHANGED" == "true" ]]; then
             expected_result="success"
-          fi
-
-          if [[ "$VALIDATE_RESULT" != "$expected_result" ]]; then
-            echo "Unexpected Supabase check result: $VALIDATE_RESULT (expected $expected_result)."
-            exit 1
           fi
 
           if [[ "$RUNTIME_RESULT" != "$expected_result" ]]; then
