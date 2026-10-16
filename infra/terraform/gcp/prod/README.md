@@ -10,22 +10,24 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 - Cloud Run service (optional, enabled by `deploy_cloud_run_service`)
 - Serverless VPC egress with Cloud NAT and a static outbound IP
 - External HTTPS load balancer
-- Cloud Build triggers for the GitHub → Cloud Run deploy pipeline
+- Environment-specific Workload Identity Federation for GitHub Actions releases
 - Cloud Scheduler retry trigger in `europe-west4`; its target remains the photo worker Job in `europe-north2`
 
 ## Architecture notes
 
 - Cloud Run runs the Go API and bundled React-Admin frontend.
-- Cloud Build updates the Cloud Run image via `cloudbuild.yaml`.
+- GitHub Actions verifies a preview revision before worker activation and traffic promotion.
 - PostgreSQL is provided by Supabase. Connection details are read from the `armadacms-supabase-prod` workspace outputs.
 - File storage uses Supabase Storage via its S3-compatible endpoint.
 - Cloud Run uses direct VPC egress on a dedicated `armadacms-serverless` VPC and subnet. Cloud NAT provides the stable outbound IP consumed by the Supabase network allowlist.
 - `invoker_iam_disabled = true` enables public access without an IAM binding.
 - Runtime secrets include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, and `REVALIDATION_SECRET`. The Secret Manager IDs `SUPABASE_STORAGE_ACCESS_KEY_ID` and `SUPABASE_STORAGE_SECRET_ACCESS_KEY` are injected as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the S3-compatible client.
 - Plain env vars include DB settings plus `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, and `S3_REGION`. DB and storage values are read from the `armadacms-supabase-prod` workspace via `tfe_outputs` unless an explicit DB override is set.
-- The Cloud Run container image is ignored by Terraform after the first deploy so Cloud Build can ship new revisions freely.
+- Cloud Run image, generated revision name and traffic are release-owned and ignored by Terraform. Runtime configuration remains Terraform-owned.
 - Artifact Registry cleanup policies retain the 20 most recent versions per package, delete untagged versions after 14 days, delete `pr-*` versions after 30 days, and delete other versions after 180 days.
-- Cloud Run and trusted deploys use separate runtime and deployment service accounts. Runtime can read only its own secrets; the deployer can publish images, update its Cloud Run service, write build logs, read the GitHub App secret, and act as the runtime identity. Pull request container builds run in GitHub Actions without Google credentials or secrets; no PR build identity or trigger is provisioned in GCP.
+- Cloud Run and trusted deploys use separate runtime and deployment service accounts. Runtime can read only its own secrets; the deployer can publish images, update its Cloud Run service, update the photo worker, and act as the runtime identity through OIDC federation. Pull request container builds run in GitHub Actions without Google credentials or secrets; no PR build identity or trigger is provisioned in GCP.
+
+Recovery snapshots and release outcomes are separate Actions artifacts retained for 90 days. Snapshot publication precedes every Cloud Run mutation. Actions serializes releases per environment; etags and configuration fingerprints protect against external changes.
 
 ## Files
 
@@ -37,10 +39,10 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 | `supabase_state.tf`    | `data.tfe_outputs.supabase_prod` — reads DB connection values and Supabase Storage config from the Supabase workspace |
 | `services.tf`          | GCP API enablement                                                                                                    |
 | `artifact_registry.tf` | Artifact Registry repository                                                                                          |
-| `iam.tf`               | Runtime service account and Cloud Build permissions                                                                   |
+| `iam.tf`               | Runtime and deploy service accounts with resource-scoped permissions                                                                   |
 | `secrets.tf`           | Secret Manager secrets                                                                                                |
 | `networking.tf`        | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                                                     |
-| `cloud_build.tf`       | GitHub-backed Cloud Build triggers                                                                                    |
+| `actions.tf` | GitHub OIDC federation, environment outputs and Terraform state moves |
 | `cloud_run.tf`         | Cloud Run service                                                                                                     |
 | `load_balancer.tf`     | External HTTPS load balancer, serverless NEG, proxies, forwarding rules                                               |
 | `outputs.tf`           | Useful outputs including `static_egress_ip`                                                                           |
@@ -86,3 +88,9 @@ deployments and rollbacks even when an age-based delete policy also matches.
    - `SUPABASE_STORAGE_ACCESS_KEY_ID`
    - `SUPABASE_STORAGE_SECRET_ACCESS_KEY`
 3. Deploy a new Cloud Run revision, verify uploads, and then revoke the old key.
+
+## Release preview
+
+The existing load balancer routes `preview.cms.armada.nu` to a separate serverless NEG targeting the fixed `release-preview` Cloud Run tag. It reuses the production IP, HTTPS proxy and forwarding rule, with a separate Google-managed Compute SSL certificate. The service's `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` ingress remains unchanged. The preview host shares the environment database and application authorization.
+
+The `github_environment_variables` output exposes the two non-secret Actions connection values. `release_preview_address` describes the preview hostname and existing LB IP. The release validates preview DNS/TLS before mutation and verifies the candidate identity through that route before promotion.

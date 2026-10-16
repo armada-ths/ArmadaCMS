@@ -56,6 +56,8 @@ var adminClientRouteSegments = map[string]struct{}{
 	"login":              {},
 }
 
+var buildCommit = "unknown"
+
 func main() {
 	fmt.Println("Hello, world.")
 	if err := godotenv.Load(); err != nil {
@@ -199,6 +201,9 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Armada-Commit", buildCommit)
+		w.Header().Set("X-Armada-Revision", os.Getenv("K_REVISION"))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})

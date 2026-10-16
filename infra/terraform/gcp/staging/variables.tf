@@ -52,13 +52,13 @@ variable "prod_artifact_registry_repository_id" {
 }
 
 variable "container_image_path" {
-  description = "Path inside the Artifact Registry repository that Cloud Build pushes to."
+  description = "Path inside the Artifact Registry repository that GitHub Actions publishes to."
   type        = string
   default     = "armadacms/armadacms"
 }
 
 variable "bootstrap_image" {
-  description = "Optional fully-qualified image URI for the initial Cloud Run deployment. Leave empty to derive from Artifact Registry settings. Set this to an existing image (e.g. gcr.io/cloudrun/hello) before the first Cloud Build run creates a staging image."
+  description = "Optional fully-qualified image URI for the initial Cloud Run deployment. Leave empty to derive from Artifact Registry settings. Set this to an existing image (e.g. gcr.io/cloudrun/hello) before the first Actions release creates a staging image."
   type        = string
   default     = ""
 }
@@ -67,25 +67,6 @@ variable "bootstrap_image_tag" {
   description = "Image tag used when bootstrap_image is not set explicitly."
   type        = string
   default     = "bootstrap"
-}
-
-variable "github_app_private_key_secret_id" {
-  description = "Secret Manager secret ID used by cloudbuild.yaml for GitHub deployment tracking."
-  type        = string
-  default     = "github-app-private-key"
-}
-
-variable "github_app_private_key" {
-  description = "Optional GitHub App private key PEM content. Leave empty to reuse the existing secret created by the production workspace."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "manage_github_app_secret" {
-  description = "Whether Terraform should create the github-app-private-key Secret Manager secret. Set to false to reuse the secret already created by the production workspace."
-  type        = bool
-  default     = false
 }
 
 variable "secret_values" {
@@ -164,20 +145,20 @@ variable "max_instances" {
   default     = 1
 }
 
-variable "cloud_build_service_account_email" {
-  description = "Optional existing service account for Cloud Build. Ignored when manage_cloud_build_service_account is true."
+variable "deploy_service_account_email" {
+  description = "Optional existing service account for GitHub Actions. Ignored when manage_deploy_service_account is true."
   type        = string
   default     = ""
 }
 
-variable "manage_cloud_build_service_account" {
+variable "manage_deploy_service_account" {
   description = "Whether Terraform should create a dedicated least-privilege service account for staging builds and deployments."
   type        = bool
   default     = false
 }
 
-variable "manage_cloud_build_triggers" {
-  description = "Whether Terraform should manage the Cloud Build triggers for ArmadaCMS staging."
+variable "enable_actions_deployment" {
+  description = "Whether GitHub Actions deployment federation and resource permissions are enabled."
   type        = bool
   default     = false
 }

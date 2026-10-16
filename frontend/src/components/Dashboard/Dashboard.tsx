@@ -48,10 +48,10 @@ export const Dashboard = () => {
       </Card>
 
       {/* Resource cards */}
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" component="h2" gutterBottom>
         Resources
       </Typography>
-      <ResourceGrid perms={perms} permsPending={permsPending} />
+      <ResourceGrid />
 
       {/* Activity + Blog posts */}
       {!permsPending && (
