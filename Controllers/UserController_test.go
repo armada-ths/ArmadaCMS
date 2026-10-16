@@ -86,7 +86,9 @@ func TestDeleteUserWithRefreshTokens(t *testing.T) {
 				createToken(user.ID, "expired-secret", true, now.Add(-time.Minute))
 			}
 			if scenario.block {
-				if err := tx.Exec("CREATE TEMP TABLE user_delete_blocker (user_id bigint REFERENCES users(id))").Error; err != nil {
+				// PostgreSQL forbids temporary-table foreign keys to regular tables.
+				// The outer test transaction rolls this table back with its fixtures.
+				if err := tx.Exec("CREATE TABLE user_delete_blocker (user_id bigint REFERENCES users(id))").Error; err != nil {
 					t.Fatal(err)
 				}
 				if err := tx.Exec("INSERT INTO user_delete_blocker (user_id) VALUES (?)", user.ID).Error; err != nil {
