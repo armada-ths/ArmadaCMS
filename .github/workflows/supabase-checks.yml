@@ -1,22 +1,7 @@
 name: supabase checks
 
 on:
-  push:
-    branches:
-      - main
-      - staging
-    paths:
-      - "supabase/**"
-      - "docker-compose.dev.yml"
-      - "Dockerfile.dev"
-      - ".air.toml"
-      - "go.mod"
-      - "go.sum"
-      - ".env.example"
-      - "scripts/dev-*.ps1"
-      - "utils/aws_s3.go"
-      - "utils/aws_s3_integration_test.go"
-      - ".github/workflows/supabase-checks.yml"
+  workflow_call:
   pull_request:
 
 permissions:
@@ -24,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-supabase-checks-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -36,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Detect Supabase changes
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -54,6 +41,7 @@ jobs:
               - 'utils/aws_s3.go'
               - 'utils/aws_s3_integration_test.go'
               - '.github/workflows/supabase-checks.yml'
+              - '.github/workflows/deploy.yml'
 
   validate-local-runtime:
     needs: changes
@@ -66,6 +54,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

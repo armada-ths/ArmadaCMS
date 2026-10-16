@@ -11,9 +11,9 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 
 | Root             | HCP Terraform workspace   | What it manages                                                           |
 | ---------------- | ------------------------- | ------------------------------------------------------------------------- |
-| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager             |
+| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager             |
 | `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata          |
-| `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Cloud Build, Secrets; optional VPC egress is currently disabled |
+| `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secrets; optional VPC egress is currently disabled |
 
 Workspace naming pattern: `armadacms-<provider>-<environment>`.
 

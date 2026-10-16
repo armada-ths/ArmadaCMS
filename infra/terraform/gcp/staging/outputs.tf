@@ -1,6 +1,6 @@
-output "cloud_build_service_account_email" {
-  description = "Cloud Build service account that has deploy permissions."
-  value       = local.cloud_build_service_account_email
+output "deploy_service_account_email" {
+  description = "Service account impersonated by GitHub Actions for releases."
+  value       = local.deploy_service_account_email
 }
 
 output "runtime_service_account_email" {
@@ -21,11 +21,6 @@ output "default_image_uri" {
 output "runtime_secret_ids" {
   description = "Secret Manager secret IDs used by ArmadaCMS staging runtime environment variables."
   value       = { for key, secret in google_secret_manager_secret.app : key => secret.secret_id }
-}
-
-output "github_app_private_key_secret_id" {
-  description = "Secret Manager secret ID used by cloudbuild.yaml for GitHub deployment tracking."
-  value       = var.manage_github_app_secret ? google_secret_manager_secret.github_app_private_key[0].secret_id : var.github_app_private_key_secret_id
 }
 
 output "cloud_run_service_name" {

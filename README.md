@@ -308,32 +308,34 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 GitHub Actions are pinned to full commit SHAs with version comments. Dependabot checks for version updates every Monday at 08:00 Europe/Stockholm, covering GitHub Actions, pnpm dependencies, Terraform providers, and Go modules. Minor and patch updates are grouped per ecosystem; major updates remain separate PRs and all updates use the existing review and CI requirements. See [the Dependabot configuration](.github/dependabot.yml).
 
-CI is handled by GitHub Actions and CD by Google Cloud Build.
+CI and deployments run in GitHub Actions.
 
-### GitHub Actions (CI)
+- Go, frontend and local Supabase checks run directly on pull requests and are called as reusable workflows by the main/staging push workflow. Internal path filters retain explicit aggregate results when work is intentionally skipped.
+- CodeQL analyzes Actions, JavaScript/TypeScript and Go on PRs, release pushes and its own schedule.
+- Release regression tests use Python's standard library and simulate Cloud Run/API failures; the HTTP tests use a local server.
+- PR container validation builds the production Dockerfile without GCP credentials, publishing or deployment.
 
-CodeQL uses the checked-in Advanced setup workflow in `.github/workflows/codeql.yml`. It analyzes Actions, JavaScript/TypeScript and Go, on pull requests to `main`/`staging` (including Dependabot), pushes to those branches, a weekly schedule, and manual dispatch. The query suite remains the CodeQL default. Actions are SHA-pinned; analysis has only source-read and security-event-upload permissions. Dependabot and fork uploads use GitHub's `pull_request` support.
+### Verified releases
 
-Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
+The shared deployment workflow requires successful Go, frontend, Supabase, CodeQL and release checks for its own source commit. The release job uses the corresponding GitHub Environment, an environment-specific concurrency group, and OIDC Workload Identity Federation to impersonate a narrowly scoped GCP deploy identity. A new push does not interrupt an active release. Repository activation variables control whether each environment deploys; an inactive environment still runs CI.
 
-- `container-build.yml` — builds `Dockerfile.prod` on every PR targeting main/staging, with a read-only GitHub token, no image publishing or deployment.
-- `codeql.yml` — Advanced CodeQL analysis, including a manual Go build with libvips.
-- `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
-- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
-- `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
+The production Docker image embeds its commit SHA. Each Actions run/attempt publishes a unique tag, and the service and photo worker use the same immutable registry digest. Buildx registry caches are separate for staging and production. The source branch is checked before building, while preparing recovery, and immediately before activation; an obsolete commit cannot be promoted.
 
-All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed. Superseded runs for the same workflow and branch or pull request are cancelled automatically, and every job has a timeout.
+Before changing Cloud Run, the workflow uploads a recovery snapshot as an Actions artifact with 90-day retention. It contains explicit previous revision traffic, the resolved worker digest, previous preview tags, resource etags, configuration fingerprints and release identities. It contains no tokens, environment dumps or raw resource configuration. Failed snapshot publication blocks deployment. A concurrent resource change after preparation also blocks deployment.
 
-### Google Cloud Build (CD)
+The release creates a unique revision with no ordinary traffic and binds the environment's fixed `release-preview` tag to it. Any `LATEST` allocation is pinned to the previously serving explicit revisions in the same update. Staging checks the tagged `run.app` address. Production checks `https://preview.cms.armada.nu` through the existing HTTPS load balancer; production ingress remains restricted to internal traffic and load balancing. The preview host is publicly reachable and uses the application's existing authorization.
 
-Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbuild.yaml).
+Read-only HTTP checks verify `/health`, the database-backed feature flag API and pagination, and admin HTML plus JavaScript/CSS entrypoints. Each check round has a shared two-minute deadline. `/health` remains database-independent and returns `X-Armada-Commit`, `X-Armada-Revision` and `Cache-Control: no-store`. HTTP smoke checks do not execute React or authenticated admin operations.
 
-- Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
-- Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- Trusted branch builds always build the commit SHA, publish that image, and deploy it.
-- The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
+After the preview passes and the branch is checked again, the worker definition is updated and verified, traffic moves to the exact tested revision, and the normal environment domain is checked. GitHub's Environment deployment succeeds only when live verification and final result publication succeed.
 
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision only the trusted branch deployment triggers; `cloudbuild.yaml` defines their build/deploy flow. PR container validation is defined in `.github/workflows/container-build.yml`.
+Preview failure restores the previous preview tag without activating worker or ordinary traffic. Activation/live failure restores and verifies previous traffic, worker digest and preview tags. Etag checks and configuration fingerprints prevent recovery from overwriting unexpected external edits. An ambiguous API failure is reconciled against observed and desired state before recovery. Older revisions without identity headers are checked functionally alongside Cloud Run traffic verification.
+
+The result artifact and Actions summary record the phase and recovery outcome; even successful rollback leaves the release failed. Failure to publish the final result marks the workflow failed without rolling back an otherwise verified release. The initial snapshot remains available independently of the final result. Forced runner termination can require operator recovery from that snapshot.
+
+Terraform owns runtime configuration, networking and federation; Actions owns release images, generated revision names, tags and traffic. Preview shares the environment's database and startup seeding. Rollback does not reverse database writes or already-running worker executions. Schema and worker changes remain backward compatible, and hosted database migration remains separate from application release.
+
+The checked-in release targets contain the fixed project, region, service, worker and URLs. Both environments use the production Artifact Registry; staging runs in `europe-north1` and production in `europe-north2`. No Cloud Build deployment trigger, GitHub App credential, release bucket or distributed lock participates in this flow.
 
 ## Operations notes
 

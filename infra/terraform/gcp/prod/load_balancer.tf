@@ -39,6 +39,14 @@ resource "google_compute_url_map" "cloud_run_lb" {
   project         = var.project_id
   name            = local.lb_url_map_name
   default_service = google_compute_backend_service.cloud_run_lb[0].id
+  host_rule {
+    hosts        = ["preview.cms.armada.nu"]
+    path_matcher = "release-preview"
+  }
+  path_matcher {
+    name            = "release-preview"
+    default_service = google_compute_backend_service.release_preview[0].id
+  }
 }
 
 resource "google_compute_managed_ssl_certificate" "cloud_run_lb" {
@@ -66,6 +74,7 @@ resource "google_compute_target_https_proxy" "cloud_run_lb" {
   ssl_certificates = concat(
     var.lb_existing_ssl_certificate_ids,
     google_compute_managed_ssl_certificate.cloud_run_lb[*].id,
+    google_compute_managed_ssl_certificate.release_preview[*].id,
   )
 
   lifecycle {
@@ -128,4 +137,41 @@ resource "google_compute_global_forwarding_rule" "cloud_run_lb_http" {
   port_range            = "80-80"
   ip_address            = var.lb_reserve_global_ip ? google_compute_global_address.cloud_run_lb[0].address : null
   load_balancing_scheme = "EXTERNAL_MANAGED"
+}
+
+resource "google_compute_region_network_endpoint_group" "release_preview" {
+  count                 = var.enable_https_load_balancer ? 1 : 0
+  project               = var.project_id
+  name                  = "${var.name_prefix}-preview-neg"
+  region                = var.region
+  network_endpoint_type = "SERVERLESS"
+  cloud_run {
+    service = var.service_name
+    tag     = "release-preview"
+  }
+}
+
+resource "google_compute_backend_service" "release_preview" {
+  count                 = var.enable_https_load_balancer ? 1 : 0
+  project               = var.project_id
+  name                  = "${var.name_prefix}-preview-backend"
+  protocol              = "HTTPS"
+  port_name             = "http"
+  timeout_sec           = 30
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  backend { group = google_compute_region_network_endpoint_group.release_preview[0].id }
+}
+
+resource "google_compute_managed_ssl_certificate" "release_preview" {
+  count   = var.enable_https_load_balancer ? 1 : 0
+  project = var.project_id
+  name    = "${var.name_prefix}-preview-cert"
+  managed { domains = ["preview.cms.armada.nu"] }
+}
+
+output "release_preview_address" {
+  value = var.enable_https_load_balancer ? {
+    hostname = "preview.cms.armada.nu"
+    ipv4     = google_compute_global_forwarding_rule.cloud_run_lb_https[0].ip_address
+  } : null
 }

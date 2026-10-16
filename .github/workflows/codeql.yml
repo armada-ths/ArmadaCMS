@@ -1,8 +1,7 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main, staging]
+  workflow_call:
   pull_request:
     branches: [main, staging]
   schedule:
@@ -13,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-codeql-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:

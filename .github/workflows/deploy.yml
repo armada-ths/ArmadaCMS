@@ -1,0 +1,147 @@
+name: CMS deployment
+
+on:
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    uses: ./.github/workflows/go-checks.yml
+    permissions:
+      contents: read
+      pull-requests: read
+  frontend:
+    uses: ./.github/workflows/frontend-checks.yml
+    permissions:
+      contents: read
+      pull-requests: read
+  supabase:
+    uses: ./.github/workflows/supabase-checks.yml
+    permissions:
+      contents: read
+      pull-requests: read
+  codeql:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+  release-checks:
+    uses: ./.github/workflows/release-checks.yml
+
+  deploy:
+    name: Deploy CMS
+    needs: [go, frontend, supabase, codeql, release-checks]
+    if: >-
+      (github.ref == 'refs/heads/staging' && vars.CMS_STAGING_DEPLOY_ENABLED == 'true') ||
+      (github.ref == 'refs/heads/main' && vars.CMS_PRODUCTION_DEPLOY_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    concurrency:
+      group: cms-release-${{ github.ref_name }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ github.ref_name == 'main' && 'Production' || 'Staging' }}
+      url: ${{ github.ref_name == 'main' && 'https://cms.armada.nu' || 'https://staging.cms.armada.nu' }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Set release file paths
+        run: |
+          echo "SNAPSHOT=$RUNNER_TEMP/cms-release/restore.json" >> "$GITHUB_ENV"
+          echo "RESULT=$RUNNER_TEMP/cms-release/result.json" >> "$GITHUB_ENV"
+      - name: Checkout release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate target and branch head
+        id: target
+        run: python3 scripts/release.py target --result "$RESULT"
+      - name: Validate federation connection
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          DEPLOY_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          if [[ -z "$WIF_PROVIDER" || -z "$DEPLOY_ACCOUNT" ]]; then
+            echo "::error::The GitHub Environment requires both WIF provider and deploy service account."
+            exit 1
+          fi
+      - name: Authenticate build to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ steps.target.outputs.project }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+      - name: Configure Artifact Registry authentication
+        env:
+          REGISTRY: ${{ steps.target.outputs.registry }}
+        run: gcloud auth configure-docker "$REGISTRY" --quiet
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - name: Build and publish release image
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile.prod
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.target.outputs.repository }}:${{ steps.target.outputs.image_tag }}
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          cache-from: |
+            type=registry,ref=${{ steps.target.outputs.repository }}:buildcache-${{ github.ref_name }}
+            type=registry,ref=${{ steps.target.outputs.repository }}:buildcache
+          cache-to: type=registry,ref=${{ steps.target.outputs.repository }}:buildcache-${{ github.ref_name }},mode=max
+          provenance: false
+      - name: Refresh Google Cloud authentication before release
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ steps.target.outputs.project }}
+      - name: Prepare recovery snapshot
+        env:
+          IMAGE: ${{ steps.target.outputs.repository }}@${{ steps.build.outputs.digest }}
+        run: python3 scripts/release.py prepare --image "$IMAGE" --snapshot "$SNAPSHOT" --result "$RESULT"
+      - name: Persist recovery snapshot before changing Cloud Run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cms-restore-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.SNAPSHOT }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Verify preview, promote or restore
+        run: python3 scripts/release.py deploy --snapshot "$SNAPSHOT" --result "$RESULT"
+      - name: Publish release result
+        if: always() && steps.target.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cms-result-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.RESULT }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Summarize release
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          path = Path(os.environ["RESULT"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
+              if path.exists():
+                  result = json.loads(path.read_text())
+                  for key in ("release_id", "commit", "phase", "rollback", "recovery_errors"):
+                      stream.write(f"- {key}: {result.get(key, 'n/a')}\n")
+              else:
+                  stream.write("Release stopped before a result was produced; inspect the failed step.\n")
+          PY
