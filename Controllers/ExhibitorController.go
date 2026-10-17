@@ -145,6 +145,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.FairLocation = r.FormValue("fairLocation")
 	exhibitor.CompanyWebsite = utils.StringPtr(r.FormValue("companyWebsite"))
 	exhibitor.About = utils.StringPtr(r.FormValue("about"))
+	exhibitor.AboutSv = utils.StringPtr(r.FormValue("aboutSv"))
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
@@ -254,6 +255,7 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.FairLocation = r.FormValue("fairLocation")
 	exhibitor.CompanyWebsite = utils.StringPtr(r.FormValue("companyWebsite"))
 	exhibitor.About = utils.StringPtr(r.FormValue("about"))
+	exhibitor.AboutSv = utils.StringPtr(r.FormValue("aboutSv"))
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")

@@ -8,7 +8,9 @@ type Event struct {
 	ID                   uint       `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
 	EventroID            string     `gorm:"column:eventro_id;uniqueIndex" json:"eventroId"`
 	Name                 string     `gorm:"column:name;not null" json:"name"`
+	NameSv               *string    `gorm:"column:name_sv" json:"nameSv,omitempty"` // Nullable: Swedish translation
 	Description          *string    `gorm:"column:description" json:"description,omitempty"`
+	DescriptionSv        *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 	Location             string     `gorm:"column:location;not null" json:"location"`
 	Food                 *string    `gorm:"column:food" json:"food,omitempty"`
 	EventStart           time.Time  `gorm:"column:event_start;not null" json:"eventStart"`
