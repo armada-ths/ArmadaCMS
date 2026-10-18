@@ -21,4 +21,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Test release and HTTP verification
-        run: python3 -m unittest discover -s scripts/tests -v
+        run: python3 -m unittest discover -s scripts/tests -t . -v

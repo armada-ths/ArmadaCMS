@@ -1,17 +1,18 @@
+"""Verify commit-bound release ordering, conflict detection and recovery."""
 import copy
 import json
-import sys
 import unittest
-from pathlib import Path
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from release import ApiError, Cloud, Config, GitHub, Release, ReleaseError, TAG, preview_tls
+from scripts.release import (
+    TAG, ApiError, Cloud, Config, GitHub, JsonObject, Release, ReleaseError, preview_tls,
+)
+from scripts.smoke_test import SmokeError
 
 COMMIT = "a" * 40
 
 
-def config(branch="main", attempt="1"):
+def config(branch: str = "main", attempt: str = "1") -> Config:
     return Config(branch, COMMIT, "123456", attempt)
 
 
@@ -28,28 +29,28 @@ def registry_command(args):
 
 class Clock:
     def __init__(self):
-        self.now = 0
+        self.now = 0.0
 
-    def __call__(self):
+    def __call__(self) -> float:
         return self.now
 
-    def sleep(self, duration):
+    def sleep(self, duration: float) -> None:
         self.now += duration
 
 
 class API:
     """Stateful Cloud Run API fake, including CAS, pending traffic and ambiguous writes."""
-    def __init__(self, cfg):
+    def __init__(self, cfg: Config):
         self.config = cfg
         self.events = []
-        self.calls = []
+        self.calls: list[tuple[str, str, JsonObject | None]] = []
         self.sequence = 0
-        self.failure = None
+        self.failure: str | None = None
         self.deny = False
         self.bad_digest = False
         self.async_operations = False
         self.deny_operations = False
-        self.service = {
+        self.service: JsonObject = {
             "name": f"projects/{cfg.project}/locations/{cfg.region}/services/{cfg.service}",
             "etag": "service-0", "uid": "output-only", "latestReadyRevision": "old",
             "ingress": "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" if cfg.preview_url else "INGRESS_TRAFFIC_ALL",
@@ -58,16 +59,18 @@ class API:
             "traffic": [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", "percent": 100}],
             "trafficStatuses": [{"revision": "old", "percent": 100}],
         }
-        self.worker = {
+        self.worker: JsonObject = {
             "name": f"projects/{cfg.project}/locations/{cfg.region}/jobs/{cfg.worker}",
             "etag": "worker-0", "runExecutionToken": "never-replay", "generation": "1",
             "template": {"taskCount": 1, "template": {"serviceAccount": "runtime@example.iam.gserviceaccount.com",
                          "containers": [{"image": OLD, "env": [{"name": "SECRET", "value": "do-not-persist"}]}]}},
         }
 
-    def __call__(self, method, url, token, data=None):
+    def __call__(self, method: str, url: str, token: str, data: JsonObject | None = None) -> JsonObject:
+        del token
         self.calls.append((method, url, copy.deepcopy(data)))
         if ":testIamPermissions" in url:
+            assert data is not None, "IAM permission checks require a request body"
             if self.deny_operations and "cloudresourcemanager.googleapis.com" in url:
                 return {"permissions": []}
             return {"permissions": [] if self.deny else data["permissions"]}
@@ -83,6 +86,7 @@ class API:
             return copy.deepcopy(value)
         if method != "PATCH":
             raise AssertionError((method, url))
+        assert data is not None, "PATCH requires a request body"
         if data.get("etag") != value["etag"]:
             raise ApiError(409)
         is_worker = value is self.worker
@@ -294,7 +298,6 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(records[-1]["rollback"], "verified")
 
     def test_preview_smoke_error_retains_safe_diagnostic_and_rolls_back(self):
-        from smoke_test import SmokeError
         release, snapshot, api, check, _, records = self.flow()
         check.side_effect = SmokeError("CMS smoke test failed: Admin asset is not served by this CMS")
         with self.assertRaisesRegex(ReleaseError, "verifying_preview.*Admin asset is not served"):
@@ -377,17 +380,17 @@ class ReleaseTests(unittest.TestCase):
     def test_external_config_and_traffic_are_not_overwritten(self):
         for change in ("traffic", "service", "worker", "tag"):
             release, snapshot, api, check, _, records = self.flow()
-            def verify(url, *args):
-                if url == release.config.live_url and args:
-                    if change == "traffic":
-                        api.service["traffic"] = [{"revision": "external", "percent": 100}]
-                        api.service["trafficStatuses"] = copy.deepcopy(api.service["traffic"])
-                    elif change == "service":
-                        api.service["ingress"] = "INGRESS_TRAFFIC_INTERNAL_ONLY"
-                    elif change == "worker":
-                        api.worker["template"]["taskCount"] = 9
+            def verify(url, *args, current_release=release, current_change=change, current_api=api):
+                if url == current_release.config.live_url and args:
+                    if current_change == "traffic":
+                        current_api.service["traffic"] = [{"revision": "external", "percent": 100}]
+                        current_api.service["trafficStatuses"] = copy.deepcopy(current_api.service["traffic"])
+                    elif current_change == "service":
+                        current_api.service["ingress"] = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+                    elif current_change == "worker":
+                        current_api.worker["template"]["taskCount"] = 9
                     else:
-                        api.service["traffic"].append({"revision": "external", "tag": TAG, "percent": 0})
+                        current_api.service["traffic"].append({"revision": "external", "tag": TAG, "percent": 0})
                     raise RuntimeError()
             check.side_effect = verify
             with self.subTest(change=change), self.assertRaises(ReleaseError):
@@ -427,8 +430,12 @@ class ReleaseTests(unittest.TestCase):
         release, snapshot, api, _, _, _ = self.flow()
         release.execute(snapshot)
         patches = [call for call in api.calls if call[0] == "PATCH"]
-        self.assertTrue(all(call[2].get("etag") for call in patches))
-        self.assertTrue(all("uid" not in call[2] and "runExecutionToken" not in call[2] for call in patches))
+        self.assertTrue(patches)
+        for _, _, payload in patches:
+            assert payload is not None
+            self.assertTrue(payload.get("etag"))
+            self.assertNotIn("uid", payload)
+            self.assertNotIn("runExecutionToken", payload)
         self.assertEqual(api.service["template"]["containers"][0]["env"][0]["value"], "do-not-persist")
         self.assertTrue("updateMask=" in patches[0][1])
 
@@ -476,7 +483,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotEqual(config().revision, config(attempt="2").revision)
 
     def test_tls_dns_and_certificate_errors_stop_preflight(self):
-        with patch("release.socket.create_connection", side_effect=OSError("DNS failed")):
+        with patch("scripts.release.socket.create_connection", side_effect=OSError("DNS failed")):
             with self.assertRaises(ReleaseError):
                 preview_tls("https://preview.cms.armada.nu")
 
@@ -499,7 +506,7 @@ class ReleaseTests(unittest.TestCase):
 
     def test_external_worker_update_during_live_check_never_reports_success(self):
         release, snapshot, api, check, _, records = self.flow()
-        def verify(url, *args):
+        def verify(url, *_args):
             if url == release.config.live_url:
                 api.worker["etag"] = "external"
                 api.worker["template"]["taskCount"] = 7

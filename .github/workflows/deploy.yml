@@ -58,7 +58,7 @@ jobs:
           persist-credentials: false
       - name: Validate target and branch head
         id: target
-        run: python3 scripts/release.py target
+        run: python3 -m scripts.release target
       - name: Validate federation connection
         env:
           WIF_PROVIDER: ${{ env.BUILD_WIF_PROVIDER }}
@@ -129,7 +129,7 @@ jobs:
           persist-credentials: false
       - name: Validate target and branch head
         id: target
-        run: python3 scripts/release.py target --result "$RESULT"
+        run: python3 -m scripts.release target --result "$RESULT"
       - name: Validate federation connection
         env:
           WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -150,7 +150,7 @@ jobs:
       - name: Prepare recovery snapshot
         env:
           IMAGE: ${{ needs.build.outputs.image }}
-        run: python3 scripts/release.py prepare --image "$IMAGE" --snapshot "$SNAPSHOT" --result "$RESULT"
+        run: python3 -m scripts.release prepare --image "$IMAGE" --snapshot "$SNAPSHOT" --result "$RESULT"
       - name: Persist recovery snapshot before changing Cloud Run
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -159,7 +159,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Verify preview, promote or restore
-        run: python3 scripts/release.py deploy --snapshot "$SNAPSHOT" --result "$RESULT"
+        run: python3 -m scripts.release deploy --snapshot "$SNAPSHOT" --result "$RESULT"
       - name: Publish release result
         if: always() && steps.target.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

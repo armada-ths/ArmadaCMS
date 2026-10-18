@@ -1,16 +1,17 @@
+"""Exercise CLI dispatch and failure handling without external services."""
 import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import release
-from test_release import COMMIT, NEW, config
+from scripts import release
+from scripts.tests.test_release import NEW, config
 
 
 class EntrypointTests(unittest.TestCase):
@@ -39,11 +40,12 @@ class EntrypointTests(unittest.TestCase):
         code, flow, result = self.invoke("prepare")
         self.assertEqual(code, 0)
         flow.prepare.assert_called_once_with(NEW)
+        assert result is not None
         self.assertEqual(result["phase"], "prepared")
         self.assertNotIn("not-persisted", json.dumps(result))
 
     def test_prepare_failure_does_not_produce_success(self):
-        code, flow, result = self.invoke("prepare", failure=release.ApiError(403))
+        code, _, result = self.invoke("prepare", failure=release.ApiError(403))
         self.assertEqual(code, 1)
         self.assertIsNone(result)
 
@@ -60,8 +62,18 @@ class EntrypointTests(unittest.TestCase):
     def test_target_initializes_failure_result_and_build_outputs(self):
         code, flow, result = self.invoke("target")
         self.assertEqual(code, 0)
+        assert result is not None
         self.assertEqual(result["phase"], "awaiting_build")
         flow.execute.assert_not_called()
+
+    def test_module_entrypoints_import_cleanly_without_external_services(self):
+        root = Path(__file__).resolve().parents[2]
+        for module in ("scripts.release", "scripts.smoke_test"):
+            with self.subTest(module=module):
+                result = subprocess.run([sys.executable, "-B", "-m", module, "--help"],
+                                        cwd=root, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("usage:", result.stdout)
 
     def test_fork_and_nonpush_events_are_rejected(self):
         for repo, event in (("fork/ArmadaCMS", "push"), ("armada-ths/ArmadaCMS", "pull_request"),

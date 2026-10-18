@@ -1,17 +1,14 @@
 """Credential caching never assumes a newly-issued or fixed-lifetime token."""
 import json
-import sys
 import unittest
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import Mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from release import ApiError, Cloud, ReleaseError
-from test_release import Clock, config
+from scripts.release import ApiError, Cloud, ReleaseError
+from scripts.tests.test_release import Clock, config
 
 
-def credential(token="secret-token", expiry=600):
+def credential(token: str = "secret-token", expiry: float | None = 600) -> str:
     value = datetime.fromtimestamp(expiry, timezone.utc).isoformat() if expiry is not None else ""
     return json.dumps({"credential": {"access_token": token, "token_expiry": value}})
 

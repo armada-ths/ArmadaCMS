@@ -1,32 +1,41 @@
+"""Check HTTP identity, API pagination and real admin asset responses."""
 import json
-import sys
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from collections.abc import Callable
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from smoke_test import SmokeError, smoke
-from test_release import Clock
+from scripts.smoke_test import SmokeError, smoke
+from scripts.tests.test_release import Clock
 
 COMMIT = "a" * 40
+
+
+HttpResponse = tuple[int, dict[str, str], bytes]
+
+
+class SmokeHTTPServer(ThreadingHTTPServer):
+    """Local server with a replaceable, typed response callback."""
+    responses: Callable[[str], HttpResponse]
 
 
 class SmokeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
+            def log_message(self, *_args: object, **_kwargs: object) -> None:
                 pass
 
             def do_GET(self):
-                status, headers, body = self.server.responses(self.path)
+                server = self.server
+                assert isinstance(server, SmokeHTTPServer)
+                status, headers, body = server.responses(self.path)
                 self.send_response(status)
                 for key, value in headers.items():
                     self.send_header(key, value)
                 self.end_headers()
                 self.wfile.write(body)
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        cls.server = SmokeHTTPServer(("127.0.0.1", 0), Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.url = "http://127.0.0.1:" + str(cls.server.server_port)
@@ -85,14 +94,14 @@ class SmokeTests(unittest.TestCase):
 
     def test_missing_headers_invalid_json_and_pagination_are_rejected(self):
         for defect in ("range", "json", "pagination", "content-type"):
-            def response(path):
+            def response(path, current_defect=defect):
                 status, headers, body = self.response(path)
                 if path.startswith("/api/v1/"):
-                    if defect == "range":
+                    if current_defect == "range":
                         headers.pop("Content-Range")
-                    elif defect == "json":
+                    elif current_defect == "json":
                         body = b"not-json"
-                    elif defect == "pagination":
+                    elif current_defect == "pagination":
                         body = b"[{},{}]"
                     else:
                         headers["Content-Type"] = "text/html"
@@ -104,11 +113,11 @@ class SmokeTests(unittest.TestCase):
 
     def test_missing_asset_and_spa_fallback_are_rejected(self):
         for defect in ("missing", "fallback", "empty"):
-            def response(path):
+            def response(path, current_defect=defect):
                 if path.endswith(".js"):
-                    if defect == "missing":
+                    if current_defect == "missing":
                         return 404, {}, b"missing"
-                    if defect == "empty":
+                    if current_defect == "empty":
                         return 200, {"Content-Type": "text/javascript"}, b""
                     return self.response("/admin/")
                 return self.response(path)
@@ -119,7 +128,7 @@ class SmokeTests(unittest.TestCase):
 
     def test_one_deadline_covers_all_requests_and_retries(self):
         calls = []
-        def get(url, timeout):
+        def get(_url, timeout):
             calls.append(timeout)
             self.clock.sleep(0.6)
             raise OSError("network unavailable")
@@ -163,10 +172,10 @@ class SmokeTests(unittest.TestCase):
 
     def test_unexpected_external_stylesheet_is_rejected(self):
         for url in ("https://other.invalid/app.css", "https://fonts.googleapis.com.evil.invalid/css2"):
-            def response(path):
+            def response(path, stylesheet_url=url):
                 status, headers, body = self.response(path)
                 if path == "/admin/":
-                    body += f'<link rel="stylesheet" href="{url}">'.encode()
+                    body += f'<link rel="stylesheet" href="{stylesheet_url}">'.encode()
                 return status, headers, body
             self.clock = Clock()
             self.server.responses = response

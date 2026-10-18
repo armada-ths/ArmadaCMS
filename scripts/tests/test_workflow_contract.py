@@ -1,7 +1,6 @@
 """Security/release boundaries and executable aggregate job contracts."""
 import itertools
 import os
-import re
 import shutil
 import tempfile
 import subprocess
@@ -35,8 +34,8 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotIn("needs:", build)
         self.assertNotIn("    environment:", build)
         self.assertNotIn("vars.GCP_DEPLOY_SERVICE_ACCOUNT", build)
-        self.assertNotIn("release.py prepare", build)
-        self.assertNotIn("release.py deploy", build)
+        self.assertNotIn("scripts.release prepare", build)
+        self.assertNotIn("scripts.release deploy", build)
         self.assertIn("CMS_PRODUCTION_BUILD_WIF_PROVIDER", build)
         self.assertIn("CMS_STAGING_BUILD_SERVICE_ACCOUNT", build)
         self.assertIn("image: ${{ steps.target.outputs.repository }}@${{ steps.build.outputs.digest }}", build)

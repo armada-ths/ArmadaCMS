@@ -13,11 +13,16 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any, TypedDict
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
-from smoke_test import SmokeError, smoke
+from .smoke_test import SmokeError, smoke
+
+
+# Cloud Run payloads have heterogeneous JSON values at the API boundary.
+JsonObject = dict[str, Any]
 
 
 class ReleaseError(RuntimeError):
@@ -25,20 +30,20 @@ class ReleaseError(RuntimeError):
 
 
 class ConflictError(ReleaseError):
-    def __init__(self, *kinds):
+    def __init__(self, *kinds: str):
         self.kinds = set(kinds)
         super().__init__("Resource was changed by another actor")
 
 
 class ApiError(ReleaseError):
-    def __init__(self, status, method=None, url=None):
+    def __init__(self, status: int, method: str | None = None, url: str | None = None):
         self.status = status
         endpoint = urlsplit(url) if url else None
         context = f" ({method} {endpoint.hostname}{endpoint.path})" if endpoint else ""
         super().__init__("Remote API returned HTTP " + str(status) + context)
 
 
-def command(args):
+def command(args: list[str]) -> str:
     try:
         result = subprocess.run(args, capture_output=True, text=True, check=False, timeout=240)
     except subprocess.TimeoutExpired:
@@ -49,7 +54,7 @@ def command(args):
     return result.stdout.strip()
 
 
-def request(method, url, token, data=None):
+def request(method: str, url: str, token: str, data: JsonObject | None = None) -> JsonObject:
     encoded = json.dumps(data).encode() if data is not None else None
     req = Request(url, data=encoded, method=method, headers={
         "Authorization": "Bearer " + token,
@@ -69,12 +74,24 @@ def request(method, url, token, data=None):
         raise ReleaseError("Remote API request failed") from None
 
 
-TARGETS = json.loads(Path(__file__).with_name("release-targets.json").read_text(encoding="utf-8"))
+class Target(TypedDict):
+    """Fixed release destination, shared by configuration and identity checks."""
+    environment: str
+    project: str
+    region: str
+    service: str
+    worker: str
+    live_url: str
+    preview_url: str
+    repository: str
+
+
+TARGETS: dict[str, Target] = json.loads(Path(__file__).with_name("release-targets.json").read_text(encoding="utf-8"))
 TAG = "release-preview"
 
 
 class Config:
-    def __init__(self, branch, commit, run_id, attempt):
+    def __init__(self, branch: str, commit: str, run_id: str, attempt: str):
         if branch not in TARGETS:
             raise ReleaseError("Unsupported release branch")
         if not re.fullmatch(r"[a-f0-9]{40}", commit):
@@ -83,33 +100,40 @@ class Config:
             raise ReleaseError("Invalid Actions run identity")
         self.branch, self.commit = branch, commit
         self.release_id = f"gha-{run_id}-{attempt}"
-        for name, value in TARGETS[branch].items():
-            setattr(self, name, value)
+        target = TARGETS[branch]
+        self.environment_name = target["environment"]
+        self.project = target["project"]
+        self.region = target["region"]
+        self.service = target["service"]
+        self.worker = target["worker"]
+        self.live_url = target["live_url"]
+        self.preview_url = target["preview_url"]
+        self.repository = target["repository"]
         self.revision = self.service + "-" + self.release_id
         if len(self.revision) > 63:
             raise ReleaseError("Revision name exceeds Cloud Run limit")
         self.run_url = f"https://github.com/armada-ths/ArmadaCMS/actions/runs/{run_id}/attempts/{attempt}"
 
     @classmethod
-    def environment(cls):
+    def environment(cls) -> "Config":
         if os.environ.get("GITHUB_REPOSITORY") != "armada-ths/ArmadaCMS" or os.environ.get("GITHUB_EVENT_NAME") != "push":
             raise ReleaseError("Release requires a push in the expected repository")
         return cls(*(os.environ.get(key, "") for key in
                      ("GITHUB_REF_NAME", "GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")))
 
-    def image(self, value):
+    def image(self, value: str) -> str:
         if not re.fullmatch(re.escape(self.repository) + r"@sha256:[a-f0-9]{64}", value):
             raise ReleaseError("A verified image digest from the target repository is required")
         return value
 
-    def identity(self):
+    def identity(self) -> dict[str, str]:
         return {"release_id": self.release_id, "commit": self.commit, "branch": self.branch,
                 "service": self.service, "project": self.project, "region": self.region,
                 "revision": self.revision, "run_url": self.run_url}
 
 
 class GitHub:
-    def __init__(self, config, token, *, api=request):
+    def __init__(self, config: Config, token: str, *, api=request):
         self.config, self.token, self.api = config, token, api
 
     def current(self):
@@ -154,11 +178,12 @@ class Cloud:
     JOB_FIELDS = ("name", "labels", "annotations", "client", "clientVersion",
                   "launchStage", "binaryAuthorization", "template")
 
-    def __init__(self, config, *, run=command, api=request, clock=time.monotonic, sleep=time.sleep,
+    def __init__(self, config: Config, *, run=command, api=request, clock=time.monotonic, sleep=time.sleep,
                  wall_clock=time.time):
         self.config, self.run, self.api = config, run, api
         self.clock, self.sleep, self.wall_clock = clock, sleep, wall_clock
-        self._token, self._token_deadline = None, 0
+        self._token: str | None = None
+        self._token_deadline = 0.0
         self.parent = f"projects/{config.project}/locations/{config.region}"
 
     def access_token(self, *, force_refresh=False):
@@ -189,7 +214,7 @@ class Cloud:
         self._token, self._token_deadline = token, self.clock() + remaining
         return token
 
-    def call(self, method, url, data=None):
+    def call(self, method: str, url: str, data: JsonObject | None = None) -> JsonObject:
         token = self.access_token()
         try:
             return self.api(method, url, token, data)
@@ -204,13 +229,13 @@ class Cloud:
         name = self.config.service if kind == "services" else self.config.worker
         return f"https://run.googleapis.com/v2/{self.parent}/{kind}/{name}"
 
-    def service(self):
+    def service(self) -> JsonObject:
         return self.call("GET", self.resource("services"))
 
-    def worker(self):
+    def worker(self) -> JsonObject:
         return self.call("GET", self.resource("jobs"))
 
-    def stable(self, kind):
+    def stable(self, kind: str) -> JsonObject:
         deadline = self.clock() + 240
         while True:
             value = self.call("GET", self.resource(kind))
@@ -223,7 +248,7 @@ class Cloud:
             self.sleep(2)
 
     @staticmethod
-    def traffic(service, *, desired=False):
+    def traffic(service: JsonObject, *, desired: bool = False) -> dict[str, int]:
         result = {}
         for target in service.get("traffic" if desired else "trafficStatuses", []):
             percent = target.get("percent", 0)
@@ -240,7 +265,7 @@ class Cloud:
         return result
 
     @staticmethod
-    def tags(service):
+    def tags(service: JsonObject) -> dict[str, str]:
         targets = service.get("traffic", [])
         result = {}
         for target in targets:
@@ -254,18 +279,18 @@ class Cloud:
         return result
 
     @staticmethod
-    def routes(traffic, tags):
+    def routes(traffic: dict[str, int], tags: dict[str, str]) -> list[JsonObject]:
         return ([{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": revision, "percent": percent}
                  for revision, percent in sorted(traffic.items())] +
                 [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": revision, "tag": tag, "percent": 0}
                  for tag, revision in sorted(tags.items())])
 
     @staticmethod
-    def worker_image(worker):
+    def worker_image(worker: JsonObject) -> str:
         return worker["template"]["template"]["containers"][0]["image"]
 
     @classmethod
-    def config_hash(cls, value, kind):
+    def config_hash(cls, value: JsonObject, kind: str) -> str:
         fields = cls.SERVICE_FIELDS if kind == "services" else cls.JOB_FIELDS
         selected = copy.deepcopy({key: value[key] for key in fields if key in value})
         template = selected["template"] if kind == "services" else selected["template"]["template"]
@@ -317,7 +342,7 @@ class Cloud:
         if operation.get("error"):
             raise ReleaseError("Cloud Run operation failed")
 
-    def patch(self, kind, expected, changes):
+    def patch(self, kind: str, expected: JsonObject, changes: JsonObject) -> JsonObject:
         current = self.stable(kind)
         if current["etag"] != expected["etag"]:
             raise ConflictError(kind)
@@ -386,11 +411,12 @@ class Cloud:
 
 
 class Release:
-    def __init__(self, config, github, cloud, *, check=smoke, tls=preview_tls, save=lambda value: None):
+    def __init__(self, config: Config, github: GitHub, cloud: Cloud, *,
+                 check=smoke, tls=preview_tls, save=lambda value: None):
         self.config, self.github, self.cloud = config, github, cloud
         self.check, self.tls, self.save = check, tls, save
 
-    def prepare(self, image):
+    def prepare(self, image: str) -> JsonObject:
         self.config.image(image)
         self.github.current()
         service, worker = self.cloud.stable("services"), self.cloud.stable("jobs")
@@ -416,7 +442,7 @@ class Release:
                     "worker_config_hash": self.cloud.config_hash(worker, "jobs")}
         return snapshot
 
-    def verify_snapshot(self, snapshot):
+    def verify_snapshot(self, snapshot: JsonObject) -> tuple[JsonObject, JsonObject]:
         if any(snapshot.get(key) != value for key, value in self.config.identity().items()):
             raise ReleaseError("Snapshot belongs to a different release")
         self.config.image(snapshot["image"])
@@ -478,8 +504,8 @@ class Release:
                 errors.append("recovery_verification_failed")
         return errors
 
-    def execute(self, snapshot):
-        result = {**self.config.identity(), "image": snapshot.get("image"),
+    def execute(self, snapshot: JsonObject) -> JsonObject:
+        result: JsonObject = {**self.config.identity(), "image": snapshot.get("image"),
                   "phase": "starting", "rollback": "not_needed"}
         def record(phase):
             result["phase"] = phase
