@@ -311,6 +311,7 @@ GitHub Actions are pinned to full commit SHAs with version comments. Dependabot 
 CI and deployments run in GitHub Actions.
 
 - Go, frontend and local Supabase checks run directly on pull requests and are called as reusable workflows by the main/staging push workflow. Internal path filters retain explicit aggregate results when work is intentionally skipped.
+- Supabase CI builds and starts the backend container, resets the local database, reports migration status, checks API health, and runs the Storage upload/download/cleanup integration test inside that same container. The test reuses its Go/libvips installation and mounted caches; the runner does not install Go or libvips for this job.
 - CodeQL analyzes Actions, JavaScript/TypeScript and Go on PRs, release pushes and its own schedule.
 - Release regression tests use Python's standard library and simulate Cloud Run/API failures; the HTTP tests use a local server.
 - PR container validation builds the production Dockerfile without GCP credentials, publishing or deployment.
@@ -318,6 +319,10 @@ CI and deployments run in GitHub Actions.
 ### Verified releases
 
 The shared deployment workflow requires successful Go, frontend, Supabase, CodeQL and release checks for its own source commit. The release job uses the corresponding GitHub Environment, an environment-specific concurrency group, and OIDC Workload Identity Federation to impersonate a narrowly scoped GCP deploy identity. A new push does not interrupt an active release. Repository activation variables control whether each environment deploys; an inactive environment still runs CI.
+
+The image build runs in parallel with all five CI workflows. A branch-specific build identity can publish only to the shared Artifact Registry; it cannot update Cloud Run or impersonate the runtime account. Build connection values are repository variables, while deployment connection values belong to the protected GitHub Environment. Only the release job creates an Environment deployment, and it requires successful CI and image publication before accessing Cloud Run. Newer builds may cancel obsolete builds, but never an ongoing release.
+
+CodeQL caches downloaded Go modules while still compiling source for analysis. Cloud Run API calls reuse an in-memory GCP token until one minute before its reported expiry, refresh on authentication rejection once, and never log or persist credentials. Missing expiry disables token reuse; invalid or expired credentials stop the release.
 
 The production Docker image embeds its commit SHA. Each Actions run/attempt publishes a unique tag, and the service and photo worker use the same immutable registry digest. Buildx registry caches are separate for staging and production. The source branch is checked before building, while preparing recovery, and immediately before activation; an obsolete commit cannot be promoted.
 

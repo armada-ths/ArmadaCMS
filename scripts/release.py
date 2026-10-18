@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
@@ -153,13 +154,51 @@ class Cloud:
     JOB_FIELDS = ("name", "labels", "annotations", "client", "clientVersion",
                   "launchStage", "binaryAuthorization", "template")
 
-    def __init__(self, config, *, run=command, api=request, clock=time.monotonic, sleep=time.sleep):
+    def __init__(self, config, *, run=command, api=request, clock=time.monotonic, sleep=time.sleep,
+                 wall_clock=time.time):
         self.config, self.run, self.api = config, run, api
-        self.clock, self.sleep = clock, sleep
+        self.clock, self.sleep, self.wall_clock = clock, sleep, wall_clock
+        self._token, self._token_deadline = None, 0
         self.parent = f"projects/{config.project}/locations/{config.region}"
 
+    def access_token(self, *, force_refresh=False):
+        if not force_refresh and self._token and self.clock() < self._token_deadline:
+            return self._token
+        self._token, self._token_deadline = None, 0
+        # Capture only credential fields; never persist or log tokens/configuration.
+        refresh = "--force-auth-refresh" if force_refresh else "--min-expiry=300"
+        raw = self.run(["gcloud", "config", "config-helper", refresh,
+                        "--format=json(credential.access_token,credential.token_expiry)"])
+        try:
+            credential = json.loads(raw)["credential"]
+            token = credential["access_token"]
+            expiry = credential.get("token_expiry")
+            if not isinstance(token, str) or not token.strip():
+                raise ValueError()
+            remaining = 0
+            if expiry:
+                expires = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+                if expires.tzinfo is None:
+                    raise ValueError()
+                remaining = expires.timestamp() - self.wall_clock() - 60
+                if remaining <= 0:
+                    raise ValueError()
+        except (KeyError, TypeError, ValueError, AttributeError):
+            raise ReleaseError("Google Cloud credential or expiry is invalid") from None
+        # If expiry is unavailable, use the token once and never assume its lifetime.
+        self._token, self._token_deadline = token, self.clock() + remaining
+        return token
+
     def call(self, method, url, data=None):
-        return self.api(method, url, self.run(["gcloud", "auth", "print-access-token"]), data)
+        token = self.access_token()
+        try:
+            return self.api(method, url, token, data)
+        except ApiError as error:
+            if error.status != 401:
+                raise
+            # Authentication rejection happens before mutation; retry once with a fresh token.
+            self._token, self._token_deadline = None, 0
+            return self.api(method, url, self.access_token(force_refresh=True), data)
 
     def resource(self, kind):
         name = self.config.service if kind == "services" else self.config.worker

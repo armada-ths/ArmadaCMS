@@ -54,6 +54,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          # Cache downloaded Go modules, not compiled objects needed for extraction.
+          dependency-caching: ${{ matrix.language == 'go' && 'true' || 'false' }}
       - name: Build Go packages for analysis
         if: matrix.language == 'go'
         env:

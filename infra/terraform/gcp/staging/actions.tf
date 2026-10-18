@@ -68,3 +68,43 @@ removed {
   from = google_secret_manager_secret_version.github_app_private_key
   lifecycle { destroy = false }
 }
+
+# Builds run on trusted branch pushes before deployment Environment approval.
+resource "google_iam_workload_identity_pool_provider" "github_build" {
+  count                              = var.enable_actions_deployment ? 1 : 0
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github[0].workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-build"
+  attribute_mapping = {
+    "google.subject" = "assertion.sub"
+  }
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == '6577346'",
+    "assertion.repository_id == '961605060'",
+    "assertion.ref == 'refs/heads/staging'",
+    "assertion.event_name == 'push'",
+    "assertion.sub == 'repo:armada-ths/ArmadaCMS:ref:refs/heads/staging'",
+    "assertion.workflow_ref == 'armada-ths/ArmadaCMS/.github/workflows/deploy.yml@refs/heads/staging'",
+  ])
+  oidc { issuer_uri = "https://token.actions.githubusercontent.com" }
+}
+
+resource "google_service_account_iam_member" "github_build" {
+  count              = var.enable_actions_deployment ? 1 : 0
+  service_account_id = google_service_account.build[0].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/subject/repo:armada-ths/ArmadaCMS:ref:refs/heads/staging"
+}
+
+output "github_build_repository_variables" {
+  description = "Non-secret repository connection values for the registry-only build identity."
+  value = var.enable_actions_deployment ? {
+    CMS_STAGING_BUILD_WIF_PROVIDER    = google_iam_workload_identity_pool_provider.github_build[0].name
+    CMS_STAGING_BUILD_SERVICE_ACCOUNT = google_service_account.build[0].email
+  } : {}
+}
+
+moved {
+  from = google_artifact_registry_repository_iam_member.deploy_writer
+  to   = google_artifact_registry_repository_iam_member.deploy_reader
+}

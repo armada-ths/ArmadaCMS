@@ -25,13 +25,13 @@ resource "google_service_account" "deploy" {
 
 # Deployment permissions are scoped to the repository, service and runtime identity.
 
-resource "google_artifact_registry_repository_iam_member" "deploy_writer" {
+resource "google_artifact_registry_repository_iam_member" "deploy_reader" {
   count = var.enable_actions_deployment ? 1 : 0
 
   project    = var.project_id
   location   = google_artifact_registry_repository.docker.location
   repository = google_artifact_registry_repository.docker.repository_id
-  role       = "roles/artifactregistry.writer"
+  role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${local.deploy_service_account_email}"
 }
 
@@ -70,4 +70,21 @@ resource "google_project_iam_member" "deploy_operation_reader" {
   project = var.project_id
   role    = google_project_iam_custom_role.deploy_operation_reader[0].name
   member  = "serviceAccount:${local.deploy_service_account_email}"
+}
+
+resource "google_service_account" "build" {
+  count        = var.enable_actions_deployment ? 1 : 0
+  project      = var.project_id
+  account_id   = "${var.name_prefix}-build"
+  display_name = "CMS registry-only builder"
+  description  = "Publishes release images and caches; has no Cloud Run or runtime impersonation access."
+}
+
+resource "google_artifact_registry_repository_iam_member" "build_writer" {
+  count      = var.enable_actions_deployment ? 1 : 0
+  project    = var.project_id
+  location   = google_artifact_registry_repository.docker.location
+  repository = google_artifact_registry_repository.docker.repository_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.build[0].email}"
 }

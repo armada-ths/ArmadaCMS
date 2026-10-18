@@ -23,7 +23,7 @@ NEW = REPO + "@sha256:" + "2" * 64
 def registry_command(args):
     if args[:3] == ["gcloud", "artifacts", "docker"]:
         return args[5].split("@", 1)[1] if "@" in args[5] else "sha256:" + "1" * 64
-    return "token"
+    return json.dumps({"credential": {"access_token": "token", "token_expiry": "2100-01-01T00:00:00Z"}})
 
 
 class Clock:
@@ -195,6 +195,45 @@ class ReleaseTests(unittest.TestCase):
         error = ApiError(403, "GET", "https://user:secret@run.googleapis.com/v2/operations/test?token=secret")
         self.assertNotIn("secret", str(error))
         self.assertIn("GET run.googleapis.com/v2/operations/test", str(error))
+
+    def test_missing_or_mutable_image_build_output_blocks_preparation(self):
+        for image in ("", REPO + "@", REPO + ":latest"):
+            release, _, api, _, _, _ = self.flow()
+            with self.subTest(image=image), self.assertRaises(ReleaseError):
+                release.prepare(image)
+            self.assertFalse(api.events)
+
+    def test_worker_authentication_refresh_preserves_release_order(self):
+        release, snapshot, api, _, _, records = self.flow()
+        original = api.__call__
+        denied = []
+        def authenticate(method, url, token, data=None):
+            if method == "PATCH" and "/jobs/" in url and not denied:
+                denied.append(True)
+                raise ApiError(401, method, url)
+            return original(method, url, token, data)
+        release.cloud.api = authenticate
+        release.execute(snapshot)
+        self.assertEqual(api.events, ["preview", "worker-new", "traffic-new"])
+        self.assertEqual(records[-1]["phase"], "verified")
+
+    def test_repeated_worker_authentication_failure_still_restores_preview(self):
+        release, snapshot, api, _, _, records = self.flow()
+        original = api.__call__
+        denied = []
+        def authenticate(method, url, token, data=None):
+            if method == "PATCH" and "/jobs/" in url:
+                denied.append(True)
+                raise ApiError(401, method, url)
+            return original(method, url, token, data)
+        release.cloud.api = authenticate
+        with self.assertRaises(ReleaseError):
+            release.execute(snapshot)
+        self.assertEqual(len(denied), 2)
+        self.assertEqual(Cloud.traffic(api.service), {"old": 100})
+        self.assertEqual(Cloud.tags(api.service), {})
+        self.assertEqual(Cloud.worker_image(api.worker), OLD)
+        self.assertEqual(records[-1]["rollback"], "verified")
 
     def test_staging_uses_tagged_url_and_its_own_region(self):
         release, snapshot, api, check, _, _ = self.flow("staging")
@@ -395,7 +434,7 @@ class ReleaseTests(unittest.TestCase):
 
     def test_read_timeout_never_becomes_a_success(self):
         clock = Clock()
-        cloud = Cloud(config(), run=Mock(return_value="token"),
+        cloud = Cloud(config(), run=Mock(side_effect=registry_command),
                       api=Mock(return_value={"reconciling": True}), clock=clock, sleep=clock.sleep)
         with self.assertRaisesRegex(ReleaseError, "reconciling"):
             cloud.stable("services")
@@ -406,7 +445,7 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ReleaseError, "failed"):
             cloud.operation({"done": True, "error": {"message": "not logged"}})
         clock = Clock()
-        cloud = Cloud(config(), run=Mock(return_value="token"), api=Mock(return_value={"name": "operation"}),
+        cloud = Cloud(config(), run=Mock(side_effect=registry_command), api=Mock(return_value={"name": "operation"}),
                       clock=clock, sleep=clock.sleep)
         with self.assertRaisesRegex(ReleaseError, "timed out"):
             cloud.operation({"name": "operation"})

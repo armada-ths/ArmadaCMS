@@ -27,7 +27,7 @@ TLS termination instead).
 - Runtime secrets include `DB_PASSWORD`, `jwtsecret_laganda`, `EVENTRO_*`, `REVALIDATION_SECRET`, and `VERCEL_AUTOMATION_BYPASS_SECRET`. The prefixed Secret Manager IDs `armadacms-staging-SUPABASE_STORAGE_ACCESS_KEY_ID` and `armadacms-staging-SUPABASE_STORAGE_SECRET_ACCESS_KEY` are injected as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 - Plain env vars include DB settings plus `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, and `S3_REGION`, all read from `armadacms-supabase-prod` unless an explicit DB override is set.
 - Cloud Run image, generated revision name and traffic are release-owned and ignored by Terraform. Runtime configuration remains Terraform-owned.
-- Cloud Run and trusted deploys use separate runtime and deployment service accounts. Runtime can read only its own secrets; the deployer can publish images, update its Cloud Run service, update the photo worker, and act as the runtime identity through OIDC federation. Pull request container builds run in GitHub Actions without Google credentials or secrets; no PR build identity or trigger is provisioned in GCP.
+- Cloud Run releases use separate runtime, build and deployment service accounts. Runtime can read only its own secrets; the builder publishes images and caches to Artifact Registry; the deployer reads images, updates its Cloud Run service and photo worker, and acts as the runtime identity through Environment-bound OIDC federation. Pull request container builds run in GitHub Actions without Google credentials or secrets; no PR build identity or trigger is provisioned in GCP.
 
 Recovery snapshots and release outcomes are separate Actions artifacts retained for 90 days. Snapshot publication precedes every Cloud Run mutation. Actions serializes releases per environment; etags and configuration fingerprints protect against external changes.
 
@@ -94,8 +94,10 @@ production** so a leaked staging token cannot authenticate against the productio
 
 ### Deploying a new revision
 
-The staging push workflow calls CI, builds the image, persists recovery metadata, verifies the tagged preview and promotes it after verification. Terraform does not participate in normal releases.
+The staging push workflow builds the image in parallel with CI, then persists recovery metadata, verifies the tagged preview and promotes it after successful CI and verification. Terraform does not participate in normal releases.
 
 ## Release identity
 
-The `github_environment_variables` output exposes the two non-secret Actions connection values. OIDC trust permits only staging pushes from the ArmadaCMS deployment workflow and the `Staging` GitHub Environment. The deploy account can write only the shared Artifact Registry repository and update this environment's service and worker. Preview uses the tagged `run.app` address; live verification uses `staging.cms.armada.nu`.
+The `github_environment_variables` output exposes the two non-secret Actions connection values. OIDC trust permits only staging pushes from the ArmadaCMS deployment workflow and the `Staging` GitHub Environment. The deploy account reads the shared Artifact Registry repository and updates this environment's service and worker. Preview uses the tagged `run.app` address; live verification uses `staging.cms.armada.nu`.
+
+The image build uses a separate registry-only service account and branch-bound OIDC provider without a GitHub Environment deployment. The `github_build_repository_variables` output exposes its non-secret repository connection values. CI and the build run concurrently; the Environment-protected release job requires both to succeed. Only the deploy identity can change Cloud Run and impersonate the runtime account. Its Artifact Registry access is read-only.
