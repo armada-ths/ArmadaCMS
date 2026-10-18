@@ -122,7 +122,7 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
    The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
 
-   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx --yes supabase@2.118.0 db reset --local`.
+   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx supabase@2.118.0 db reset --local`.
 
 5. **Verify the app is running**
 
@@ -142,13 +142,13 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 To create a new migration, generate a diff against the current remote schema:
 
 ```bash
-pnpx --yes supabase@2.118.0 db diff -f <migration-name>
+pnpx supabase@2.118.0 db diff -f <migration-name>
 ```
 
 To validate that all migrations apply cleanly from scratch:
 
 ```bash
-pnpx --yes supabase@2.118.0 db reset --local
+pnpx supabase@2.118.0 db reset --local
 ```
 
 Roles and feature flags are seeded from `supabase/seed.sql` alongside the initial admin user (username and password: `admin`). This seed only runs in non-production contexts (new branches, `db reset`) so hardcoded credentials are acceptable.
@@ -212,7 +212,7 @@ ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and
 
   ```powershell
   $env:RUN_S3_INTEGRATION = "1"
-  $status = pnpx --yes supabase@2.118.0 status -o env
+  $status = pnpx supabase@2.118.0 status -o env
   $env:AWS_ACCESS_KEY_ID = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_ID=').Line.Split('=', 2)[1].Trim('"')
   $env:AWS_SECRET_ACCESS_KEY = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_SECRET=').Line.Split('=', 2)[1].Trim('"')
   go test -tags=integration -count=1 ./utils
@@ -223,6 +223,33 @@ ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and
   ```bash
   cd frontend && pnpm run test
   ```
+
+### PostgreSQL behavior tests
+
+The Go workflow runs two database tests in a separate PostgreSQL 17 service, and the existing `go-checks` check requires them to pass whenever Go changes. No hosted credentials are used; GitHub Actions removes the service and its data after the job.
+
+- `TestDeleteUserWithRefreshTokens`: deletes a user and their tokens, preserves other users, and verifies audit entries and rollback when deletion fails.
+- `TestPhotoGuestQuotaLifetimeAndConcurrentUploads`: verifies that deleted/rejected photos still consume quota and concurrent uploads cannot exceed it.
+
+These tests are opt-in locally: ordinary `go test` runs skip them unless their DSNs are set. They create their own limited schema with GORM and do not test the full Supabase migration history.
+
+For a local run, use a disposable PostgreSQL 17 instance with two **fresh, empty** databases named `user_delete_test` and `photo_quota_test`. For example, start a dedicated container (port 55432 avoids the local Supabase ports):
+
+```bash
+docker run --detach --rm --name armadacms-database-tests --publish 127.0.0.1:55432:5432 --env POSTGRES_PASSWORD=postgres postgres:17-alpine
+```
+
+Once `docker exec armadacms-database-tests pg_isready -U postgres -d postgres` reports ready, run the following from the repository root, with the same Go/libvips prerequisites as other backend tests:
+
+```bash
+docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE user_delete_test'
+docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE photo_quota_test'
+USER_DELETE_TEST_DSN='postgresql://postgres:postgres@localhost:55432/user_delete_test?sslmode=disable' \
+PHOTO_QUOTA_TEST_DSN='postgresql://postgres:postgres@localhost:55432/photo_quota_test?sslmode=disable' \
+go test -race -count=1 -timeout=5m -v ./Controllers -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads)$'
+```
+
+Always remove this dedicated container afterward with `docker rm --force armadacms-database-tests`, including after a failed test. Recreate it for another run; the quota test leaves data in its disposable database. Never point these tests at a shared development, staging or production database.
 
 ## API
 
@@ -281,32 +308,34 @@ Write operations automatically purge the public site's ISR cache via `utils.Reva
 
 GitHub Actions are pinned to full commit SHAs with version comments. Dependabot checks for version updates every Monday at 08:00 Europe/Stockholm, covering GitHub Actions, pnpm dependencies, Terraform providers, and Go modules. Minor and patch updates are grouped per ecosystem; major updates remain separate PRs and all updates use the existing review and CI requirements. See [the Dependabot configuration](.github/dependabot.yml).
 
-CI is handled by GitHub Actions and CD by Google Cloud Build.
+CI and deployments run in GitHub Actions.
 
-### GitHub Actions (CI)
+- Go, frontend and local Supabase checks run directly on pull requests and are called as reusable workflows by the main/staging push workflow. Internal path filters retain explicit aggregate results when work is intentionally skipped.
+- CodeQL analyzes Actions, JavaScript/TypeScript and Go on PRs, release pushes and its own schedule.
+- Release regression tests use Python's standard library and simulate Cloud Run/API failures; the HTTP tests use a local server.
+- PR container validation builds the production Dockerfile without GCP credentials, publishing or deployment.
 
-CodeQL uses the checked-in Advanced setup workflow in `.github/workflows/codeql.yml`. It analyzes Actions, JavaScript/TypeScript and Go, on pull requests to `main`/`staging` (including Dependabot), pushes to those branches, a weekly schedule, and manual dispatch. The query suite remains the CodeQL default. Actions are SHA-pinned; analysis has only source-read and security-event-upload permissions. Dependabot and fork uploads use GitHub's `pull_request` support.
+### Verified releases
 
-Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
+The shared deployment workflow requires successful Go, frontend, Supabase, CodeQL and release checks for its own source commit. The release job uses the corresponding GitHub Environment, an environment-specific concurrency group, and OIDC Workload Identity Federation to impersonate a narrowly scoped GCP deploy identity. A new push does not interrupt an active release. Repository activation variables control whether each environment deploys; an inactive environment still runs CI.
 
-- `container-build.yml` — builds `Dockerfile.prod` on every PR targeting main/staging, with a read-only GitHub token, no image publishing or deployment.
-- `codeql.yml` — Advanced CodeQL analysis, including a manual Go build with libvips.
-- `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
-- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
-- `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
+The production Docker image embeds its commit SHA. Each Actions run/attempt publishes a unique tag, and the service and photo worker use the same immutable registry digest. Buildx registry caches are separate for staging and production. The source branch is checked before building, while preparing recovery, and immediately before activation; an obsolete commit cannot be promoted.
 
-All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed. Superseded runs for the same workflow and branch or pull request are cancelled automatically, and every job has a timeout.
+Before changing Cloud Run, the workflow uploads a recovery snapshot as an Actions artifact with 90-day retention. It contains explicit previous revision traffic, the resolved worker digest, previous preview tags, resource etags, configuration fingerprints and release identities. It contains no tokens, environment dumps or raw resource configuration. Failed snapshot publication blocks deployment. A concurrent resource change after preparation also blocks deployment.
 
-### Google Cloud Build (CD)
+The release creates a unique revision with no ordinary traffic and binds the environment's fixed `release-preview` tag to it. Any `LATEST` allocation is pinned to the previously serving explicit revisions in the same update. Staging checks the tagged `run.app` address. Production checks `https://preview.cms.armada.nu` through the existing HTTPS load balancer; production ingress remains restricted to internal traffic and load balancing. The preview host is publicly reachable and uses the application's existing authorization.
 
-Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbuild.yaml).
+Read-only HTTP checks verify `/health`, the database-backed feature flag API and pagination, and admin HTML plus JavaScript/CSS entrypoints. Each check round has a shared two-minute deadline. `/health` remains database-independent and returns `X-Armada-Commit`, `X-Armada-Revision` and `Cache-Control: no-store`. HTTP smoke checks do not execute React or authenticated admin operations.
 
-- Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
-- Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- Trusted branch builds always build the commit SHA, publish that image, and deploy it.
-- The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
+After the preview passes and the branch is checked again, the worker definition is updated and verified, traffic moves to the exact tested revision, and the normal environment domain is checked. GitHub's Environment deployment succeeds only when live verification and final result publication succeed.
 
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision only the trusted branch deployment triggers; `cloudbuild.yaml` defines their build/deploy flow. PR container validation is defined in `.github/workflows/container-build.yml`.
+Preview failure restores the previous preview tag without activating worker or ordinary traffic. Activation/live failure restores and verifies previous traffic, worker digest and preview tags. Etag checks and configuration fingerprints prevent recovery from overwriting unexpected external edits. An ambiguous API failure is reconciled against observed and desired state before recovery. Older revisions without identity headers are checked functionally alongside Cloud Run traffic verification.
+
+The result artifact and Actions summary record the phase and recovery outcome; even successful rollback leaves the release failed. Failure to publish the final result marks the workflow failed without rolling back an otherwise verified release. The initial snapshot remains available independently of the final result. Forced runner termination can require operator recovery from that snapshot.
+
+Terraform owns runtime configuration, networking and federation; Actions owns release images, generated revision names, tags and traffic. Preview shares the environment's database and startup seeding. Rollback does not reverse database writes or already-running worker executions. Schema and worker changes remain backward compatible, and hosted database migration remains separate from application release.
+
+The checked-in release targets contain the fixed project, region, service, worker and URLs. Both environments use the production Artifact Registry; staging runs in `europe-north1` and production in `europe-north2`. No Cloud Build deployment trigger, GitHub App credential, release bucket or distributed lock participates in this flow.
 
 ## Operations notes
 
