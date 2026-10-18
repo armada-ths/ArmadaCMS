@@ -138,6 +138,41 @@ class SmokeTests(unittest.TestCase):
             self.check()
 
 
+    def test_google_fonts_does_not_replace_local_css_or_require_external_fetch(self):
+        calls = []
+        def response(path):
+            calls.append(path)
+            status, headers, body = self.response(path)
+            if path == "/admin/":
+                body += b'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto">'
+            return status, headers, body
+        self.server.responses = response
+        self.check(commit=COMMIT, revision="revision-new")
+        self.assertIn("/admin/assets/app.css", calls)
+        self.assertFalse(any("fonts.googleapis.com" in path for path in calls))
+
+    def test_google_fonts_alone_cannot_satisfy_css_entrypoint_check(self):
+        def response(path):
+            status, headers, body = self.response(path)
+            if path == "/admin/":
+                body = b'<div id="root"></div><script src="/app.js"></script><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto">'
+            return status, headers, body
+        self.server.responses = response
+        with self.assertRaisesRegex(SmokeError, "entrypoint assets are missing"):
+            self.check()
+
+    def test_unexpected_external_stylesheet_is_rejected(self):
+        for url in ("https://other.invalid/app.css", "https://fonts.googleapis.com.evil.invalid/css2"):
+            def response(path):
+                status, headers, body = self.response(path)
+                if path == "/admin/":
+                    body += f'<link rel="stylesheet" href="{url}">'.encode()
+                return status, headers, body
+            self.clock = Clock()
+            self.server.responses = response
+            with self.subTest(url=url), self.assertRaisesRegex(SmokeError, "not served by this CMS"):
+                self.check()
+
     def test_identified_revision_must_disable_health_caching(self):
         def response(path):
             status, headers, body = self.response(path)

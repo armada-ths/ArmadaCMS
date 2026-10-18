@@ -97,10 +97,19 @@ def smoke(base_url, commit=None, revision=None, *, timeout=120, get=fetch,
                 raise SmokeError("Admin application root is missing")
             assets = AdminAssets()
             assets.feed(html)
-            if not assets.scripts or not assets.styles:
+            # Google Fonts is optional presentation, not a CMS-built entrypoint.
+            # Require local CSS even when this external stylesheet is present.
+            styles = []
+            for path in assets.styles:
+                target = urlsplit(urljoin(base_url, path))
+                if (target.scheme == "https" and target.netloc == "fonts.googleapis.com"
+                        and target.path in ("/css", "/css2")):
+                    continue
+                styles.append(path)
+            if not assets.scripts or not styles:
                 raise SmokeError("Admin entrypoint assets are missing")
             for paths, types in ((assets.scripts, ("javascript", "ecmascript")),
-                                 (assets.styles, ("text/css",))):
+                                 (styles, ("text/css",))):
                 for path in paths:
                     headers, body = read(urljoin("admin/", path))
                     content_type = headers.get("Content-Type", "")

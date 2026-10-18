@@ -16,7 +16,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
-from smoke_test import smoke
+from smoke_test import SmokeError, smoke
 
 
 class ReleaseError(RuntimeError):
@@ -491,7 +491,7 @@ class Release:
         except Exception as error:
             # Exception text can contain URLs/configuration from an injected client.
             result["failed_phase"] = result["phase"]
-            result["error"] = str(error) if isinstance(error, ReleaseError) else type(error).__name__
+            result["error"] = str(error) if isinstance(error, (ReleaseError, SmokeError)) else type(error).__name__
             if preview_attempted:
                 try:
                     record("restoring")
@@ -547,7 +547,7 @@ def main():
         return 0
     except Exception as error:
         # No raw CLI/API responses or tracebacks in release logs.
-        print(str(error) if isinstance(error, ReleaseError) else type(error).__name__, file=sys.stderr)
+        print(str(error) if isinstance(error, (ReleaseError, SmokeError)) else type(error).__name__, file=sys.stderr)
         return 1
 
 

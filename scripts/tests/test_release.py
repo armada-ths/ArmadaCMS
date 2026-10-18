@@ -254,6 +254,17 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(Cloud.tags(api.service), {TAG: "old-tag"})
         self.assertEqual(records[-1]["rollback"], "verified")
 
+    def test_preview_smoke_error_retains_safe_diagnostic_and_rolls_back(self):
+        from smoke_test import SmokeError
+        release, snapshot, api, check, _, records = self.flow()
+        check.side_effect = SmokeError("CMS smoke test failed: Admin asset is not served by this CMS")
+        with self.assertRaisesRegex(ReleaseError, "verifying_preview.*Admin asset is not served"):
+            release.execute(snapshot)
+        self.assertEqual(records[-1]["error"], str(check.side_effect))
+        self.assertEqual(records[-1]["rollback"], "verified")
+        self.assertEqual(Cloud.traffic(api.service), {"old": 100})
+        self.assertEqual(Cloud.worker_image(api.worker), OLD)
+
     def test_preview_failure_removes_new_tag(self):
         release, snapshot, api, check, _, records = self.flow()
         check.side_effect = RuntimeError()
