@@ -47,6 +47,8 @@ class API:
         self.failure = None
         self.deny = False
         self.bad_digest = False
+        self.async_operations = False
+        self.deny_operations = False
         self.service = {
             "name": f"projects/{cfg.project}/locations/{cfg.region}/services/{cfg.service}",
             "etag": "service-0", "uid": "output-only", "latestReadyRevision": "old",
@@ -66,7 +68,13 @@ class API:
     def __call__(self, method, url, token, data=None):
         self.calls.append((method, url, copy.deepcopy(data)))
         if ":testIamPermissions" in url:
+            if self.deny_operations and "cloudresourcemanager.googleapis.com" in url:
+                return {"permissions": []}
             return {"permissions": [] if self.deny else data["permissions"]}
+        if "/operations/" in url:
+            if self.deny_operations:
+                raise ApiError(403, method, url)
+            return {"done": True}
         if "/revisions/" in url:
             image = OLD if self.bad_digest else self.service["template"]["containers"][0]["image"]
             return {"containers": [{"image": image}]}
@@ -108,6 +116,8 @@ class API:
         if self.failure == event or self.failure == "pending-traffic" and event == "traffic-new":
             self.failure = None
             raise ApiError(500)  # The server accepted the write; the client did not get success.
+        if self.async_operations:
+            return {"name": f"projects/{self.config.project}/locations/{self.config.region}/operations/test"}
         return {"done": True}
 
 
@@ -143,6 +153,48 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(api.events, ["preview", "smoke-preview", "worker-new", "traffic-new", "smoke-live"])
         self.assertEqual(records[-1]["phase"], "verified")
         self.assertEqual(github.current.call_count, 4)
+
+    def test_async_operation_status_is_polled(self):
+        release, snapshot, api, _, _, records = self.flow()
+        api.async_operations = True
+        release.execute(snapshot)
+        self.assertEqual(records[-1]["phase"], "verified")
+        polls = [url for method, url, _ in api.calls if method == "GET" and "/operations/" in url]
+        self.assertEqual(len(polls), 3)
+
+    def test_project_operation_permission_is_required_before_mutation(self):
+        release, snapshot, api, _, _, records = self.flow()
+        api.deny_operations = True
+        with self.assertRaisesRegex(ReleaseError, "run.operations.get"):
+            release.prepare(NEW)
+        with self.assertRaisesRegex(ReleaseError, "run.operations.get"):
+            release.execute(snapshot)
+        self.assertFalse(api.events)
+        self.assertEqual(records[-1]["failed_phase"], "preflight")
+        self.assertEqual(records[-1]["rollback"], "not_needed")
+
+    def test_operation_denial_after_accepted_write_reports_failed_phase(self):
+        release, snapshot, api, check, _, records = self.flow()
+        api.async_operations = True
+        original = api.__call__
+        def deny_status(method, url, token, data=None):
+            if "/operations/" in url:
+                raise ApiError(403, method, url)
+            return original(method, url, token, data)
+        release.cloud.api = deny_status
+        with self.assertRaisesRegex(ReleaseError, "deploying_preview.*HTTP 403"):
+            release.execute(snapshot)
+        self.assertEqual(Cloud.traffic(api.service), {"old": 100})
+        self.assertEqual(Cloud.worker_image(api.worker), OLD)
+        self.assertEqual(Cloud.tags(api.service), {})
+        check.assert_not_called()
+        self.assertEqual(records[-1]["failed_phase"], "deploying_preview")
+        self.assertIn("/operations/", records[-1]["error"])
+
+    def test_api_error_excludes_query_and_credentials(self):
+        error = ApiError(403, "GET", "https://user:secret@run.googleapis.com/v2/operations/test?token=secret")
+        self.assertNotIn("secret", str(error))
+        self.assertIn("GET run.googleapis.com/v2/operations/test", str(error))
 
     def test_staging_uses_tagged_url_and_its_own_region(self):
         release, snapshot, api, check, _, _ = self.flow("staging")

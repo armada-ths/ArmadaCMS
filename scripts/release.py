@@ -30,9 +30,11 @@ class ConflictError(ReleaseError):
 
 
 class ApiError(ReleaseError):
-    def __init__(self, status):
+    def __init__(self, status, method=None, url=None):
         self.status = status
-        super().__init__("Remote API returned HTTP " + str(status))
+        endpoint = urlsplit(url) if url else None
+        context = f" ({method} {endpoint.hostname}{endpoint.path})" if endpoint else ""
+        super().__init__("Remote API returned HTTP " + str(status) + context)
 
 
 def command(args):
@@ -61,7 +63,7 @@ def request(method, url, token, data=None):
     except HTTPError as error:
         status = error.code
         error.close()
-        raise ApiError(status) from None
+        raise ApiError(status, method, url) from None
     except (OSError, ValueError):
         raise ReleaseError("Remote API request failed") from None
 
@@ -235,6 +237,8 @@ class Cloud:
 
     def permissions(self, service, worker):
         checks = [
+            ("https://cloudresourcemanager.googleapis.com/v1/projects/" + self.config.project,
+             ["run.operations.get"]),
             (self.resource("services"), ["run.services.get", "run.services.update", "run.revisions.get"]),
             (self.resource("jobs"), ["run.jobs.get", "run.jobs.update"]),
         ]
@@ -248,7 +252,8 @@ class Cloud:
         for resource, permissions in checks:
             result = self.call("POST", resource + ":testIamPermissions", {"permissions": permissions})
             if not set(permissions).issubset(result.get("permissions", [])):
-                raise ReleaseError("Deployment permissions are incomplete")
+                raise ReleaseError("Deployment permissions are incomplete: " +
+                                   ", ".join(sorted(set(permissions) - set(result.get("permissions", [])))))
 
     def resolve_image(self, image):
         digest = self.run(["gcloud", "artifacts", "docker", "images", "describe", image,
@@ -445,6 +450,7 @@ class Release:
             record("preflight")
             self.github.current()
             previous, worker = self.verify_snapshot(snapshot)
+            self.cloud.permissions(previous, worker)
             if self.config.preview_url:
                 self.tls(self.config.preview_url)
             record("deploying_preview")
@@ -484,6 +490,7 @@ class Release:
             return result
         except Exception as error:
             # Exception text can contain URLs/configuration from an injected client.
+            result["failed_phase"] = result["phase"]
             result["error"] = str(error) if isinstance(error, ReleaseError) else type(error).__name__
             if preview_attempted:
                 try:
@@ -496,7 +503,8 @@ class Release:
                 result["rollback"] = "failed" if errors else "verified"
                 result["recovery_errors"] = errors
             record("failed")
-            raise ReleaseError("Release failed; rollback " + result["rollback"]) from None
+            raise ReleaseError("Release failed during " + result["failed_phase"] + ": " +
+                               result["error"] + "; rollback " + result["rollback"]) from None
 
 
 def main():

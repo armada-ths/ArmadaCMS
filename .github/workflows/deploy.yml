@@ -140,7 +140,7 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
               if path.exists():
                   result = json.loads(path.read_text())
-                  for key in ("release_id", "commit", "phase", "rollback", "recovery_errors"):
+                  for key in ("release_id", "commit", "phase", "failed_phase", "error", "rollback", "recovery_errors"):
                       stream.write(f"- {key}: {result.get(key, 'n/a')}\n")
               else:
                   stream.write("Release stopped before a result was produced; inspect the failed step.\n")

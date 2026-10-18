@@ -54,3 +54,20 @@ resource "google_service_account_iam_member" "deploy_act_as_runtime" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${local.deploy_service_account_email}"
 }
+
+# Cloud Run long-running operations are project resources, outside service/job IAM.
+resource "google_project_iam_custom_role" "deploy_operation_reader" {
+  count       = var.enable_actions_deployment ? 1 : 0
+  project     = var.project_id
+  role_id     = "${replace(var.name_prefix, "-", "_")}_operation_reader"
+  title       = "CMS release operation reader"
+  description = "Reads Cloud Run release operation status without project-wide deployment access."
+  permissions = ["run.operations.get"]
+}
+
+resource "google_project_iam_member" "deploy_operation_reader" {
+  count   = var.enable_actions_deployment ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.deploy_operation_reader[0].name
+  member  = "serviceAccount:${local.deploy_service_account_email}"
+}
