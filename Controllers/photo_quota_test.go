@@ -34,6 +34,11 @@ func TestPhotoGuestQuotaLifetimeAndConcurrentUploads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
 	previousDB := db.DB
 	db.DB = database
 	t.Cleanup(func() { db.DB = previousDB })

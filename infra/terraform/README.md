@@ -20,8 +20,8 @@ infra/terraform/
 
 | Root             | HCP Terraform workspace   | What it manages                                                   | Details                                              |
 | ---------------- | ------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
-| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Cloud Build, Secret Manager      | [`gcp/prod/README.md`](gcp/prod/README.md)           |
-| `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Cloud Build, Secret Manager | [`gcp/staging/README.md`](gcp/staging/README.md)     |
+| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager      | [`gcp/prod/README.md`](gcp/prod/README.md)           |
+| `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secret Manager | [`gcp/staging/README.md`](gcp/staging/README.md)     |
 | `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata | [`supabase/prod/README.md`](supabase/prod/README.md) |
 
 ## Cross-workspace state sharing

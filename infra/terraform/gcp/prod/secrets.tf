@@ -30,31 +30,3 @@ resource "google_secret_manager_secret_iam_member" "runtime_secret_access" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)}"
 }
-
-resource "google_secret_manager_secret" "github_app_private_key" {
-  project   = var.project_id
-  secret_id = var.github_app_private_key_secret_id
-  labels    = local.labels
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.enabled]
-}
-
-resource "google_secret_manager_secret_version" "github_app_private_key" {
-  count = local.github_app_private_key_present ? 1 : 0
-
-  secret      = google_secret_manager_secret.github_app_private_key.id
-  secret_data = var.github_app_private_key
-}
-
-resource "google_secret_manager_secret_iam_member" "cloud_build_github_app_secret_access" {
-  count = var.manage_secret_accessor_bindings ? 1 : 0
-
-  project   = var.project_id
-  secret_id = google_secret_manager_secret.github_app_private_key.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.cloud_build_service_account_email}"
-}

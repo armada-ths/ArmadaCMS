@@ -31,7 +31,7 @@ resource "google_cloud_run_v2_job" "photo_worker" {
       }
       containers {
         # Reuse the service's deployed image when creating the Job. The
-        # derived :bootstrap tag may not exist after Cloud Build takes over.
+        # derived :bootstrap tag may not exist after GitHub Actions takes over.
         image = google_cloud_run_v2_service.armadacms[0].template[0].containers[0].image
         resources { limits = { cpu = "1", memory = "1Gi" } }
         env {
@@ -62,7 +62,7 @@ resource "google_cloud_run_v2_job" "photo_worker" {
   }
 
   lifecycle {
-    # Cloud Build updates the image and gcloud client metadata during deployment.
+    # GitHub Actions updates the image and gcloud client metadata during deployment.
     ignore_changes = [
       client,
       client_version,
@@ -73,13 +73,13 @@ resource "google_cloud_run_v2_job" "photo_worker" {
   depends_on = [google_secret_manager_secret_iam_member.runtime_secret_access, google_secret_manager_secret_version.app]
 }
 
-resource "google_cloud_run_v2_job_iam_member" "cloud_build_photo_worker_developer" {
-  count    = var.manage_cloud_build_triggers && var.deploy_cloud_run_service ? 1 : 0
+resource "google_cloud_run_v2_job_iam_member" "deploy_photo_worker_developer" {
+  count    = var.enable_actions_deployment && var.deploy_cloud_run_service ? 1 : 0
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_job.photo_worker[0].name
   role     = "roles/run.developer"
-  member   = "serviceAccount:${local.cloud_build_service_account_email}"
+  member   = "serviceAccount:${local.deploy_service_account_email}"
 }
 
 resource "google_cloud_run_v2_job_iam_member" "photo_worker_invoker" {

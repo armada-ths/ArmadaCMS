@@ -1,8 +1,7 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main, staging]
+  workflow_call:
   pull_request:
     branches: [main, staging]
   schedule:
@@ -13,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-codeql-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
@@ -51,16 +50,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libvips-dev
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          # Cache downloaded Go modules, not compiled objects needed for extraction.
+          dependency-caching: ${{ matrix.language == 'go' && 'true' || 'false' }}
       - name: Build Go packages for analysis
         if: matrix.language == 'go'
         env:
           CGO_ENABLED: "1"
         run: go build ./...
       - name: Analyze code
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           category: /language:${{ matrix.language }}
