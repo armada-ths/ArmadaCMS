@@ -81,3 +81,22 @@ func TestAdminAssetExistsOnlyServesFilesInsideRoot(t *testing.T) {
 		}
 	}
 }
+
+func TestHealthIdentifiesServingRevisionWithoutDatabase(t *testing.T) {
+	t.Setenv("K_REVISION", "armadacms-release-test")
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	response := httptest.NewRecorder()
+	CreateMuxClient().ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != "OK" {
+		t.Fatalf("unexpected liveness response: %d %q", response.Code, response.Body.String())
+	}
+	for header, expected := range map[string]string{
+		"X-Armada-Commit":   buildCommit,
+		"X-Armada-Revision": "armadacms-release-test",
+		"Cache-Control":     "no-store",
+	} {
+		if got := response.Header().Get(header); got != expected {
+			t.Fatalf("%s = %q, want %q", header, got, expected)
+		}
+	}
+}

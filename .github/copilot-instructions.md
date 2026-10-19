@@ -6,6 +6,11 @@ Guidance for AI coding agents working on ArmadaCMS.
 
 See [README.md](../README.md) for full getting-started guide, project structure, and ops notes.
 
+## Documentation
+
+- Add only relevant information to README files and match the document's existing level of detail. Keep summaries concise; create or extend focused documentation in a suitable subdirectory only when the extra detail is needed.
+- Never put bootstrap instructions directly in a README. Prefer keeping one-time provisioning, permission setup and environment activation instructions outside the checked-in repository (for example, in the delivery chat). If they must be stored in the repository, use a separate file that is not a README and link to it rather than embedding the instructions.
+
 ## Architecture
 
 Go REST API (Gorilla Mux, GORM, Postgres) + React-Admin SPA in one repo. The Go server exposes:
@@ -22,6 +27,16 @@ Deployed to **Google Cloud Run** (containerised).
 ## Developer workflows
 
 **Validation policy:** Run time-consuming scripts such as builds, full test suites, linters, or type checks only when the scope or risk of the changes creates a realistic chance that they will fail and reveal an error; otherwise use targeted, lightweight checks or inspection.
+
+**Lint and editor diagnostics:** Use the checked-in configuration and run the relevant command-line checks yourself when changes warrant validation; do not require the user to copy VS Code's Problems panel. Scope checks to changed files where supported, inspect their output, and distinguish pre-existing findings from regressions. Report unavailable tools or platform dependencies instead of treating an unrun check as passed. Editor-only diagnostics may differ from CLI results.
+
+- Python: `pyright --project pyrightconfig.json` and `python -m pylint scripts` from the repo root; run `python -m unittest discover -s scripts/tests -t .` for release behavior changes. Pylint uses `.pylintrc`; Pyright/Pylance uses `pyrightconfig.json`.
+- Frontend: `pnpm run lint:check`, `pnpm run type-check`, and `pnpm run format:check` from `frontend/`. ESLint and Prettier use the existing frontend configs and installed dependencies.
+- Go: `golangci-lint run` with `.golangci.yml`, using the version in `go-checks.yml`. It needs the same Go/libvips environment as CI; the normal local backend runs in Docker.
+- Actions: `actionlint` from the repo root. Preserve SHA pins and do not suppress action-resolution errors globally to work around editor lookup failures.
+- Terraform: `terraform fmt -check -recursive infra/terraform`; validate affected environment directories when initialized, without running apply.
+
+`.editorconfig` sets shared whitespace conventions. Root JSON/YAML/Markdown files use `.prettierrc.json`; `frontend/prettier.config.js` remains the frontend formatter configuration. VS Code uses the frontend's local Prettier and TypeScript versions. Keep project-specific editor settings in `.vscode/settings.json` and preserve shared workspace settings.
 
 **Local dev (recommended):**
 

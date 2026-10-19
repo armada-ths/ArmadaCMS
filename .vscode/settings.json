@@ -1,8 +1,10 @@
 {
+  "pylint.args": ["--rcfile=${workspaceFolder}/.pylintrc"],
+  "python.analysis.diagnosticMode": "workspace",
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "prettier.prettierPath": "./frontend/node_modules/prettier",
   "files.eol": "\n",
-  "git.branchProtection": [
-    "main"
-  ],
+  "git.branchProtection": ["main"],
   "git.branchProtectionPrompt": "alwaysPrompt",
   "editor.formatOnSave": true,
   "eslint.workingDirectories": ["./frontend"],

@@ -1,22 +1,7 @@
 name: supabase checks
 
 on:
-  push:
-    branches:
-      - main
-      - staging
-    paths:
-      - "supabase/**"
-      - "docker-compose.dev.yml"
-      - "Dockerfile.dev"
-      - ".air.toml"
-      - "go.mod"
-      - "go.sum"
-      - ".env.example"
-      - "scripts/dev-*.ps1"
-      - "utils/aws_s3.go"
-      - "utils/aws_s3_integration_test.go"
-      - ".github/workflows/supabase-checks.yml"
+  workflow_call:
   pull_request:
 
 permissions:
@@ -24,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-supabase-checks-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -36,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Detect Supabase changes
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -54,6 +41,7 @@ jobs:
               - 'utils/aws_s3.go'
               - 'utils/aws_s3_integration_test.go'
               - '.github/workflows/supabase-checks.yml'
+              - '.github/workflows/deploy.yml'
 
   validate-local-runtime:
     needs: changes
@@ -66,17 +54,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install image processing libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          persist-credentials: false
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
@@ -84,7 +63,7 @@ jobs:
           version: 2.118.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Inline buildx commands need the cache service environment explicitly.
       - name: Expose GitHub Actions cache runtime
@@ -97,7 +76,7 @@ jobs:
 
       - name: Restore container Go caches
         id: container-go-cache
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.CI_GO_CACHE }}
           key: container-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Dockerfile.dev', 'go.mod', 'go.sum', '.air.toml') }}-${{ github.sha }}
@@ -209,9 +188,14 @@ jobs:
         env:
           RUN_S3_INTEGRATION: "1"
           S3_BUCKET: armadacms-files
-          S3_ENDPOINT: http://127.0.0.1:54321/storage/v1/s3
-          S3_PUBLIC_URL: http://127.0.0.1:54321/storage/v1/object/public
-        run: go test -tags=integration -count=1 ./utils
+          # Both upload and public download run inside the backend container.
+          S3_ENDPOINT: http://host.docker.internal:54321/storage/v1/s3
+          S3_PUBLIC_URL: http://host.docker.internal:54321/storage/v1/object/public
+        run: |
+          docker compose -f docker-compose.dev.yml -f "$CI_COMPOSE_OVERRIDE" exec -T \
+            --env RUN_S3_INTEGRATION --env S3_BUCKET --env S3_ENDPOINT --env S3_PUBLIC_URL \
+            --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env S3_REGION \
+            backend go test -tags=integration -count=1 -v ./utils
 
       - name: Stop backend and local Supabase
         if: always()
@@ -228,7 +212,7 @@ jobs:
 
       - name: Save container Go caches after successful validation
         if: success() && steps.container-go-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.CI_GO_CACHE }}
           key: ${{ steps.container-go-cache.outputs.cache-primary-key }}
