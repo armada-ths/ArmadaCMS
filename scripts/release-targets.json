@@ -1,0 +1,22 @@
+{
+  "main": {
+    "environment": "Production",
+    "project": "just-sunrise-491718-m9",
+    "region": "europe-north2",
+    "service": "armadacms",
+    "worker": "armadacms-photo-worker",
+    "live_url": "https://cms.armada.nu",
+    "preview_url": "https://preview.cms.armada.nu",
+    "repository": "europe-north2-docker.pkg.dev/just-sunrise-491718-m9/cloud-run-source-deploy/armadacms/armadacms"
+  },
+  "staging": {
+    "environment": "Staging",
+    "project": "just-sunrise-491718-m9",
+    "region": "europe-north1",
+    "service": "armadacms-staging",
+    "worker": "armadacms-staging-photo-worker",
+    "live_url": "https://staging.cms.armada.nu",
+    "preview_url": "",
+    "repository": "europe-north2-docker.pkg.dev/just-sunrise-491718-m9/cloud-run-source-deploy/armadacms/armadacms"
+  }
+}

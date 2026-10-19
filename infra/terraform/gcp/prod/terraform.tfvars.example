@@ -13,9 +13,9 @@ deletion_protection      = true
 cloud_run_ingress        = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
 manage_runtime_service_account     = true
-manage_cloud_build_service_account = true
+manage_deploy_service_account = true
 manage_secret_accessor_bindings    = true
-manage_cloud_build_triggers        = true
+enable_actions_deployment        = true
 
 cloud_run_cpu    = "1000m"
 cloud_run_memory = "1Gi"
@@ -28,9 +28,7 @@ vpc_subnetwork_name          = "armadacms-serverless-europe-north2"
 enable_https_load_balancer     = true
 lb_managed_certificate_domains = ["cms.example.com"]
 
-# Terraform creates Secret Manager resources but secret values are added
-# directly in GCP Secret Manager. Do not set github_app_private_key or
-# secret_values in tfvars/HCP because their contents would enter Terraform state.
+# Runtime secret values are held directly in Secret Manager, outside Terraform state.
 # Storage endpoint and bucket values come from armadacms-supabase-prod outputs.
 #
 # Example storage credential rotation:

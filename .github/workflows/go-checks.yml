@@ -1,16 +1,7 @@
 name: go checks
 
 on:
-  push:
-    branches:
-      - main
-      - staging
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".golangci.yml"
-      - ".github/workflows/go-checks.yml"
+  workflow_call:
   pull_request:
 
 permissions:
@@ -18,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-go-checks-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -30,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Detect Go changes
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -42,6 +35,7 @@ jobs:
               - 'go.sum'
               - '.golangci.yml'
               - '.github/workflows/go-checks.yml'
+              - '.github/workflows/deploy.yml'
 
   vet:
     needs: changes
@@ -51,6 +45,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -74,6 +70,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -99,6 +97,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -114,10 +114,61 @@ jobs:
       - name: Run go test
         run: go test -race -count=1 ./...
 
+  database-test:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install image processing libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+
+      - name: Create isolated test databases
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE user_delete_test'
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE photo_quota_test'
+
+      - name: Run database behavior tests
+        env:
+          USER_DELETE_TEST_DSN: postgresql://postgres:postgres@localhost:5432/user_delete_test?sslmode=disable
+          PHOTO_QUOTA_TEST_DSN: postgresql://postgres:postgres@localhost:5432/photo_quota_test?sslmode=disable
+        run: >-
+          go test -race -count=1 -timeout=5m -v ./Controllers
+          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads)$'
+
   go-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [changes, vet, lint, test]
+    needs: [changes, vet, lint, test, database-test]
     if: always()
     steps:
       - name: All checks passed or skipped
@@ -127,6 +178,7 @@ jobs:
           VET_RESULT: ${{ needs.vet.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           TEST_RESULT: ${{ needs.test.result }}
+          DATABASE_TEST_RESULT: ${{ needs.database-test.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
             echo "Go change detection did not succeed: $CHANGES_RESULT"
@@ -142,7 +194,7 @@ jobs:
             expected_result="success"
           fi
 
-          for result in "$VET_RESULT" "$LINT_RESULT" "$TEST_RESULT"; do
+          for result in "$VET_RESULT" "$LINT_RESULT" "$TEST_RESULT" "$DATABASE_TEST_RESULT"; do
             if [[ "$result" != "$expected_result" ]]; then
               echo "Unexpected Go check result: $result (expected $expected_result)."
               exit 1

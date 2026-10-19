@@ -48,7 +48,8 @@ COPY models/ ./models/
 COPY utils/ ./utils/
 
 # libvips requires CGO and a dynamically linked runtime.
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /app/server .
+ARG BUILD_COMMIT=unknown
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-X main.buildCommit=${BUILD_COMMIT}" -o /app/server .
 
 # ----------------------
 # Stage 3: Minimal production image
