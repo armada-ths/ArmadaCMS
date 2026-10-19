@@ -2,9 +2,8 @@
 
 [![CI main](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/deploy.yml?branch=main&event=push&label=CI%20main&logo=githubactions)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/deploy.yml?query=branch%3Amain)
 [![CI staging](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/deploy.yml?branch=staging&event=push&label=CI%20staging&logo=githubactions)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/deploy.yml?query=branch%3Astaging)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/codeql.yml?label=CodeQL&logo=github)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/codeql.yml)
-[![Container build](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/container-build.yml?event=pull_request&label=container%20build&logo=docker)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/container-build.yml)
-[![API status](https://img.shields.io/website?url=https%3A%2F%2Fcms.armada.nu%2Fhealth&label=CMS%20API)](https://cms.armada.nu/health)
+[![Production API status](https://img.shields.io/website?url=https%3A%2F%2Fcms.armada.nu%2Fhealth&label=CMS%20API%20production)](https://cms.armada.nu/health)
+[![Staging API status](https://img.shields.io/website?url=https%3A%2F%2Fstaging.cms.armada.nu%2Fhealth&label=CMS%20API%20staging)](https://staging.cms.armada.nu/health)
 
 [![License: MIT](https://img.shields.io/github/license/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/blob/main/license.txt)
 [![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/)
