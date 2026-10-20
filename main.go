@@ -118,7 +118,7 @@ func CreateMuxClient() http.Handler {
 	})
 
 	mux = CreateControllers(mux)
-	wrappedMux := HandleCORS(mux)
+	wrappedMux := noIndex(HandleCORS(mux))
 	return wrappedMux
 }
 func isKnownAdminClientPath(relPath string) bool {
