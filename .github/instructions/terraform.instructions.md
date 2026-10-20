@@ -14,10 +14,13 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 | `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager             |
 | `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata          |
 | `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secrets; optional VPC egress is currently disabled |
+| `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA test/assessment keys only; local execution, remote state |
 
 Workspace naming pattern: `armadacms-<provider>-<environment>`.
 
 ## GCP root — avoid local `terraform plan` (slow)
+
+The small `gcp/local` root uses local execution with the operator's Google credentials and HCP state storage. Its plans cannot modify hosted resources because it contains only the two developer reCAPTCHA keys.
 
 The GCP root uses CLI-driven remote execution. Uploading the plan to HCP Terraform from a local machine is noticeably slow in this repo. Prefer **queueing plans from the HCP Terraform UI** instead.
 

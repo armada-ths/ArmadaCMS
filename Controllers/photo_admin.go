@@ -7,6 +7,7 @@ import (
 	"ArmadaCMS/main/utils"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/skip2/go-qrcode"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func validatePhotoEvent(event models.PhotoEvent) error {
@@ -287,6 +289,8 @@ func ListEventPhotos(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(photos))
 	for _, photo := range photos {
 		item := map[string]any{"id": photo.ID, "event_id": photo.EventID, "status": photo.Status, "uploaded_at": photo.UploadedAt, "width": photo.Width, "height": photo.Height, "moderation_source": photo.ModerationSource, "ai_review_status": photo.AIReviewStatus, "ai_likelihoods": photo.AILikelihoods, "ai_checked_at": photo.AICheckedAt}
+		item["rejected_delete_at"] = photo.RejectedDeleteAt
+		item["can_restore"] = photo.CanRestore(time.Now())
 		if photo.ObjectKey != nil {
 			signed, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, 15*time.Minute)
 			if err != nil {
@@ -313,40 +317,70 @@ func ModerateEventPhoto(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid action", 400)
 		return
 	}
-	if input.Action == "approve" && (photo.Status != "pending" || photo.ObjectKey == nil) {
-		http.Error(w, "Cannot approve", http.StatusConflict)
-		return
-	}
-	if input.Action != "approve" && photo.ObjectKey != nil {
-		if err := utils.DeletePrivatePhoto(r.Context(), *photo.ObjectKey, false); err != nil {
-			http.Error(w, "Object delete failed", http.StatusServiceUnavailable)
-			return
-		}
-	}
 	if input.Action == "delete" {
-		writeDeleteResponseWithAudit[models.EventPhoto](w, r, "eventphotos", mux.Vars(r)["id"], "Photo not found", nil, nil)
+		writeDeleteResponseWithAudit[models.EventPhoto](w, r, "eventphotos", mux.Vars(r)["id"], "Photo not found", nil, func(tx *gorm.DB, current *models.EventPhoto) error {
+			var lockedPhoto models.EventPhoto
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedPhoto, photo.ID).Error; err != nil {
+				return err
+			}
+			*current = lockedPhoto
+			if current.ObjectKey != nil {
+				return utils.DeletePrivatePhoto(r.Context(), *current.ObjectKey, false)
+			}
+			return nil
+		})
 		return
 	}
-	before := photo
-	now := time.Now()
+	var before models.EventPhoto
 	userID, _ := auth.GetUserIDFromContext(r)
 	moderator := uint(userID)
-	photo.ModeratedAt, photo.ModeratedBy = &now, &moderator
 	manual := "manual"
-	photo.ModerationSource = &manual
-	if input.Action == "approve" {
-		photo.Status = "approved"
-	} else {
-		photo.Status = "rejected"
-		photo.ObjectKey = nil
-	}
-	if err := updateWithAudit(r, "eventphotos", photo.ID, before, &photo, func(tx *gorm.DB) error {
-		return tx.Model(&models.EventPhoto{}).Where("id = ?", photo.ID).Updates(map[string]any{"status": photo.Status, "object_key": photo.ObjectKey, "moderated_at": now, "moderated_by": moderator, "moderation_source": manual}).Error
+	conflict := errors.New("photo cannot be moderated in its current state")
+	if err := updateWithAudit(r, "eventphotos", photo.ID, &before, &photo, func(tx *gorm.DB) error {
+		// Serialize moderation with permanent cleanup, then recheck the deadline.
+		var current models.EventPhoto
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, photo.ID).Error; err != nil {
+			return err
+		}
+		photo = current
+		before = photo
+		now := time.Now().UTC()
+		if !applyPhotoModeration(&photo, input.Action, now) {
+			return conflict
+		}
+		photo.ModeratedAt, photo.ModeratedBy, photo.ModerationSource = &now, &moderator, &manual
+		return tx.Model(&photo).Updates(map[string]any{"status": photo.Status, "rejected_delete_at": photo.RejectedDeleteAt, "moderated_at": now, "moderated_by": moderator, "moderation_source": manual}).Error
 	}, nil); err != nil {
+		if errors.Is(err, conflict) {
+			http.Error(w, "Photo cannot be moderated or its restore deadline has passed", http.StatusConflict)
+			return
+		}
 		http.Error(w, "Moderation failed", 500)
 		return
 	}
 	photoAdminJSON(w, photo)
+}
+
+func applyPhotoModeration(photo *models.EventPhoto, action string, now time.Time) bool {
+	if photo.ObjectKey == nil {
+		return false
+	}
+	switch action {
+	case "approve":
+		if photo.Status != "pending" && !photo.CanRestore(now) {
+			return false
+		}
+		photo.Status, photo.RejectedDeleteAt = "approved", nil
+	case "reject":
+		if photo.Status != "pending" && photo.Status != "approved" {
+			return false
+		}
+		deadline := now.Add(models.RejectedPhotoRetention)
+		photo.Status, photo.RejectedDeleteAt = "rejected", &deadline
+	default:
+		return false
+	}
+	return true
 }
 
 func ModerateEventPhotosBatch(w http.ResponseWriter, r *http.Request) {

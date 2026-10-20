@@ -23,11 +23,19 @@ type Photo = {
   status: string;
   thumbnail_url?: string;
   uploaded_at: string;
+  rejected_delete_at?: string | null;
+  can_restore?: boolean;
   moderation_source?: "manual" | "vision_safe_search" | null;
   ai_review_status: "not_scanned" | "safe" | "review" | "error";
   ai_likelihoods?: Record<string, string> | null;
 };
 type PhotoExport = { id: number; status: string; error?: string };
+
+const canSelectPhoto = (photo: Photo, now: number) =>
+  photo.status !== "rejected" ||
+  (photo.can_restore === true &&
+    !!photo.rejected_delete_at &&
+    new Date(photo.rejected_delete_at).getTime() > now);
 
 export function PhotoModeration() {
   const { id } = useParams();
@@ -45,6 +53,21 @@ export function PhotoModeration() {
   const [exports, setExports] = useState<PhotoExport[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  const selectedIds = photos
+    .filter(
+      (photo) =>
+        photo.status === status &&
+        selected.includes(photo.id) &&
+        canSelectPhoto(photo, now),
+    )
+    .map((photo) => photo.id);
+
+  useEffect(() => {
+    if (status !== "rejected") return;
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [status]);
 
   const refresh = useCallback(async () => {
     if (eventId === null) return;
@@ -190,7 +213,11 @@ export function PhotoModeration() {
             labelId="photo-status-label"
             label="Status"
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setSelected([]);
+              setNow(Date.now());
+            }}
           >
             <MenuItem value="pending">Pending</MenuItem>
             <MenuItem value="approved">Approved</MenuItem>
@@ -201,18 +228,25 @@ export function PhotoModeration() {
           Refresh
         </Button>
         <Button
-          disabled={busy || !selected.length}
-          onClick={() => void moderate(selected, "approve")}
+          disabled={busy || status === "approved" || !selectedIds.length}
+          onClick={() => void moderate(selectedIds, "approve")}
         >
           Approve selected
         </Button>
         <Button
-          disabled={busy || !selected.length}
-          onClick={() => void moderate(selected, "reject")}
+          disabled={busy || status === "rejected" || !selectedIds.length}
+          onClick={() => void moderate(selectedIds, "reject")}
         >
           Reject selected
         </Button>
       </Box>
+      {status === "rejected" && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Rejected photos are hidden from the gallery immediately. They can be
+          approved again within 24 hours, after which they will be permanently
+          deleted. Deleted photos cannot be restored.
+        </Alert>
+      )}
       {message && (
         <Alert
           severity={
@@ -241,11 +275,16 @@ export function PhotoModeration() {
               p: 1,
               display: "flex",
               flexDirection: "column",
-              cursor: "pointer",
+              cursor: canSelectPhoto(photo, now) ? "pointer" : "default",
+              color: canSelectPhoto(photo, now) ? "inherit" : "text.disabled",
             }}
           >
             <Checkbox
-              checked={selected.includes(photo.id)}
+              sx={{ alignSelf: "center" }}
+              disabled={busy || !canSelectPhoto(photo, now)}
+              checked={
+                canSelectPhoto(photo, now) && selected.includes(photo.id)
+              }
               onChange={(event) =>
                 setSelected((current) =>
                   event.target.checked
@@ -269,6 +308,15 @@ export function PhotoModeration() {
             <Typography variant="caption">
               {new Date(photo.uploaded_at).toLocaleString("en-GB")}
             </Typography>
+            {photo.status === "rejected" && (
+              <Typography variant="caption">
+                {canSelectPhoto(photo, now) && photo.rejected_delete_at
+                  ? `Can approve until ${new Date(photo.rejected_delete_at).toLocaleString("en-GB")}`
+                  : photo.thumbnail_url
+                    ? "Awaiting permanent deletion"
+                    : "Permanently deleted"}
+              </Typography>
+            )}
             {photo.ai_review_status !== "not_scanned" && (
               <Typography variant="caption">
                 AI:{" "}

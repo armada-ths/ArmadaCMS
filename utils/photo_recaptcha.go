@@ -42,17 +42,10 @@ func GoogleAccessToken(ctx context.Context) (string, error) {
 }
 
 func VerifyPhotoRecaptcha(ctx context.Context, token string) error {
-	if os.Getenv("PHOTO_RECAPTCHA_BYPASS_LOCAL") == "true" && os.Getenv("K_SERVICE") == "" {
-		return nil
-	}
 	project := strings.TrimSpace(os.Getenv("RECAPTCHA_PROJECT_ID"))
 	siteKey := strings.TrimSpace(os.Getenv("PHOTO_RECAPTCHA_SITE_KEY"))
 	if project == "" || siteKey == "" || token == "" {
 		return errors.New("photo reCAPTCHA is not configured")
-	}
-	accessToken, err := GoogleAccessToken(ctx)
-	if err != nil {
-		return err
 	}
 	body, _ := json.Marshal(map[string]any{"event": map[string]string{"token": token, "siteKey": siteKey, "expectedAction": "photo_upload"}})
 	endpoint := "https://recaptchaenterprise.googleapis.com/v1/projects/" + url.PathEscape(project) + "/assessments"
@@ -60,7 +53,18 @@ func VerifyPhotoRecaptcha(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	request.Header.Set("Authorization", "Bearer "+accessToken)
+	// Local development uses its own restricted assessment API key. Cloud Run
+	// always authenticates with its existing workload identity.
+	apiKey := strings.TrimSpace(os.Getenv("PHOTO_RECAPTCHA_API_KEY"))
+	if apiKey != "" && os.Getenv("K_SERVICE") == "" {
+		request.Header.Set("X-Goog-Api-Key", apiKey)
+	} else {
+		accessToken, err := GoogleAccessToken(ctx)
+		if err != nil {
+			return err
+		}
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+	}
 	request.Header.Set("Content-Type", "application/json")
 	result, err := recaptchaClient.Do(request)
 	if err != nil {

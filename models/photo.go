@@ -29,11 +29,18 @@ type EventPhoto struct {
 	Height           int               `gorm:"column:height" json:"height"`
 	UploadedAt       time.Time         `gorm:"column:uploaded_at" json:"uploaded_at"`
 	ModeratedAt      *time.Time        `gorm:"column:moderated_at" json:"moderated_at"`
+	RejectedDeleteAt *time.Time        `gorm:"column:rejected_delete_at" json:"rejected_delete_at"`
 	ModeratedBy      *uint             `gorm:"column:moderated_by" json:"moderated_by"`
 	ModerationSource *string           `gorm:"column:moderation_source" json:"moderation_source"`
 	AIReviewStatus   string            `gorm:"column:ai_review_status;default:not_scanned" json:"ai_review_status"`
 	AILikelihoods    map[string]string `gorm:"column:ai_likelihoods;type:jsonb;serializer:json" json:"ai_likelihoods"`
 	AICheckedAt      *time.Time        `gorm:"column:ai_checked_at" json:"ai_checked_at"`
+}
+
+const RejectedPhotoRetention = 24 * time.Hour
+
+func (photo EventPhoto) CanRestore(now time.Time) bool {
+	return photo.Status == "rejected" && photo.ObjectKey != nil && photo.RejectedDeleteAt != nil && now.Before(*photo.RejectedDeleteAt)
 }
 
 // PhotoGuestUpload keeps the lifetime upload count even if a photo is rejected

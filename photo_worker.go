@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // runPhotoWorker processes queued exports and retention. It is safe to run repeatedly.
@@ -114,6 +115,9 @@ func writePhotoExport(ctx context.Context, export *models.PhotoExport) error {
 }
 
 func cleanupPhotos(ctx context.Context) error {
+	if err := cleanupRejectedPhotos(ctx); err != nil {
+		return err
+	}
 	var exports []models.PhotoExport
 	if err := db.DB.Where("status = 'completed' AND expires_at <= ?", time.Now()).Find(&exports).Error; err != nil {
 		return err
@@ -173,4 +177,49 @@ func cleanupPhotos(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func cleanupRejectedPhotos(ctx context.Context) error {
+	for {
+		found := false
+		err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var photo models.EventPhoto
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+				Where("status = 'rejected' AND object_key IS NOT NULL AND rejected_delete_at <= ?", time.Now().UTC()).
+				Order("rejected_delete_at, id").Limit(1).Find(&photo).Error
+			if err != nil {
+				return err
+			}
+			if photo.ID == 0 {
+				return nil
+			}
+			found = true
+			if err := utils.DeletePrivatePhoto(ctx, *photo.ObjectKey, false); err != nil {
+				return err
+			}
+			return tx.Model(&photo).Update("object_key", nil).Error
+		})
+		if err != nil {
+			return err
+		}
+		if !found {
+			return nil
+		}
+	}
+}
+
+// Hosted cleanup is scheduled by Cloud Scheduler. Local development has no scheduler.
+func runLocalRejectedPhotoCleanup(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := cleanupRejectedPhotos(ctx); err != nil {
+				log.Printf("local rejected photo cleanup failed: %v", err)
+			}
+		}
+	}
 }

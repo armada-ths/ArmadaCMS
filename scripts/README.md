@@ -6,7 +6,11 @@
 
 [`dev-up.ps1`](dev-up.ps1) starts local Supabase and the backend; `-Build` rebuilds the backend image. [`dev-down.ps1`](dev-down.ps1) stops the services while preserving local data. Run the admin frontend separately as described in the [project guide](../README.md#getting-started).
 
-Local Compose configuration supplies development-only photo token credentials, a browser-reachable signed-photo endpoint, a reCAPTCHA bypass and a SafeSearch mock. Hosted environments use real credentials and assessments; the local bypasses are not production configuration.
+Local Compose configuration supplies development-only photo token credentials, a browser-reachable signed-photo endpoint and a SafeSearch mock. reCAPTCHA uses a dedicated Terraform test key with score 1.0 and real Enterprise assessments. Run `scripts/configure-local-recaptcha.ps1` after the resources in `infra/terraform/gcp/local` have been applied to update the gitignored backend and photo-app environment files. The script preserves other settings. The server-only assessment API key is restricted to the reCAPTCHA API; hosted services retain workload identity and their existing site keys.
+
+Local startup uses the active network adapter's IPv4 address for copied photo event links and QR codes. Set `LOCAL_PHOTO_APP_BASE_URL` before startup to override the detected address, for example when using a VPN or multiple network adapters.
+
+Rejected photos leave the gallery immediately and retain their private file for 24 hours. In Rejected, **Approve selected** cancels deletion and approves the photo again. After the deadline, approval is blocked and the next cleanup permanently removes the file; existing already-deleted files cannot be recovered. Hosted cleanup runs hourly through the existing photo worker schedule; the local API checks expired rejections every minute. Already-issued signed image URLs retain their existing expiry while the file is retained.
 
 ### Local database import
 

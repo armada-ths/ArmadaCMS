@@ -89,6 +89,9 @@ func main() {
 	}
 
 	wrappedMux := CreateMuxClient()
+	if os.Getenv("K_SERVICE") == "" {
+		go runLocalRejectedPhotoCleanup(context.Background())
+	}
 	listenAddr := getListenAddr()
 	fmt.Println("Server running on http://localhost" + listenAddr)
 	if err := http.ListenAndServe(listenAddr, wrappedMux); err != nil {
