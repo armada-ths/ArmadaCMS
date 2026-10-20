@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useGetOne } from "react-admin";
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   FormControl,
   InputLabel,
   MenuItem,
@@ -14,32 +13,24 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { PhotoModerationGrid } from "./PhotoModerationGrid";
+import { canSelectPhoto, type Photo } from "./photoModerationTypes";
+import { usePhotoLinks, type RenewedPhotoLinks } from "./usePhotoLinks";
 import { httpClient } from "../../dataProvider";
 import globalApi from "../../context/globalApi";
 import { parsePositiveIntegerId } from "../../utils/parsePositiveIntegerId";
 
-type Photo = {
-  id: number;
-  status: string;
-  thumbnail_url?: string;
-  uploaded_at: string;
-  rejected_delete_at?: string | null;
-  can_restore?: boolean;
-  moderation_source?: "manual" | "vision_safe_search" | null;
-  ai_review_status: "not_scanned" | "safe" | "review" | "error";
-  ai_likelihoods?: Record<string, string> | null;
-};
 type PhotoExport = { id: number; status: string; error?: string };
-
-const canSelectPhoto = (photo: Photo, now: number) =>
-  photo.status !== "rejected" ||
-  (photo.can_restore === true &&
-    !!photo.rejected_delete_at &&
-    new Date(photo.rejected_delete_at).getTime() > now);
 
 export function PhotoModeration() {
   const { id } = useParams();
   const eventId = parsePositiveIntegerId(id);
+  if (eventId === null)
+    return <Alert severity="error">Invalid photo event ID.</Alert>;
+  return <PhotoModerationContent key={eventId} eventId={eventId} />;
+}
+
+function PhotoModerationContent({ eventId }: { eventId: number }) {
   const { data: event } = useGetOne<{ id: number; name: string }>(
     "photoevents",
     { id: eventId ?? 0 },
@@ -51,6 +42,10 @@ export function PhotoModeration() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [exports, setExports] = useState<PhotoExport[]>([]);
+  const [visibleIDs, setVisibleIDs] = useState<number[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const requestGeneration = useRef(0);
+  const loadingRef = useRef(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -71,25 +66,78 @@ export function PhotoModeration() {
 
   const refresh = useCallback(async () => {
     if (eventId === null) return;
-    const result = await httpClient(
-      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}`,
-    );
-    setPhotos(result.json as Photo[]);
-    setPage(0);
-    setHasMore((result.json as Photo[]).length === 200);
+    const generation = ++requestGeneration.current;
+    loadingRef.current = true;
+    setLoadingPhotos(true);
     setSelected([]);
+    try {
+      const result = await httpClient(
+        `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}`,
+      );
+      if (generation !== requestGeneration.current) return;
+      setPhotos(result.json as Photo[]);
+      setPage(0);
+      setHasMore((result.json as Photo[]).length === 200);
+    } catch {
+      if (generation === requestGeneration.current)
+        setMessage("Could not load the photos.");
+    } finally {
+      if (generation === requestGeneration.current) {
+        loadingRef.current = false;
+        setLoadingPhotos(false);
+      }
+    }
   }, [eventId, status]);
 
   const loadMore = async () => {
+    if (loadingRef.current || eventId === null) return;
+    const generation = requestGeneration.current;
     const nextPage = page + 1;
-    const result = await httpClient(
-      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}&page=${nextPage}`,
-    );
-    const incoming = result.json as Photo[];
-    setPhotos((current) => [...current, ...incoming]);
-    setPage(nextPage);
-    setHasMore(incoming.length === 200);
+    loadingRef.current = true;
+    setLoadingPhotos(true);
+    try {
+      const result = await httpClient(
+        `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}&page=${nextPage}`,
+      );
+      if (generation !== requestGeneration.current) return;
+      const incoming = result.json as Photo[];
+      setPhotos((current) => [
+        ...current,
+        ...incoming.filter(
+          (photo) => !current.some((existing) => existing.id === photo.id),
+        ),
+      ]);
+      setPage(nextPage);
+      setHasMore(incoming.length === 200);
+    } catch {
+      if (generation === requestGeneration.current)
+        setMessage("Could not load more photos.");
+    } finally {
+      if (generation === requestGeneration.current) {
+        loadingRef.current = false;
+        setLoadingPhotos(false);
+      }
+    }
   };
+
+  const renewLinks = useCallback(
+    async (ids: number[], signal: AbortSignal) => {
+      const result = await httpClient(`${globalApi()}/eventphotos/refresh`, {
+        method: "POST",
+        body: JSON.stringify({ event_id: eventId, ids }),
+        signal,
+      });
+      return result.json as RenewedPhotoLinks;
+    },
+    [eventId],
+  );
+  usePhotoLinks(
+    `${eventId}:${status}`,
+    photos,
+    setPhotos,
+    visibleIDs,
+    renewLinks,
+  );
 
   const refreshExports = useCallback(async () => {
     if (eventId === null) return;
@@ -100,18 +148,16 @@ export function PhotoModeration() {
   }, [eventId]);
 
   useEffect(() => {
-    if (eventId === null) return;
-    void httpClient(
-      `${globalApi()}/eventphotos?event_id=${eventId}&status=${status}`,
-    )
-      .then((result) => {
-        setPhotos(result.json as Photo[]);
-        setSelected([]);
-        setPage(0);
-        setHasMore((result.json as Photo[]).length === 200);
-      })
-      .catch(() => setMessage("Could not load the photos."));
-  }, [eventId, status]);
+    let cancelled = false;
+    const requests = requestGeneration;
+    void Promise.resolve().then(() => {
+      if (!cancelled) return refresh();
+    });
+    return () => {
+      cancelled = true;
+      requests.current++;
+    };
+  }, [refresh]);
   useEffect(() => {
     if (eventId === null) return;
     void httpClient(`${globalApi()}/photoexports?event_id=${eventId}`)
@@ -138,6 +184,7 @@ export function PhotoModeration() {
   };
 
   const moderate = async (ids: number[], action: "approve" | "reject") => {
+    const generation = requestGeneration.current;
     setBusy(true);
     setMessage("");
     try {
@@ -155,7 +202,7 @@ export function PhotoModeration() {
       setMessage("Moderation failed.");
     }
     setBusy(false);
-    await refresh();
+    if (generation === requestGeneration.current) await refresh();
   };
 
   if (eventId === null) {
@@ -214,6 +261,9 @@ export function PhotoModeration() {
             label="Status"
             value={status}
             onChange={(event) => {
+              requestGeneration.current++;
+              setPhotos([]);
+              setHasMore(false);
               setStatus(event.target.value);
               setSelected([]);
               setNow(Date.now());
@@ -224,17 +274,31 @@ export function PhotoModeration() {
             <MenuItem value="rejected">Rejected</MenuItem>
           </Select>
         </FormControl>
-        <Button variant="outlined" onClick={() => void refresh()}>
+        <Button
+          variant="outlined"
+          disabled={loadingPhotos || busy}
+          onClick={() => void refresh()}
+        >
           Refresh
         </Button>
         <Button
-          disabled={busy || status === "approved" || !selectedIds.length}
+          disabled={
+            busy ||
+            loadingPhotos ||
+            status === "approved" ||
+            !selectedIds.length
+          }
           onClick={() => void moderate(selectedIds, "approve")}
         >
           Approve selected
         </Button>
         <Button
-          disabled={busy || status === "rejected" || !selectedIds.length}
+          disabled={
+            busy ||
+            loadingPhotos ||
+            status === "rejected" ||
+            !selectedIds.length
+          }
           onClick={() => void moderate(selectedIds, "reject")}
         >
           Reject selected
@@ -259,92 +323,25 @@ export function PhotoModeration() {
           {message}
         </Alert>
       )}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
-          gap: 2,
-        }}
-      >
-        {photos.map((photo) => (
-          <Paper
-            key={photo.id}
-            component="label"
-            variant="outlined"
-            sx={{
-              p: 1,
-              display: "flex",
-              flexDirection: "column",
-              cursor: canSelectPhoto(photo, now) ? "pointer" : "default",
-              color: canSelectPhoto(photo, now) ? "inherit" : "text.disabled",
-            }}
-          >
-            <Checkbox
-              sx={{ alignSelf: "center" }}
-              disabled={busy || !canSelectPhoto(photo, now)}
-              checked={
-                canSelectPhoto(photo, now) && selected.includes(photo.id)
-              }
-              onChange={(event) =>
-                setSelected((current) =>
-                  event.target.checked
-                    ? [...current, photo.id]
-                    : current.filter((value) => value !== photo.id),
-                )
-              }
-            />
-            {photo.thumbnail_url ? (
-              <Box
-                component="img"
-                src={photo.thumbnail_url}
-                alt={`Photo ${photo.id}`}
-                sx={{ height: 160, width: "100%", objectFit: "contain" }}
-              />
-            ) : (
-              <Box sx={{ height: 160, display: "grid", placeItems: "center" }}>
-                Deleted
-              </Box>
-            )}
-            <Typography variant="caption">
-              {new Date(photo.uploaded_at).toLocaleString("en-GB")}
-            </Typography>
-            {photo.status === "rejected" && (
-              <Typography variant="caption">
-                {canSelectPhoto(photo, now) && photo.rejected_delete_at
-                  ? `Can approve until ${new Date(photo.rejected_delete_at).toLocaleString("en-GB")}`
-                  : photo.thumbnail_url
-                    ? "Awaiting permanent deletion"
-                    : "Permanently deleted"}
-              </Typography>
-            )}
-            {photo.ai_review_status !== "not_scanned" && (
-              <Typography variant="caption">
-                AI:{" "}
-                {photo.ai_review_status === "error"
-                  ? "unavailable — review manually"
-                  : photo.ai_review_status}
-              </Typography>
-            )}
-            {photo.ai_review_status === "review" && photo.ai_likelihoods && (
-              <Typography variant="caption">
-                {Object.entries(photo.ai_likelihoods)
-                  .filter(
-                    ([, likelihood]) =>
-                      !["VERY_UNLIKELY", "UNLIKELY"].includes(likelihood),
-                  )
-                  .map(([category, likelihood]) => `${category}: ${likelihood}`)
-                  .join(", ")}
-              </Typography>
-            )}
-            {photo.moderation_source === "vision_safe_search" && (
-              <Typography variant="caption">Automatically approved</Typography>
-            )}
-          </Paper>
-        ))}
-      </Box>
+      <PhotoModerationGrid
+        photos={photos}
+        selected={selected}
+        busy={busy}
+        now={now}
+        onToggle={(id, checked) =>
+          setSelected((current) =>
+            checked
+              ? [...new Set([...current, id])]
+              : current.filter((value) => value !== id),
+          )
+        }
+        onRangeChange={setVisibleIDs}
+      />
+
       {hasMore && (
         <Button
           sx={{ mt: 2 }}
+          disabled={loadingPhotos || busy}
           onClick={() =>
             void loadMore().catch(() =>
               setMessage("Could not load more photos."),

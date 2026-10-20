@@ -26,7 +26,7 @@ func runPhotoWorker(ctx context.Context) error {
 			return err
 		}
 		if export == nil {
-			return nil
+			return backfillPhotoThumbnails(ctx)
 		}
 		if err := writePhotoExport(ctx, export); err != nil {
 			log.Printf("photo export %d failed: %v", export.ID, err)
@@ -149,12 +149,19 @@ func cleanupPhotos(ctx context.Context) error {
 			return err
 		}
 		for _, photo := range photos {
-			if photo.ObjectKey != nil {
-				if err := utils.DeletePrivatePhoto(ctx, *photo.ObjectKey, false); err != nil {
+			if err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+				var current models.EventPhoto
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, photo.ID).Error; err != nil {
+					if err == gorm.ErrRecordNotFound {
+						return nil
+					}
 					return err
 				}
-			}
-			if err := db.DB.Delete(&photo).Error; err != nil {
+				if err := utils.DeletePhotoVariants(ctx, current); err != nil {
+					return err
+				}
+				return tx.Delete(&current).Error
+			}); err != nil {
 				return err
 			}
 		}
@@ -194,10 +201,10 @@ func cleanupRejectedPhotos(ctx context.Context) error {
 				return nil
 			}
 			found = true
-			if err := utils.DeletePrivatePhoto(ctx, *photo.ObjectKey, false); err != nil {
+			if err := utils.DeletePhotoVariants(ctx, photo); err != nil {
 				return err
 			}
-			return tx.Model(&photo).Update("object_key", nil).Error
+			return tx.Model(&photo).Updates(map[string]any{"object_key": nil, "thumbnail_object_key": nil}).Error
 		})
 		if err != nil {
 			return err
@@ -220,6 +227,58 @@ func runLocalRejectedPhotoCleanup(ctx context.Context) {
 			if err := cleanupRejectedPhotos(ctx); err != nil {
 				log.Printf("local rejected photo cleanup failed: %v", err)
 			}
+		}
+	}
+}
+
+// Each invocation visits each candidate at most once. Failed photos retry next
+// run; row locks serialize workers, moderation and deletion.
+func backfillPhotoThumbnails(ctx context.Context) error {
+	var after uint64
+	for {
+		found := false
+		var candidateID uint64
+		err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var photo models.EventPhoto
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+				Where("id > ? AND object_key IS NOT NULL AND thumbnail_object_key IS NULL AND event_id IN (SELECT id FROM photo_events WHERE deletion_requested_at IS NULL) AND (status <> 'rejected' OR rejected_delete_at > ?)", after, time.Now()).
+				Order("id").Limit(1).Find(&photo).Error
+			if err != nil || photo.ID == 0 {
+				return err
+			}
+			found = true
+			candidateID = photo.ID
+			body, err := utils.ReadPrivatePhoto(ctx, *photo.ObjectKey, false)
+			if err != nil {
+				return err
+			}
+			jpeg, err := io.ReadAll(io.LimitReader(body, utils.MaxPhotoOriginalBytes+1))
+			_ = body.Close()
+			if err != nil {
+				return err
+			}
+			if len(jpeg) > utils.MaxPhotoOriginalBytes {
+				return fmt.Errorf("stored photo exceeds size limit")
+			}
+			key, err := utils.StorePhotoThumbnail(ctx, *photo.ObjectKey, jpeg)
+			if err != nil {
+				return err
+			}
+			if err := tx.Model(&photo).Update("thumbnail_object_key", key).Error; err != nil {
+				_ = utils.DeletePrivatePhoto(ctx, key, false)
+				return err
+			}
+			return nil
+		})
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if !found {
+			return err
+		}
+		after = candidateID
+		if err != nil {
+			log.Printf("photo_thumbnail result=failed photo_id=%d: %v", candidateID, err)
 		}
 	}
 }

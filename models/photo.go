@@ -19,22 +19,23 @@ type PhotoEvent struct {
 }
 
 type EventPhoto struct {
-	ID               uint64            `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	EventID          uint64            `gorm:"column:event_id" json:"event_id"`
-	ObjectKey        *string           `gorm:"column:object_key" json:"-"`
-	Status           string            `gorm:"column:status" json:"status"`
-	GuestHash        string            `gorm:"column:guest_hash" json:"-"`
-	ByteSize         int64             `gorm:"column:byte_size" json:"byte_size"`
-	Width            int               `gorm:"column:width" json:"width"`
-	Height           int               `gorm:"column:height" json:"height"`
-	UploadedAt       time.Time         `gorm:"column:uploaded_at" json:"uploaded_at"`
-	ModeratedAt      *time.Time        `gorm:"column:moderated_at" json:"moderated_at"`
-	RejectedDeleteAt *time.Time        `gorm:"column:rejected_delete_at" json:"rejected_delete_at"`
-	ModeratedBy      *uint             `gorm:"column:moderated_by" json:"moderated_by"`
-	ModerationSource *string           `gorm:"column:moderation_source" json:"moderation_source"`
-	AIReviewStatus   string            `gorm:"column:ai_review_status;default:not_scanned" json:"ai_review_status"`
-	AILikelihoods    map[string]string `gorm:"column:ai_likelihoods;type:jsonb;serializer:json" json:"ai_likelihoods"`
-	AICheckedAt      *time.Time        `gorm:"column:ai_checked_at" json:"ai_checked_at"`
+	ID                 uint64            `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	EventID            uint64            `gorm:"column:event_id" json:"event_id"`
+	ThumbnailObjectKey *string           `gorm:"column:thumbnail_object_key" json:"-"`
+	ObjectKey          *string           `gorm:"column:object_key" json:"-"`
+	Status             string            `gorm:"column:status" json:"status"`
+	GuestHash          string            `gorm:"column:guest_hash" json:"-"`
+	ByteSize           int64             `gorm:"column:byte_size" json:"byte_size"`
+	Width              int               `gorm:"column:width" json:"width"`
+	Height             int               `gorm:"column:height" json:"height"`
+	UploadedAt         time.Time         `gorm:"column:uploaded_at" json:"uploaded_at"`
+	ModeratedAt        *time.Time        `gorm:"column:moderated_at" json:"moderated_at"`
+	RejectedDeleteAt   *time.Time        `gorm:"column:rejected_delete_at" json:"rejected_delete_at"`
+	ModeratedBy        *uint             `gorm:"column:moderated_by" json:"moderated_by"`
+	ModerationSource   *string           `gorm:"column:moderation_source" json:"moderation_source"`
+	AIReviewStatus     string            `gorm:"column:ai_review_status;default:not_scanned" json:"ai_review_status"`
+	AILikelihoods      map[string]string `gorm:"column:ai_likelihoods;type:jsonb;serializer:json" json:"ai_likelihoods"`
+	AICheckedAt        *time.Time        `gorm:"column:ai_checked_at" json:"ai_checked_at"`
 }
 
 const RejectedPhotoRetention = 24 * time.Hour

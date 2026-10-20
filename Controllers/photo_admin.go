@@ -292,12 +292,13 @@ func ListEventPhotos(w http.ResponseWriter, r *http.Request) {
 		item["rejected_delete_at"] = photo.RejectedDeleteAt
 		item["can_restore"] = photo.CanRestore(time.Now())
 		if photo.ObjectKey != nil {
-			signed, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, 15*time.Minute)
+			signed, err := utils.SignPhotoThumbnail(r.Context(), photo, 15*time.Minute)
 			if err != nil {
 				http.Error(w, "Image unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			item["thumbnail_url"] = signed
+			item["urls_expires_at"] = time.Now().Add(15 * time.Minute)
 		}
 		items = append(items, item)
 	}
@@ -324,10 +325,7 @@ func ModerateEventPhoto(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			*current = lockedPhoto
-			if current.ObjectKey != nil {
-				return utils.DeletePrivatePhoto(r.Context(), *current.ObjectKey, false)
-			}
-			return nil
+			return utils.DeletePhotoVariants(r.Context(), *current)
 		})
 		return
 	}
@@ -428,4 +426,48 @@ func DeletePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeDeleteResponseWithAudit[models.PhotoEvent](w, r, "photoevents", mux.Vars(r)["id"], "Event not found", nil, nil)
+}
+
+type photoPreviewRefreshRequest struct {
+	EventID uint64   `json:"event_id"`
+	IDs     []uint64 `json:"ids"`
+}
+
+type photoPreviewRefreshResponse struct {
+	ThumbnailURLs map[uint64]string `json:"thumbnail_urls"`
+	URLsExpiresAt time.Time         `json:"urls_expires_at"`
+}
+
+// RefreshEventPhotoURLs renews requested, event-scoped administrative previews.
+// @Summary Renew administrative photo preview links
+// @Tags Photos
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body photoPreviewRefreshRequest true "Event ID and 1 to 100 photo IDs"
+// @Success 200 {object} photoPreviewRefreshResponse
+// @Failure 400 {string} string "Invalid event or photo IDs"
+// @Failure 403 {string} string "Insufficient permissions"
+// @Router /eventphotos/refresh [post]
+func RefreshEventPhotoURLs(w http.ResponseWriter, r *http.Request) {
+	var input photoPreviewRefreshRequest
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&input) != nil || input.EventID == 0 || len(input.IDs) < 1 || len(input.IDs) > 100 {
+		http.Error(w, "Invalid event or photo IDs", http.StatusBadRequest)
+		return
+	}
+	var photos []models.EventPhoto
+	if err := db.DB.Where("event_id = ? AND id IN ? AND object_key IS NOT NULL", input.EventID, input.IDs).Find(&photos).Error; err != nil {
+		http.Error(w, "Photos unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	urls := make(map[uint64]string, len(photos))
+	for _, photo := range photos {
+		url, err := utils.SignPhotoThumbnail(r.Context(), photo, 15*time.Minute)
+		if err != nil {
+			http.Error(w, "Image unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		urls[photo.ID] = url
+	}
+	photoAdminJSON(w, photoPreviewRefreshResponse{ThumbnailURLs: urls, URLsExpiresAt: time.Now().Add(15 * time.Minute)})
 }

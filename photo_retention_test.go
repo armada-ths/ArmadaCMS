@@ -150,7 +150,7 @@ func TestPhotoRejectionRetentionIntegration(t *testing.T) {
 		}
 	}
 	reload(&photo)
-	if photo.ObjectKey != nil || deletes.Load() != 1 {
+	if photo.ObjectKey != nil || deletes.Load() != 2 {
 		t.Fatal("expired photo was not permanently deleted")
 	}
 	if code := moderate(photo, "approve"); code != 409 {
@@ -159,7 +159,7 @@ func TestPhotoRejectionRetentionIntegration(t *testing.T) {
 	if err := cleanupRejectedPhotos(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if deletes.Load() != 1 {
+	if deletes.Load() != 2 {
 		t.Fatal("repeated cleanup was not idempotent")
 	}
 	var auditCount int64

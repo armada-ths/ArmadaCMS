@@ -47,6 +47,24 @@ definitions:
         example: admin
         type: string
     type: object
+  controllers.photoPreviewRefreshRequest:
+    properties:
+      event_id:
+        type: integer
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  controllers.photoPreviewRefreshResponse:
+    properties:
+      thumbnail_urls:
+        additionalProperties:
+          type: string
+        type: object
+      urls_expires_at:
+        type: string
+    type: object
   controllers.recruitmentPeriodPayload:
     properties:
       endDate:
@@ -1100,6 +1118,37 @@ paths:
       summary: Update employment
       tags:
       - employments
+  /eventphotos/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Event ID and 1 to 100 photo IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.photoPreviewRefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.photoPreviewRefreshResponse'
+        "400":
+          description: Invalid event or photo IDs
+          schema:
+            type: string
+        "403":
+          description: Insufficient permissions
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Renew administrative photo preview links
+      tags:
+      - Photos
   /eventroevents:
     get:
       parameters:
