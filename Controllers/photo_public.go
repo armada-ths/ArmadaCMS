@@ -180,16 +180,25 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Storage unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	var thumbnailKey *string
+	if thumbnail, err := utils.StorePhotoThumbnail(r.Context(), key, jpeg); err != nil {
+		log.Printf("photo_thumbnail result=failed event_id=%d: %v", event.ID, err)
+	} else {
+		thumbnailKey = &thumbnail
+	}
+	cleanup := func() {
+		_ = utils.DeletePhotoVariants(r.Context(), models.EventPhoto{ObjectKey: &key, ThumbnailObjectKey: thumbnailKey})
+	}
 	hash, err := utils.HashPhotoGuest(event.ID, guestID)
 	if err != nil {
-		_ = utils.DeletePrivatePhoto(r.Context(), key, false)
+		cleanup()
 		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
-	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
+	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, ThumbnailObjectKey: thumbnailKey, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
 	registeredCount, err := reservePhotoUpload(event, &photo)
 	if err != nil {
-		_ = utils.DeletePrivatePhoto(r.Context(), key, false)
+		cleanup()
 		if errors.Is(err, errPhotoLimitReached) {
 			http.Error(w, "Photo limit reached", http.StatusTooManyRequests)
 			return
@@ -264,7 +273,12 @@ func PhotoEventGallery(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		items = append(items, map[string]any{"id": photo.ID, "url": url, "width": photo.Width, "height": photo.Height, "approved_at": photo.ModeratedAt})
+		thumbnail, err := utils.SignPhotoThumbnail(r.Context(), photo, time.Hour)
+		if err != nil {
+			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		items = append(items, map[string]any{"id": photo.ID, "url": url, "thumbnail_url": thumbnail, "urls_expires_at": time.Now().Add(time.Hour), "width": photo.Width, "height": photo.Height, "approved_at": photo.ModeratedAt})
 	}
 	var next string
 	if hasMore && len(photos) > 0 {
@@ -303,6 +317,7 @@ func PhotoEventRefreshURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	urls := make(map[uint64]string, len(photos))
+	thumbnails := make(map[uint64]string, len(photos))
 	for _, photo := range photos {
 		if photo.ObjectKey == nil {
 			continue
@@ -313,8 +328,14 @@ func PhotoEventRefreshURLs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		urls[photo.ID] = url
+		thumbnail, err := utils.SignPhotoThumbnail(r.Context(), photo, time.Hour)
+		if err != nil {
+			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		thumbnails[photo.ID] = thumbnail
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"urls": urls})
+	_ = json.NewEncoder(w).Encode(map[string]any{"urls": urls, "thumbnail_urls": thumbnails, "urls_expires_at": time.Now().Add(time.Hour)})
 }
