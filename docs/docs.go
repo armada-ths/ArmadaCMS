@@ -919,6 +919,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/eventphotos/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Renew administrative photo preview links",
+                "parameters": [
+                    {
+                        "description": "Event ID and 1 to 100 photo IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.photoPreviewRefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.photoPreviewRefreshResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid event or photo IDs",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/eventroevents": {
             "get": {
                 "security": [
@@ -4957,6 +5007,34 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "admin"
+                }
+            }
+        },
+        "controllers.photoPreviewRefreshRequest": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "type": "integer"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "controllers.photoPreviewRefreshResponse": {
+            "type": "object",
+            "properties": {
+                "thumbnail_urls": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "urls_expires_at": {
+                    "type": "string"
                 }
             }
         },

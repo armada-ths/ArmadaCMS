@@ -23,6 +23,8 @@ The Go workflow runs two database tests in a separate PostgreSQL 17 service, and
 - `TestDeleteUserWithRefreshTokens`: deletes a user and their tokens, preserves other users, and verifies audit entries and rollback when deletion fails.
 - `TestPhotoGuestQuotaLifetimeAndConcurrentUploads`: verifies that deleted/rejected photos still consume quota and concurrent uploads cannot exceed it.
 
+`TestPhotoRejectionRetentionIntegration` is an additional opt-in test in the main package. It uses `PHOTO_RETENTION_TEST_DSN`, restricted to a local `photo_retention_test` database containing the migrated public schema. It checks reject/approve, deadline expiry, audit entries, storage failures and concurrent cleanup against a mock S3 endpoint; it never accesses hosted Storage. Run it with `go test -race -count=1 ./... -run TestPhotoRejectionRetentionIntegration` after providing that disposable database.
+
 These tests are opt-in locally: ordinary `go test` runs skip them unless their DSNs are set. They create their own limited schema with GORM and do not test the full Supabase migration history.
 
 For a local run, use a disposable PostgreSQL 17 instance with two **fresh, empty** databases named `user_delete_test` and `photo_quota_test`. For example, start a dedicated container (port 55432 avoids the local Supabase ports):

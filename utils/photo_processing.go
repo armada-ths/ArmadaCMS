@@ -125,3 +125,30 @@ func PhotoSafeSearchImage(jpeg []byte) ([]byte, error) {
 	}
 	return output, nil
 }
+
+// PhotoThumbnail derives a display copy without changing the full-size JPEG.
+func PhotoThumbnail(jpeg []byte) ([]byte, error) {
+	photoTransform <- struct{}{}
+	defer func() { <-photoTransform }()
+	if err := startPhotoVips(); err != nil {
+		return nil, err
+	}
+	image, err := vips.NewImageFromBuffer(jpeg)
+	if err != nil {
+		return nil, err
+	}
+	defer image.Close()
+	if err := image.AutoRotate(); err != nil {
+		return nil, err
+	}
+	if longest := max(image.Width(), image.Height()); longest > 640 {
+		if err := image.Resize(float64(640)/float64(longest), vips.KernelLanczos3); err != nil {
+			return nil, err
+		}
+	}
+	if err := image.ToColorSpace(vips.InterpretationSRGB); err != nil {
+		return nil, err
+	}
+	output, _, err := image.ExportJpeg(&vips.JpegExportParams{Quality: 75, StripMetadata: true})
+	return bytes.Clone(output), err
+}

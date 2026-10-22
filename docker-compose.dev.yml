@@ -40,8 +40,11 @@ services:
       PHOTO_EXPORT_S3_BUCKET: event-photo-exports
       PHOTO_S3_PRESIGN_ENDPOINT: http://127.0.0.1:54321/storage/v1/s3
       PHOTO_TOKEN_SECRET: ${PHOTO_TOKEN_SECRET:-local-development-photo-token-secret-change-before-deploy}
-      PHOTO_APP_BASE_URL: http://localhost:8001
-      PHOTO_RECAPTCHA_BYPASS_LOCAL: "true"
+      PHOTO_APP_BASE_URL: ${LOCAL_PHOTO_APP_BASE_URL:-http://localhost:8001}
+      RECAPTCHA_PROJECT_ID: ${LOCAL_PHOTO_RECAPTCHA_PROJECT_ID:?Run scripts/configure-local-recaptcha.ps1 first}
+      PHOTO_RECAPTCHA_SITE_KEY: ${LOCAL_PHOTO_RECAPTCHA_SITE_KEY:?Run scripts/configure-local-recaptcha.ps1 first}
+      PHOTO_RECAPTCHA_API_KEY: ${LOCAL_PHOTO_RECAPTCHA_API_KEY:?Run scripts/configure-local-recaptcha.ps1 first}
+      PHOTO_RECAPTCHA_HOSTNAMES: ${LOCAL_PHOTO_RECAPTCHA_HOSTNAMES:-localhost,127.0.0.1}
       PHOTO_VISION_MOCK_RESULT: ${PHOTO_VISION_MOCK_RESULT:-safe}
     networks:
       - backend

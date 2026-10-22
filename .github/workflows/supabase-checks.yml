@@ -51,6 +51,11 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: armadacms-runtime-ci
       CI_BACKEND_IMAGE: armadacms-backend:runtime-ci
+      # This job checks startup and Storage, not photo reCAPTCHA assessments.
+      # Satisfy the dev Compose requirements without cloud credentials or a bypass.
+      LOCAL_PHOTO_RECAPTCHA_PROJECT_ID: ci-placeholder
+      LOCAL_PHOTO_RECAPTCHA_SITE_KEY: ci-placeholder
+      LOCAL_PHOTO_RECAPTCHA_API_KEY: ci-placeholder
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

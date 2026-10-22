@@ -11,6 +11,7 @@ infra/terraform/
 ├── README.md
 ├── gcp/
 │   ├── prod/      # GCP production stack — Cloud Run, networking, load balancer, secrets
+│   ├── local/     # Dedicated local-development reCAPTCHA test and assessment keys
 │   └── staging/   # GCP staging stack — Cloud Run, domain mapping, shared images, secrets
 └── supabase/
     └── prod/      # Supabase production stack — imported project record + connection metadata
@@ -21,6 +22,7 @@ infra/terraform/
 | Root             | HCP Terraform workspace   | What it manages                                                   | Details                                              |
 | ---------------- | ------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
 | `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager      | [`gcp/prod/README.md`](gcp/prod/README.md)           |
+| `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA keys only; local execution with remote state | [`gcp/local/README.md`](gcp/local/README.md) |
 | `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secret Manager | [`gcp/staging/README.md`](gcp/staging/README.md)     |
 | `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata | [`supabase/prod/README.md`](supabase/prod/README.md) |
 

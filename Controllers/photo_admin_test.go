@@ -87,3 +87,14 @@ func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
 		t.Fatalf("QR URL source differs from event link: %q", got)
 	}
 }
+
+func TestPhotoPreviewRefreshRejectsInvalidIDs(t *testing.T) {
+	bodies := []string{`{}`, `{"event_id":1,"ids":[]}`, `{"event_id":0,"ids":[1]}`, `{"event_id":1,"ids":` + "[" + strings.Repeat("1,", 100) + "1]}"}
+	for _, body := range bodies {
+		response := httptest.NewRecorder()
+		RefreshEventPhotoURLs(response, httptest.NewRequest(http.MethodPost, "/eventphotos/refresh", strings.NewReader(body)))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid request accepted: %d", response.Code)
+		}
+	}
+}

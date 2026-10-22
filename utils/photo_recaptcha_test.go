@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestPhotoRecaptchaLocalBypass(t *testing.T) {
+func TestPhotoRecaptchaLegacyBypassDoesNotSkipVerification(t *testing.T) {
 	t.Setenv("PHOTO_RECAPTCHA_BYPASS_LOCAL", "true")
 	t.Setenv("K_SERVICE", "")
 	t.Setenv("RECAPTCHA_PROJECT_ID", "")
 	t.Setenv("PHOTO_RECAPTCHA_SITE_KEY", "")
-	if err := VerifyPhotoRecaptcha(context.Background(), ""); err != nil {
-		t.Fatalf("local bypass should accept an upload without reCAPTCHA: %v", err)
+	if err := VerifyPhotoRecaptcha(context.Background(), ""); err == nil {
+		t.Fatal("local uploads must use real reCAPTCHA verification")
 	}
 }
 
