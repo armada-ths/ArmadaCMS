@@ -199,7 +199,11 @@ definitions:
         type: string
       location:
         type: string
+      mapUrl:
+        type: string
       name:
+        type: string
+      openTo:
         type: string
       registrationEnd:
         type: string
@@ -1348,7 +1352,14 @@ paths:
       - description: Location
         in: formData
         name: location
-        required: true
+        type: string
+      - description: Who the event is open to
+        in: formData
+        name: openTo
+        type: string
+      - description: Map link URL
+        in: formData
+        name: mapUrl
         type: string
       - description: Start time (RFC3339)
         in: formData
@@ -1477,6 +1488,14 @@ paths:
       - description: Location
         in: formData
         name: location
+        type: string
+      - description: Who the event is open to
+        in: formData
+        name: openTo
+        type: string
+      - description: Map link URL
+        in: formData
+        name: mapUrl
         type: string
       - description: Start time (RFC3339)
         in: formData
