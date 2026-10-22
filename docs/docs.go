@@ -47,7 +47,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, q (full-text)",
+                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, include_guest_photos, q (full-text). Set include_auth or include_guest_photos to the string true to include that activity in the top-level list; both are excluded by default",
                         "name": "filter",
                         "in": "query"
                     }
