@@ -278,3 +278,21 @@ variable "db_name" {
   type        = string
   default     = ""
 }
+
+variable "maps_embed_allowed_referrers" {
+  description = "Exact Web origins allowed to embed event maps per environment. Add specific preview domains here rather than allowing every vercel.app tenant."
+  type        = map(list(string))
+  default = {
+    production = ["https://armada.nu/*", "https://www.armada.nu/*"]
+    preview    = ["https://staging.armada.nu/*"]
+    development = [
+      "http://localhost:8000/*", "http://127.0.0.1:8000/*",
+      "http://localhost:6006/*", "http://127.0.0.1:6006/*",
+    ]
+  }
+
+  validation {
+    condition     = alltrue([for referrers in values(var.maps_embed_allowed_referrers) : length(referrers) > 0 && alltrue([for referrer in referrers : can(regex("^https?://[^/]+/\\*$", referrer)) && !strcontains(referrer, "*.vercel.app")])])
+    error_message = "Provide non-empty HTTP(S) origin referrers ending in /*; do not allow all vercel.app tenants."
+  }
+}

@@ -39,10 +39,10 @@ Recovery snapshots and release outcomes are separate Actions artifacts retained 
 | `supabase_state.tf`    | `data.tfe_outputs.supabase_prod` — reads DB connection values and Supabase Storage config from the Supabase workspace |
 | `services.tf`          | GCP API enablement                                                                                                    |
 | `artifact_registry.tf` | Artifact Registry repository                                                                                          |
-| `iam.tf`               | Runtime and deploy service accounts with resource-scoped permissions                                                                   |
+| `iam.tf`               | Runtime and deploy service accounts with resource-scoped permissions                                                  |
 | `secrets.tf`           | Secret Manager secrets                                                                                                |
 | `networking.tf`        | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                                                     |
-| `actions.tf` | GitHub OIDC federation, environment outputs and Terraform state moves |
+| `actions.tf`           | GitHub OIDC federation, environment outputs and Terraform state moves                                                 |
 | `cloud_run.tf`         | Cloud Run service                                                                                                     |
 | `load_balancer.tf`     | External HTTPS load balancer, serverless NEG, proxies, forwarding rules                                               |
 | `outputs.tf`           | Useful outputs including `static_egress_ip`                                                                           |
@@ -96,3 +96,11 @@ The existing load balancer routes `preview.cms.armada.nu` to a separate serverle
 The `github_environment_variables` output exposes the two non-secret Actions connection values. `release_preview_address` describes the preview hostname and existing LB IP. The release validates preview DNS/TLS before mutation and verifies the candidate identity through that route before promotion.
 
 The image build uses a separate registry-only service account and branch-bound OIDC provider without a GitHub Environment deployment. The `github_build_repository_variables` output exposes its non-secret repository connection values. CI and the build run concurrently; the Environment-protected release job requires both to succeed. Only the deploy identity can change Cloud Run and impersonate the runtime account. Its Artifact Registry access is read-only.
+
+## Event maps
+
+`maps.tf` manages Web's Google Maps Embed API keys.
+Each key is restricted to `maps-embed-backend.googleapis.com` and the origins in
+`maps_embed_allowed_referrers`. Production, Preview and Development use separate
+keys. Preview permits `staging.armada.nu`; additional generated preview domains
+must be explicitly allowlisted. Never allow all `*.vercel.app` sites.

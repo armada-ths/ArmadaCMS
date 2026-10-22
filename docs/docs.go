@@ -1246,8 +1246,19 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Location",
                         "name": "location",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Who the event is open to",
+                        "name": "openTo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Map link URL",
+                        "name": "mapUrl",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -1407,6 +1418,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Location",
                         "name": "location",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Who the event is open to",
+                        "name": "openTo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Map link URL",
+                        "name": "mapUrl",
                         "in": "formData"
                     },
                     {
@@ -5141,7 +5164,13 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "mapUrl": {
+                    "type": "string"
+                },
                 "name": {
+                    "type": "string"
+                },
+                "openTo": {
                     "type": "string"
                 },
                 "registrationEnd": {
