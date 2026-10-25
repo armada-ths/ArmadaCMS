@@ -24,3 +24,6 @@ __debug_bin.exe
 *.log
 .DS_Store
 Thumbs.db
+
+# Temporary Workload Identity Federation credentials
+gha-creds-*.json

@@ -56,3 +56,10 @@ infra/terraform/**/backend.hcl
 
 # Playwright
 .playwright-mcp
+
+# Python release verification
+__pycache__/
+*.py[cod]
+
+# Temporary Workload Identity Federation credentials
+gha-creds-*.json

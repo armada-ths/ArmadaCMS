@@ -9,6 +9,12 @@ variable "region" {
   default     = "europe-north2"
 }
 
+variable "scheduler_region" {
+  description = "Cloud Scheduler location; separate from the Cloud Run region because Scheduler is unavailable in europe-north1 and europe-north2."
+  type        = string
+  default     = "europe-west4"
+}
+
 variable "environment" {
   description = "Environment label applied to provisioned resources."
   type        = string
@@ -40,7 +46,7 @@ variable "artifact_registry_repository_id" {
 }
 
 variable "container_image_path" {
-  description = "Path inside the Artifact Registry repository that Cloud Build pushes to."
+  description = "Path inside the Artifact Registry repository that GitHub Actions publishes to."
   type        = string
   default     = "armadacms/armadacms"
 }
@@ -57,19 +63,6 @@ variable "bootstrap_image_tag" {
   default     = "bootstrap"
 }
 
-variable "github_app_private_key_secret_id" {
-  description = "Secret Manager secret ID used by cloudbuild.yaml for GitHub deployment tracking."
-  type        = string
-  default     = "github-app-private-key"
-}
-
-variable "github_app_private_key" {
-  description = "Optional GitHub App private key PEM content. Supplying this lets Terraform create the initial secret version, but it will also place the value in Terraform state."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "secret_values" {
   description = "Escape-hatch for seeding Secret Manager versions via Terraform. Intentionally left empty in practice — secret values are set directly in GCP Secret Manager (console or gcloud), never via Terraform, to keep them out of Terraform state."
   type        = map(string)
@@ -84,7 +77,7 @@ variable "revalidation_url" {
 }
 
 variable "deploy_cloud_run_service" {
-  description = "Whether Terraform should manage the Cloud Run service itself. Set this to false for the initial bootstrap if secrets have not been populated yet."
+  description = "Whether Terraform should manage the Cloud Run service itself; deployment requires populated secrets."
   type        = bool
   default     = false
 }
@@ -119,7 +112,7 @@ variable "cloud_run_cpu" {
 variable "cloud_run_memory" {
   description = "Memory limit for the ArmadaCMS Cloud Run container."
   type        = string
-  default     = "512Mi"
+  default     = "1Gi"
 }
 
 variable "cloud_run_timeout_seconds" {
@@ -146,26 +139,26 @@ variable "max_instances" {
   default     = 2
 }
 
-variable "cloud_build_service_account_email" {
-  description = "Optional existing service account for Cloud Build. Ignored when manage_cloud_build_service_account is true."
+variable "deploy_service_account_email" {
+  description = "Optional existing service account for GitHub Actions. Ignored when manage_deploy_service_account is true."
   type        = string
   default     = ""
 }
 
-variable "manage_cloud_build_service_account" {
+variable "manage_deploy_service_account" {
   description = "Whether Terraform should create a dedicated least-privilege service account for production builds and deployments."
   type        = bool
   default     = false
 }
 
-variable "manage_cloud_build_triggers" {
-  description = "Whether Terraform should manage the existing Cloud Build triggers for ArmadaCMS."
+variable "enable_actions_deployment" {
+  description = "Whether GitHub Actions deployment federation and resource permissions are enabled."
   type        = bool
   default     = false
 }
 
 variable "manage_secret_accessor_bindings" {
-  description = "Whether Terraform should create per-secret Secret Manager accessor IAM bindings for the runtime and Cloud Build service accounts. Leave false to rely on broader project-level Secret Manager access if that already exists in the project."
+  description = "Whether Terraform should create per-secret Secret Manager accessor IAM bindings for the runtime service account. Leave false to rely on broader project-level Secret Manager access if that already exists in the project."
   type        = bool
   default     = false
 }
@@ -262,7 +255,7 @@ variable "enable_recaptcha" {
 variable "recaptcha_allowed_domains" {
   description = "Domains authorised to use the reCAPTCHA Enterprise site key."
   type        = list(string)
-  default     = ["armada.nu"]
+  default     = ["armada.nu", "photos.armada.nu"]
 }
 
 # ── Database overrides ────────────────────────────────────────────────────────

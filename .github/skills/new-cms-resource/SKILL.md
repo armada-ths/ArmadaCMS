@@ -122,7 +122,7 @@ Run the checks that match the scope of the change:
 
 - Backend: `go test -race -count=1 ./...`
 - Admin frontend in `frontend/`: `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`
-- If Docker wiring or local environment behavior changed, verify with `docker compose -f docker-compose.dev.yml up --build`
+- If Docker wiring or local environment behavior changed, verify with `./scripts/dev-up.ps1 -Build` so local Supabase starts before the backend.
 
 ## Common Pitfalls
 

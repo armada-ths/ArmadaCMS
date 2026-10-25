@@ -47,7 +47,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, q (full-text)",
+                        "description": "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, include_guest_photos, q (full-text). Set include_auth or include_guest_photos to the string true to include that activity in the top-level list; both are excluded by default",
                         "name": "filter",
                         "in": "query"
                     }
@@ -199,6 +199,12 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Cover image",
                         "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.",
+                        "name": "headerImages",
                         "in": "formData"
                     }
                 ],
@@ -354,6 +360,12 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Cover image",
                         "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ordered JSON array of {url} or {file} entries for additional header images; [] removes all; omitted preserves existing images. File entries reference multipart file field names.",
+                        "name": "headerImages",
                         "in": "formData"
                     }
                 ],
@@ -907,6 +919,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/eventphotos/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Renew administrative photo preview links",
+                "parameters": [
+                    {
+                        "description": "Event ID and 1 to 100 photo IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.photoPreviewRefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.photoPreviewRefreshResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid event or photo IDs",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/eventroevents": {
             "get": {
                 "security": [
@@ -1234,8 +1296,19 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Location",
                         "name": "location",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Who the event is open to",
+                        "name": "openTo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Map link URL",
+                        "name": "mapUrl",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -1395,6 +1468,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Location",
                         "name": "location",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Who the event is open to",
+                        "name": "openTo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Map link URL",
+                        "name": "mapUrl",
                         "in": "formData"
                     },
                     {
@@ -4456,6 +4541,400 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/timeline-entries": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "List timeline entries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination range, e.g. [0,24]",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.TimelineEntry"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Create timeline entry",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Entry title",
+                        "name": "title",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry body (Markdown)",
+                        "name": "body",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Era ID",
+                        "name": "eraId",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sort order within era",
+                        "name": "sortOrder",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Existing image URL",
+                        "name": "imageUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Optional image",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-entries/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Get timeline entry by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Update timeline entry",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry title",
+                        "name": "title",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry body (Markdown)",
+                        "name": "body",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Era ID",
+                        "name": "eraId",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sort order within era",
+                        "name": "sortOrder",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Existing image URL; an empty value removes the image",
+                        "name": "imageUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Optional image",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEntry"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-entries"
+                ],
+                "summary": "Delete timeline entry",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-eras": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "List timeline eras",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination range, e.g. [0,24]",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.TimelineEra"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Create timeline era",
+                "parameters": [
+                    {
+                        "description": "Timeline era data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            }
+        },
+        "/timeline-eras/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Get timeline era by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Update timeline era",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Timeline era data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TimelineEra"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "timeline-eras"
+                ],
+                "summary": "Delete timeline era",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Timeline Era ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4528,6 +5007,34 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "admin"
+                }
+            }
+        },
+        "controllers.photoPreviewRefreshRequest": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "type": "integer"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "controllers.photoPreviewRefreshResponse": {
+            "type": "object",
+            "properties": {
+                "thumbnail_urls": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "urls_expires_at": {
+                    "type": "string"
                 }
             }
         },
@@ -4668,6 +5175,12 @@ const docTemplate = `{
                 "imageUrl": {
                     "type": "string"
                 },
+                "imageUrls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "published": {
                     "type": "boolean"
                 },
@@ -4729,7 +5242,13 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "mapUrl": {
+                    "type": "string"
+                },
                 "name": {
+                    "type": "string"
+                },
+                "openTo": {
                     "type": "string"
                 },
                 "registrationEnd": {
@@ -5155,6 +5674,46 @@ const docTemplate = `{
                 "TierSilver",
                 "TierGold"
             ]
+        },
+        "models.TimelineEntry": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "eraId": {
+                    "type": "integer"
+                },
+                "eraTitle": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.TimelineEra": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
         },
         "models.Tokens": {
             "type": "object",

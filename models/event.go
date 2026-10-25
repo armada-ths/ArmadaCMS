@@ -12,6 +12,8 @@ type Event struct {
 	Description          *string    `gorm:"column:description" json:"description,omitempty"`
 	DescriptionSv        *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 	Location             string     `gorm:"column:location;not null" json:"location"`
+	OpenTo               *string    `gorm:"column:open_to" json:"openTo,omitempty"`
+	MapURL               *string    `gorm:"column:map_url" json:"mapUrl,omitempty"`
 	Food                 *string    `gorm:"column:food" json:"food,omitempty"`
 	EventStart           time.Time  `gorm:"column:event_start;not null" json:"eventStart"`
 	EventEnd             time.Time  `gorm:"column:event_end;not null" json:"eventEnd"`

@@ -14,7 +14,7 @@ try {
         throw "Docker Compose failed with exit code $LASTEXITCODE."
     }
 
-    & pnpx --yes "supabase@$supabaseVersion" stop
+    & pnpx "supabase@$supabaseVersion" stop
     if ($LASTEXITCODE -ne 0) {
         throw "Supabase CLI failed to stop the local services."
     }

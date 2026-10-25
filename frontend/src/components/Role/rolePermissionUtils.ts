@@ -9,16 +9,11 @@ export type PermissionGroup = {
 /** Configuration for a special permission shown as a standalone toggle. */
 export type SpecialPermission = {
   /** One or more full permission strings granted/revoked together, e.g. ["customusers.changeownpassword"] */
-  perms: string[];
+  perms: readonly string[];
   /** Form field name for the boolean toggle, e.g. "changeOwnPassword" */
   formField: string;
   /** Label shown next to the toggle in the form */
   label: string;
-  /**
-   * When set, this resource is hidden from the permissions ArrayInput dropdown
-   * because all its actions are fully managed by this standalone toggle.
-   */
-  exclusiveResource?: string;
 };
 
 /**
@@ -26,7 +21,7 @@ export type SpecialPermission = {
  * permissions ArrayInput. To add a new one, append an entry here — no other
  * changes to this file or the form components are needed.
  */
-export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
+export const SPECIAL_PERMISSIONS = [
   {
     perms: ["customusers.changeownpassword"],
     formField: "changeOwnPassword",
@@ -37,13 +32,16 @@ export const SPECIAL_PERMISSIONS: SpecialPermission[] = [
     formField: "eventroSyncAccess",
     label: "Can access Eventro sync on the dashboard",
   },
-  {
-    perms: ["auditlogs.view"],
-    formField: "auditLogsAccess",
-    label: "Can view audit logs",
-    exclusiveResource: "auditlogs",
-  },
-];
+] as const satisfies readonly SpecialPermission[];
+
+type SpecialPermissionField = (typeof SPECIAL_PERMISSIONS)[number]["formField"];
+type SpecialPermissionValues = Record<SpecialPermissionField, boolean>;
+export type NormalizedRole<T> = Omit<
+  T,
+  "permissions" | SpecialPermissionField
+> & {
+  permissions: PermissionGroup[];
+} & SpecialPermissionValues;
 
 export const PERMISSION_ACTIONS = [
   { id: "*", name: "All actions" },
@@ -53,21 +51,74 @@ export const PERMISSION_ACTIONS = [
   { id: "delete", name: "Delete" },
 ];
 
+/** Restrict resource choices to actions that the API actually accepts. */
+export const RESOURCE_ACTION_OVERRIDES = [
+  { id: "auditlogs", name: "Audit logs", actions: ["view"] },
+  {
+    id: "eventphotos",
+    name: "Guest photo moderation",
+    actions: ["view", "edit"],
+  },
+  { id: "photoexports", name: "Photo exports", actions: ["view", "create"] },
+];
+
+export const getPermissionActionChoices = (
+  resource?: string,
+  selectedActions: string[] = [],
+) => {
+  const apiResource = RESOURCE_ACTION_OVERRIDES.find(
+    (choice) => choice.id === resource,
+  );
+  if (!apiResource) return PERMISSION_ACTIONS;
+
+  // Keep previously stored actions visible so editing a role never silently drops them.
+  return PERMISSION_ACTIONS.filter(
+    (action) =>
+      action.id === "*" ||
+      apiResource.actions.includes(action.id) ||
+      selectedActions.includes(action.id),
+  );
+};
+
 /** Individual (non-wildcard) action IDs — used to expand/collapse the "all actions" shorthand. */
 export const NON_WILDCARD_ACTION_IDS = PERMISSION_ACTIONS.filter(
   (a) => a.id !== "*",
 ).map((a) => a.id);
 
-export const areAllIndividualActionsSelected = (actions: string[]) =>
-  NON_WILDCARD_ACTION_IDS.every((action) => actions.includes(action));
+export const getSupportedActionIds = (resource?: string) =>
+  RESOURCE_ACTION_OVERRIDES.find((choice) => choice.id === resource)?.actions ??
+  NON_WILDCARD_ACTION_IDS;
+
+export const areAllIndividualActionsSelected = (
+  actions: string[],
+  resource?: string,
+) =>
+  getSupportedActionIds(resource).every((action) => actions.includes(action));
+
+/** Keep only applicable actions when a permission row changes resource. */
+export const normalizeActionsForResource = (
+  actions: string[],
+  resource?: string,
+) => {
+  const supportedActions = getSupportedActionIds(resource);
+  const validActions = actions.filter(
+    (action) => action === "*" || supportedActions.includes(action),
+  );
+  return validActions.includes("*") ? ["*", ...supportedActions] : validActions;
+};
 
 export const normalizeActionsSelection = (
   previousActions: string[],
   nextActions: string[],
+  resource?: string,
 ) => {
   const previousHadWildcard = previousActions.includes("*");
   const nextHasWildcard = nextActions.includes("*");
-  const allIndividualsSelected = areAllIndividualActionsSelected(nextActions);
+  const supportedActions = getSupportedActionIds(resource);
+  const allIndividualsSelected = areAllIndividualActionsSelected(
+    nextActions,
+    resource,
+  );
 
   // Unknown actions are those not in the standard CRUD set (and not "*").
   // They must be preserved through all toggle transitions.
@@ -77,7 +128,7 @@ export const normalizeActionsSelection = (
 
   if (!previousHadWildcard && nextHasWildcard) {
     // "All actions" just checked: expand and preserve unknowns.
-    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
+    return [...unknownNextActions, "*", ...supportedActions];
   }
 
   if (previousHadWildcard && !nextHasWildcard && allIndividualsSelected) {
@@ -95,7 +146,7 @@ export const normalizeActionsSelection = (
 
   if (!nextHasWildcard && allIndividualsSelected) {
     // All individual CRUD actions manually checked: auto-add wildcard, keep unknowns.
-    return [...unknownNextActions, "*", ...NON_WILDCARD_ACTION_IDS];
+    return [...unknownNextActions, "*", ...supportedActions];
   }
 
   return nextActions;
@@ -159,18 +210,20 @@ export const getSpecialPermCoveringWildcards = (
 
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
-  const exclusiveResources = new Set(
-    SPECIAL_PERMISSIONS.map((sp) => sp.exclusiveResource).filter(Boolean),
+  const registeredResources = Object.entries(resourceDefinitions).map(
+    ([resource, definition]) => ({
+      id: resource,
+      name: definition.options?.label ?? resource,
+    }),
   );
+  const registeredNames = new Set(registeredResources.map(({ id }) => id));
 
   return [
     { id: "*", name: "All resources" },
-    ...Object.entries(resourceDefinitions)
-      .filter(([resource]) => !exclusiveResources.has(resource))
-      .map(([resource, definition]) => ({
-        id: resource,
-        name: definition.options?.label ?? resource,
-      })),
+    ...registeredResources,
+    ...RESOURCE_ACTION_OVERRIDES.filter(
+      ({ id }) => !registeredNames.has(id),
+    ).map(({ id, name }) => ({ id, name })),
   ];
 };
 
@@ -178,14 +231,16 @@ export const useResourceChoices = () => {
  * Converts stored permission strings from the API into the form's internal shape.
  * Groups by resource into { resource, actions[] } and extracts each special
  * permission into its own boolean form field. When a wildcard action
- * ("resource.*" or "*") is found, all individual action IDs are included so
- * every checkbox appears ticked.
+ * ("resource.*" or "*") is found, the resource's supported action IDs are
+ * included so every applicable checkbox appears ticked.
  */
 export const normalizeRecord = <T extends { permissions?: string[] }>(
   record: T,
-) => {
+): NormalizedRole<T> => {
   const groupMap = new Map<string, string[]>();
-  const specialPermSet = new Set(SPECIAL_PERMISSIONS.flatMap((sp) => sp.perms));
+  const specialPermSet = new Set<string>(
+    SPECIAL_PERMISSIONS.flatMap((sp) => sp.perms),
+  );
   const explicitSpecials = new Set<string>();
 
   for (const p of record.permissions ?? []) {
@@ -196,7 +251,7 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
 
     if (p === "*") {
       // Global wildcard — expand so every checkbox is ticked
-      groupMap.set("*", ["*", ...NON_WILDCARD_ACTION_IDS]);
+      groupMap.set("*", ["*", ...getSupportedActionIds("*")]);
       continue;
     }
 
@@ -211,8 +266,8 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     const action = p.slice(dot + 1);
 
     if (action === "*") {
-      // resource.* — expand so every checkbox is ticked for this resource
-      groupMap.set(resource, ["*", ...NON_WILDCARD_ACTION_IDS]);
+      // resource.* — expand only the actions supported by this resource
+      groupMap.set(resource, ["*", ...getSupportedActionIds(resource)]);
     } else {
       const existing = groupMap.get(resource) ?? [];
       if (!existing.includes(action)) {
@@ -226,12 +281,14 @@ export const normalizeRecord = <T extends { permissions?: string[] }>(
     ([resource, actions]) => ({ resource, actions }),
   );
 
-  const specialFieldValues: Record<string, boolean> = {};
-  for (const spec of SPECIAL_PERMISSIONS) {
-    specialFieldValues[spec.formField] =
+  // Every configured toggle is present, including those that are false.
+  const specialFieldValues = Object.fromEntries(
+    SPECIAL_PERMISSIONS.map((spec) => [
+      spec.formField,
       spec.perms.some((p) => explicitSpecials.has(p)) ||
-      isSpecialPermCoveredByWildcard(spec, permissions);
-  }
+        isSpecialPermCoveredByWildcard(spec, permissions),
+    ]),
+  ) as SpecialPermissionValues;
 
   return { ...record, permissions, ...specialFieldValues };
 };

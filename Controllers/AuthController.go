@@ -214,6 +214,25 @@ func setTokenResponseHeaders(w http.ResponseWriter) {
 	w.Header().Set("Pragma", "no-cache")
 }
 
+// deleteUserRefreshTokensWithAudit removes all sessions, including disabled and
+// expired tokens, so their foreign keys cannot prevent deleting the user.
+func deleteUserRefreshTokensWithAudit(tx *gorm.DB, r *http.Request, userID uint) error {
+	var tokens []models.RefreshToken
+	if err := tx.Where("user_id = ?", userID).Find(&tokens).Error; err != nil {
+		return err
+	}
+
+	for i := range tokens {
+		if err := tx.Delete(&tokens[i]).Error; err != nil {
+			return err
+		}
+		if err := audit.LogDelete(tx, r, "refreshtokens", tokens[i].ID, newRefreshTokenAuditData(tokens[i])); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func revokeUserRefreshTokensWithAudit(tx *gorm.DB, r *http.Request, userID uint) error {
 	var tokens []models.RefreshToken
 	if err := tx.Where("user_id = ? AND enabled = true", userID).Find(&tokens).Error; err != nil {

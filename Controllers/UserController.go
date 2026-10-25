@@ -249,7 +249,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	writeGroupedDeleteResponseWithAudit(w, r, "customusers", id, "user not found",
 		func(tx *gorm.DB) *gorm.DB { return tx.Preload("Roles") },
 		func(tx *gorm.DB, user *models.User, childRequest *http.Request) error {
-			return revokeUserRefreshTokensWithAudit(tx, childRequest, user.ID)
+			return deleteUserRefreshTokensWithAudit(tx, childRequest, user.ID)
 		},
 		map[string]any{"operation": "delete_user_and_revoke_sessions"},
 	)

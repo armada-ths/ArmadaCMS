@@ -69,6 +69,11 @@ var DefaultFeatureFlags = []FeatureFlag{
 		Enabled:     true,
 	},
 	{
+		Key:         "ARMADA_TIMELINE_PAGE",
+		Description: "Show the Armada history timeline page",
+		Enabled:     true,
+	},
+	{
 		Key:         "ARMADA_BLOG_PAGE",
 		Description: "Show the armada blog page",
 		Enabled:     false,
