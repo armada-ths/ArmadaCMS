@@ -9,7 +9,7 @@ See [README.md](../README.md) for full getting-started guide, project structure,
 ## Documentation
 
 - Add only relevant information to README files and match the document's existing level of detail. Keep summaries concise; create or extend focused documentation in a suitable subdirectory only when the extra detail is needed.
-- Never put bootstrap instructions directly in a README. Prefer keeping one-time provisioning, permission setup and environment activation instructions outside the checked-in repository (for example, in the delivery chat). If they must be stored in the repository, use a separate file that is not a README and link to it rather than embedding the instructions.
+- Keep shared, one-time infrastructure bootstrap and provisioning instructions out of committed files; provide them in the delivery chat. Keep per-developer setup instructions (local tools, authentication, backend initialization and local environment configuration) in the relevant repository documentation.
 
 ## Architecture
 

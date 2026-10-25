@@ -14,6 +14,8 @@ locals {
 
   required_services = toset(concat(
     [
+      "apikeys.googleapis.com",
+      "maps-embed-backend.googleapis.com",
       "artifactregistry.googleapis.com",
       "cloudbuild.googleapis.com",
       "cloudscheduler.googleapis.com",
@@ -26,7 +28,6 @@ locals {
       "vision.googleapis.com",
     ],
     var.enable_recaptcha ? [
-      "apikeys.googleapis.com",
       "recaptchaenterprise.googleapis.com",
     ] : [],
     var.enable_vpc_egress ? [

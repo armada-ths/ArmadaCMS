@@ -26,18 +26,19 @@ type eventroEventsResponse struct {
 }
 
 type eventroEventResponse struct {
-	ID                      string  `json:"id"`
-	Name                    string  `json:"name"`
-	Description             *string `json:"description"`
-	Participants            int     `json:"participants"`
-	AllowWaitlist           bool    `json:"allowWaitlist"`
-	MaxParticipants         int     `json:"maxParticipants"`
-	EventStartsAt           string  `json:"eventStartsAt"`
-	EventEndsAt             string  `json:"eventEndsAt"`
-	OpensForRegistrationAt  string  `json:"opensForRegistrationAt"`
-	ClosesForRegistrationAt string  `json:"closesForRegistrationAt"`
-	OpensForPublicationAt   string  `json:"opensForPublicationAt"`
-	ClosesForPublicationAt  string  `json:"closesForPublicationAt"`
+	CustomFields            map[string]json.RawMessage `json:"customFields"`
+	ID                      string                     `json:"id"`
+	Name                    string                     `json:"name"`
+	Description             *string                    `json:"description"`
+	Participants            int                        `json:"participants"`
+	AllowWaitlist           bool                       `json:"allowWaitlist"`
+	MaxParticipants         int                        `json:"maxParticipants"`
+	EventStartsAt           string                     `json:"eventStartsAt"`
+	EventEndsAt             string                     `json:"eventEndsAt"`
+	OpensForRegistrationAt  string                     `json:"opensForRegistrationAt"`
+	ClosesForRegistrationAt string                     `json:"closesForRegistrationAt"`
+	OpensForPublicationAt   string                     `json:"opensForPublicationAt"`
+	ClosesForPublicationAt  string                     `json:"closesForPublicationAt"`
 }
 
 // ---------- Controller ----------
@@ -108,7 +109,12 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 			if findErr != nil && findErr != gorm.ErrRecordNotFound {
 				return findErr
 			}
+			preserveOmittedEventroFields(&ev, existing, e.CustomFields)
 			if findErr == nil &&
+				existing.Location == ev.Location &&
+				stringPointersEqual(existing.Food, ev.Food) &&
+				stringPointersEqual(existing.OpenTo, ev.OpenTo) &&
+				stringPointersEqual(existing.MapURL, ev.MapURL) &&
 				existing.Name == ev.Name &&
 				stringPointersEqual(existing.Description, ev.Description) &&
 				existing.EventStart.Equal(ev.EventStart) &&
@@ -122,7 +128,7 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 				Columns: []clause.Column{{Name: "eventro_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{
 					"name", "description", "event_start", "event_end",
-					"registration_end", "event_max_capacity",
+					"registration_end", "event_max_capacity", "location", "food", "open_to", "map_url",
 				}),
 			}).Create(&ev)
 			if result.Error != nil {
@@ -202,11 +208,22 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		return &t
 	}
 
+	location, _ := eventroTextField(e.CustomFields, "location")
+	food, _ := eventroTextField(e.CustomFields, "food")
+	openTo, _ := eventroTextField(e.CustomFields, "opento")
+	mapURL, _ := eventroTextField(e.CustomFields, "mapurl")
+	locationText := ""
+	if location != nil {
+		locationText = *location
+	}
 	return models.Event{
 		EventroID:        e.ID,
 		Name:             e.Name,
 		Description:      utils.SanitizeEventDescription(e.Description),
-		Food:             nil,
+		Location:         locationText,
+		Food:             food,
+		OpenTo:           openTo,
+		MapURL:           mapURL,
 		EventStart:       derefOrNow(parseTime(e.EventStartsAt)),
 		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),
 		RegistrationEnd:  parseTime(e.ClosesForRegistrationAt),
@@ -222,4 +239,34 @@ func derefOrNow(t *time.Time) time.Time {
 		return time.Now().UTC()
 	}
 	return *t
+}
+
+// The API omits archived fields and returns null for active, unset fields.
+// Ignore unexpected types without failing the entire event import.
+func eventroTextField(fields map[string]json.RawMessage, key string) (*string, bool) {
+	raw, present := fields[key]
+	if !present {
+		return nil, false
+	}
+	var value *string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, false
+	}
+	NormalizeOptionalStringPointers(&value)
+	return value, true
+}
+
+func preserveOmittedEventroFields(event *models.Event, existing models.Event, fields map[string]json.RawMessage) {
+	if _, present := eventroTextField(fields, "location"); !present {
+		event.Location = existing.Location
+	}
+	if _, present := eventroTextField(fields, "food"); !present {
+		event.Food = existing.Food
+	}
+	if _, present := eventroTextField(fields, "opento"); !present {
+		event.OpenTo = existing.OpenTo
+	}
+	if _, present := eventroTextField(fields, "mapurl"); !present {
+		event.MapURL = existing.MapURL
+	}
 }
