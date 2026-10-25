@@ -1,4 +1,14 @@
-import { FormControlLabel, Switch } from "@mui/material";
+import { useId, useState } from "react";
+import {
+  Button,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+} from "@mui/material";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import {
   List,
   Datagrid,
@@ -36,29 +46,68 @@ const auditLogFilters = [
 
 const ListActions = () => {
   const { displayedFilters, filterValues, setFilters } = useListContext();
-  const showLoginActivity = filterValues.include_auth === "true";
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const menuId = useId();
+  const buttonId = useId();
+  const activityOptions = [
+    { key: "include_auth", label: "Show login activity" },
+    { key: "include_guest_photos", label: "Show guest photo activity" },
+  ] as const;
+  const activeCount = activityOptions.filter(
+    ({ key }) => filterValues[key] === "true",
+  ).length;
 
-  const handleToggle = (checked: boolean) => {
+  const handleToggle = (key: (typeof activityOptions)[number]["key"]) => {
     const nextFilters = { ...filterValues };
-    if (checked) {
-      nextFilters.include_auth = "true";
+    if (nextFilters[key] === "true") {
+      delete nextFilters[key];
     } else {
-      delete nextFilters.include_auth;
+      nextFilters[key] = "true";
     }
     setFilters(nextFilters, displayedFilters);
   };
 
   return (
     <TopToolbar>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={showLoginActivity}
-            onChange={(_, checked) => handleToggle(checked)}
-          />
-        }
-        label="Show login activity"
-      />
+      <Button
+        id={buttonId}
+        size="small"
+        aria-controls={anchorEl ? menuId : undefined}
+        aria-haspopup="menu"
+        aria-expanded={anchorEl ? true : undefined}
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        endIcon={<ArrowDropDownIcon />}
+      >
+        Activity{activeCount > 0 ? ` (${activeCount})` : ""}
+      </Button>
+      <Menu
+        id={menuId}
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        slotProps={{ list: { "aria-labelledby": buttonId } }}
+      >
+        {activityOptions.map(({ key, label }) => {
+          const checked = filterValues[key] === "true";
+          return (
+            <MenuItem
+              key={key}
+              role="menuitemcheckbox"
+              aria-checked={checked}
+              onClick={() => handleToggle(key)}
+            >
+              <ListItemIcon>
+                {checked ? (
+                  <CheckBoxIcon fontSize="small" />
+                ) : (
+                  <CheckBoxOutlineBlankIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText>{label}</ListItemText>
+            </MenuItem>
+          );
+        })}
+      </Menu>
       <FilterButton />
     </TopToolbar>
   );
@@ -70,6 +119,12 @@ export const AuditLogList = (props: ListProps) => (
     sort={{ field: "created_at", order: "DESC" }}
     filters={auditLogFilters}
     actions={<ListActions />}
+    sx={{
+      minWidth: 0,
+      maxWidth: { xs: "calc(100vw - 16px)", sm: "none" },
+      "& .RaList-main": { minWidth: 0 },
+      "& .RaList-content": { minWidth: 0, overflowX: "auto" },
+    }}
   >
     <Datagrid
       bulkActionButtons={false}

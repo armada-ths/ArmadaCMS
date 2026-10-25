@@ -56,8 +56,8 @@ jobs:
 
       - name: Install image processing libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
 
       - name: Run go vet
         run: go vet ./...
@@ -81,8 +81,8 @@ jobs:
 
       - name: Install image processing libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
@@ -108,8 +108,8 @@ jobs:
 
       - name: Install image processing libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
 
       - name: Run go test
         run: go test -race -count=1 ./...
@@ -118,7 +118,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-alpine
@@ -147,8 +147,8 @@ jobs:
 
       - name: Install image processing libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
 
       - name: Create isolated test databases
         env:

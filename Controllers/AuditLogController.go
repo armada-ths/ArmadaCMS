@@ -17,7 +17,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"created_at\",\"DESC\"]"
-// @Param filter query string false "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, q (full-text)"
+// @Param filter query string false "Filter. Supported keys: action, resource_type, resource_id, actor_username, http_method, group_status, parent_id, include_auth, include_guest_photos, q (full-text). Set include_auth or include_guest_photos to the string true to include that activity in the top-level list; both are excluded by default"
 // @Success 200 {array} models.AuditLog
 // @Header 200 {string} Content-Range "auditlogs 0-24/1000"
 // @Security BearerAuth
@@ -26,34 +26,7 @@ func GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 
 	var logs []models.AuditLog
-	query := db.DB.Model(&models.AuditLog{})
-	hasParentFilter := false
-
-	for k, v := range params.Filter {
-		switch k {
-		case "action", "resource_type", "resource_id", "actor_username", "http_method", "group_status":
-			query = query.Where(k+" = ?", v)
-		case "parent_id":
-			hasParentFilter = true
-			query = query.Where("parent_id = ?", v)
-		case "q":
-			like := "%" + v + "%"
-			query = query.Where(
-				"actor_username ILIKE ? OR actor_name ILIKE ? OR resource_type ILIKE ? OR resource_id ILIKE ? OR request_path ILIKE ? OR group_status ILIKE ?",
-				like, like, like, like, like, like,
-			)
-		}
-	}
-	if !hasParentFilter {
-		query = query.Where("parent_id IS NULL")
-		if params.Filter["include_auth"] != "true" {
-			query = query.Where("request_path NOT IN ?", []string{
-				"/api/v1/login",
-				"/api/v1/refreshAccessToken",
-				"/api/v1/me/password",
-			})
-		}
-	}
+	query := auditLogQuery(db.DB.Model(&models.AuditLog{}), params.Filter)
 
 	if len(params.Sort) == 2 {
 		query = query.Order(params.Sort[0] + " " + params.Sort[1])
