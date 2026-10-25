@@ -1,0 +1,7 @@
+[MESSAGES CONTROL]
+# Avoid boilerplate docstrings and line wrapping solely to satisfy the linter.
+# Module documentation, import checks and correctness warnings stay enabled.
+disable=
+    missing-class-docstring,
+    missing-function-docstring,
+    line-too-long

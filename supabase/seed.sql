@@ -26,6 +26,7 @@ values
 	('EXHIBITOR_SIGNUP_PAGE', 'Show the exhibitor signup/registration page (only controls the topnav link, the page itself is controlled by the exhibitor timeline).', true),
 	('ABOUT_PAGE', 'Show the about armada page', true),
 	('ABOUT_TEAM_PAGE', 'Show the about team page', true),
+	('ARMADA_TIMELINE_PAGE', 'Show the Armada history timeline page', true),
 	('ARMADA_BLOG_PAGE', 'Show the armada blog page', false)
 on conflict (key) do update
 set

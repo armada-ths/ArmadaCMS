@@ -15,17 +15,19 @@
 package main
 
 import (
-	controllers "ArmadaCMS/main/Controllers"
-	"ArmadaCMS/main/auth"
-	"ArmadaCMS/main/db"
-	_ "ArmadaCMS/main/docs"
-	"ArmadaCMS/main/utils"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	controllers "ArmadaCMS/main/Controllers"
+	"ArmadaCMS/main/auth"
+	"ArmadaCMS/main/db"
+	_ "ArmadaCMS/main/docs"
+	"ArmadaCMS/main/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -49,8 +51,12 @@ var adminClientRouteSegments = map[string]struct{}{
 	"auditlogs":          {},
 	"highlightcards":     {},
 	"blogposts":          {},
+	"timeline-entries":   {},
+	"timeline-eras":      {},
 	"login":              {},
 }
+
+var buildCommit = "unknown"
 
 func main() {
 	fmt.Println("Hello, world.")
@@ -64,6 +70,12 @@ func main() {
 
 	db.ConnectDB()
 
+	if os.Getenv("PHOTO_WORKER_MODE") == "1" {
+		if err := runPhotoWorker(context.Background()); err != nil {
+			log.Fatal("photo worker failed: ", err)
+		}
+		return
+	}
 	if err := controllers.SeedRoles(db.DB); err != nil {
 		log.Printf("failed to seed roles: %v", err)
 	}
@@ -77,6 +89,9 @@ func main() {
 	}
 
 	wrappedMux := CreateMuxClient()
+	if os.Getenv("K_SERVICE") == "" {
+		go runLocalRejectedPhotoCleanup(context.Background())
+	}
 	listenAddr := getListenAddr()
 	fmt.Println("Server running on http://localhost" + listenAddr)
 	if err := http.ListenAndServe(listenAddr, wrappedMux); err != nil {
@@ -98,13 +113,15 @@ func CreateMuxClient() http.Handler {
 
 	mux.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+			if !strings.Contains(r.URL.Path, "/photo-events/access/") {
+				log.Printf("REQUEST: %s %s", r.Method, r.URL.Path)
+			}
 			next.ServeHTTP(w, r)
 		})
 	})
 
 	mux = CreateControllers(mux)
-	wrappedMux := HandleCORS(mux)
+	wrappedMux := noIndex(HandleCORS(mux))
 	return wrappedMux
 }
 func isKnownAdminClientPath(relPath string) bool {
@@ -187,6 +204,9 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Armada-Commit", buildCommit)
+		w.Header().Set("X-Armada-Revision", os.Getenv("K_REVISION"))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -198,6 +218,26 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
 	publicAPI.HandleFunc("/login", controllers.Login)
+	publicAPI.HandleFunc("/photo-events/access/{token}", controllers.PhotoEventAccess).Methods("GET")
+	publicAPI.HandleFunc("/photo-events/access/{token}/photos", controllers.PhotoEventUpload).Methods("POST")
+	publicAPI.HandleFunc("/photo-events/access/{token}/gallery", controllers.PhotoEventGallery).Methods("GET")
+	publicAPI.HandleFunc("/photo-events/access/{token}/gallery/refresh", controllers.PhotoEventRefreshURLs).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.view", controllers.ListPhotoEvents)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.create", controllers.CreatePhotoEvent)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.view", controllers.GetPhotoEvent)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.edit", controllers.UpdatePhotoEvent)).Methods("PUT")
+	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.delete", controllers.DeletePhotoEvent)).Methods("DELETE")
+	protectedAPI.HandleFunc("/photoevents/{id}/link", auth.RequirePermission("photoevents.view", controllers.PhotoEventLink)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}/qr", auth.RequirePermission("photoevents.view", controllers.PhotoEventQR)).Methods("GET")
+	protectedAPI.HandleFunc("/photoevents/{id}/rotate", auth.RequirePermission("photoevents.edit", controllers.RotatePhotoEventToken)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}/retention-delete", auth.RequirePermission("photoevents.delete", controllers.RequestPhotoEventDeletion)).Methods("POST")
+	protectedAPI.HandleFunc("/eventphotos", auth.RequirePermission("eventphotos.view", controllers.ListEventPhotos)).Methods("GET")
+	protectedAPI.HandleFunc("/eventphotos/refresh", auth.RequirePermission("eventphotos.view", controllers.RefreshEventPhotoURLs)).Methods("POST")
+	protectedAPI.HandleFunc("/eventphotos/batch", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhotosBatch)).Methods("POST")
+	protectedAPI.HandleFunc("/eventphotos/{id}/moderate", auth.RequirePermission("eventphotos.edit", controllers.ModerateEventPhoto)).Methods("POST")
+	protectedAPI.HandleFunc("/photoevents/{id}/exports", auth.RequirePermission("photoexports.create", controllers.StartPhotoExport)).Methods("POST")
+	protectedAPI.HandleFunc("/photoexports", auth.RequirePermission("photoexports.view", controllers.ListPhotoExports)).Methods("GET")
+	protectedAPI.HandleFunc("/photoexports/{id}", auth.RequirePermission("photoexports.view", controllers.GetPhotoExport)).Methods("GET")
 	publicAPI.HandleFunc("/refreshAccessToken", controllers.RefreshAccessToken).Methods("POST")
 
 	// Current user info (for frontend permissions)
@@ -295,6 +335,18 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.edit", controllers.UpdateBlogpost)).Methods("PUT")
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.delete", controllers.DeleteBlogpost)).Methods("DELETE")
 
+	// timeline entries
+	publicAPI.HandleFunc("/timeline-eras", controllers.GetTimelineEras).Methods("GET")
+	publicAPI.HandleFunc("/timeline-eras/{id}", controllers.GetTimelineEraByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline-eras", auth.RequirePermission("timeline-eras.create", controllers.CreateTimelineEra)).Methods("POST")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.edit", controllers.UpdateTimelineEra)).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline-eras/{id}", auth.RequirePermission("timeline-eras.delete", controllers.DeleteTimelineEra)).Methods("DELETE")
+	publicAPI.HandleFunc("/timeline-entries", controllers.GetTimelineEntries).Methods("GET")
+	publicAPI.HandleFunc("/timeline-entries/{id}", controllers.GetTimelineEntryByID).Methods("GET")
+	protectedAPI.HandleFunc("/timeline-entries", auth.RequirePermission("timeline-entries.create", controllers.CreateTimelineEntry)).Methods("POST")
+	protectedAPI.HandleFunc("/timeline-entries/{id}", auth.RequirePermission("timeline-entries.edit", controllers.UpdateTimelineEntry)).Methods("PUT")
+	protectedAPI.HandleFunc("/timeline-entries/{id}", auth.RequirePermission("timeline-entries.delete", controllers.DeleteTimelineEntry)).Methods("DELETE")
+
 	publicAPI.HandleFunc("/organization", controllers.GetOrganizationEndpoint).Methods("GET")
 	publicAPI.HandleFunc("/dates", controllers.GetFairDates).Methods("GET")
 
@@ -354,10 +406,14 @@ func HandleCORS(next http.Handler) http.Handler {
 }
 
 var defaultCORSOrigins = map[string]struct{}{
-	"https://armada.nu":     {},
-	"https://www.armada.nu": {},
-	"http://localhost:3000": {},
-	"http://localhost:5173": {},
+	"https://armada.nu":        {},
+	"https://www.armada.nu":    {},
+	"https://photos.armada.nu": {},
+	"http://localhost:3000":    {},
+	"http://localhost:8000":    {},
+	"http://localhost:8001":    {},
+	"http://127.0.0.1:8001":    {},
+	"http://localhost:5173":    {},
 }
 
 func isAllowedCORSOrigin(origin string) bool {

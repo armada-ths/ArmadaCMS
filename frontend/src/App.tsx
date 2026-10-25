@@ -1,12 +1,11 @@
+import { Admin, AppBar, Logout, Resource, Layout, UserMenu } from "react-admin";
+import { Route } from "react-router-dom";
 import {
-  Admin,
-  AppBar,
-  Logout,
-  Menu,
-  Resource,
-  Layout,
-  UserMenu,
-} from "react-admin";
+  PhotoEventList,
+  PhotoEventCreate,
+  PhotoEventEdit,
+} from "./components/Photos/PhotoEvents";
+import { PhotoModeration } from "./components/Photos/PhotoModeration";
 import { dataProvider } from "./dataProvider";
 import { UserList } from "./components/User/UserList";
 import { UserCreate } from "./components/User/UserCreate";
@@ -56,17 +55,19 @@ import { CustomLoginPage } from "./components/CustomLoginPage";
 import { BlogpostList } from "./components/Blogpost/BlogpostList";
 import { BlogpostCreate } from "./components/Blogpost/BlogpostCreate";
 import { BlogpostEdit } from "./components/Blogpost/BlogpostEdit";
+import { TimelineEntryList } from "./components/TimelineEntry/TimelineEntryList";
+import { TimelineEntryCreate } from "./components/TimelineEntry/TimelineEntryCreate";
+import { TimelineEntryEdit } from "./components/TimelineEntry/TimelineEntryEdit";
+import { TimelineEraList } from "./components/TimelineEra/TimelineEraList";
+import { TimelineEraCreate } from "./components/TimelineEra/TimelineEraCreate";
+import { TimelineEraEdit } from "./components/TimelineEra/TimelineEraEdit";
 import { ChangePasswordButton } from "./components/ChangePasswordButton";
 import { Dashboard } from "./components/Dashboard/Dashboard";
-import { DashboardMenuItem } from "react-admin";
+import { ResourceMenu } from "./navigation/ResourceMenu";
+import { RESOURCE_LABELS } from "./navigation/catalog";
 import { ReactNode } from "react";
 
-export const MyMenu = () => (
-  <Menu>
-    <DashboardMenuItem primaryText="Dashboard" />
-    <Menu.ResourceItems />
-  </Menu>
-);
+export const MyMenu = ResourceMenu;
 
 const MyUserMenu = () => (
   <UserMenu>
@@ -93,78 +94,87 @@ export const App = () => (
     dashboard={Dashboard}
   >
     <Resource
+      name="photoevents"
+      options={{ label: RESOURCE_LABELS["photoevents"] }}
+      list={PhotoEventList}
+      create={PhotoEventCreate}
+      edit={PhotoEventEdit}
+    >
+      <Route path=":id/photos" element={<PhotoModeration />} />
+    </Resource>
+    <Resource
       name="customusers"
-      options={{ label: "Custom users" }}
+      options={{ label: RESOURCE_LABELS["customusers"] }}
       list={UserList}
       create={UserCreate}
       edit={UserEdit}
     />
     <Resource
       name="profiles"
-      options={{ label: "Profiles" }}
+      options={{ label: RESOURCE_LABELS["profiles"] }}
       list={ProfileList}
       create={ProfileCreate}
       edit={ProfileEdit}
     />
     <Resource
       name="teams"
-      options={{ label: "Teams" }}
+      options={{ label: RESOURCE_LABELS["teams"] }}
       list={TeamList}
       create={TeamCreate}
       edit={TeamEdit}
     />
     <Resource
       name="programs"
-      options={{ label: "Programs" }}
+      options={{ label: RESOURCE_LABELS["programs"] }}
       list={ProgramList}
       create={ProgramCreate}
       edit={ProgramEdit}
     />
     <Resource
       name="industries"
-      options={{ label: "Industries" }}
+      options={{ label: RESOURCE_LABELS["industries"] }}
       list={IndustryList}
       create={IndustryCreate}
       edit={IndustryEdit}
     />
     <Resource
       name="events"
-      options={{ label: "Events" }}
+      options={{ label: RESOURCE_LABELS["events"] }}
       list={EventList}
       create={EventCreate}
       edit={EventEdit}
     />
     <Resource
       name="exhibitors"
-      options={{ label: "Exhibitors" }}
+      options={{ label: RESOURCE_LABELS["exhibitors"] }}
       list={ExhibitorList}
       create={ExhibitorCreate}
       edit={ExhibitorEdit}
     />
     <Resource
       name="employments"
-      options={{ label: "Employments" }}
+      options={{ label: RESOURCE_LABELS["employments"] }}
       list={EmploymentList}
       create={EmploymentCreate}
       edit={EmploymentEdit}
     />
     <Resource
       name="fairdates"
-      options={{ label: "Fair dates" }}
+      options={{ label: RESOURCE_LABELS["fairdates"] }}
       list={FairDateList}
       create={FairDateCreate}
       edit={FairDateEdit}
     />
     <Resource
       name="featureflags"
-      options={{ label: "Feature flags" }}
+      options={{ label: RESOURCE_LABELS["featureflags"] }}
       list={FeatureFlagList}
       edit={FeatureFlagEdit}
     />
 
     <Resource
       name="highlightcards"
-      options={{ label: "Highlight cards" }}
+      options={{ label: RESOURCE_LABELS["highlightcards"] }}
       list={HighlightCardList}
       create={HighlightCardCreate}
       edit={HighlightCardEdit}
@@ -172,7 +182,7 @@ export const App = () => (
 
     <Resource
       name="roles"
-      options={{ label: "Roles" }}
+      options={{ label: RESOURCE_LABELS["roles"] }}
       list={RoleList}
       create={RoleCreate}
       edit={RoleEdit}
@@ -180,7 +190,7 @@ export const App = () => (
 
     <Resource
       name="recruitmentperiods"
-      options={{ label: "Recruitment periods" }}
+      options={{ label: RESOURCE_LABELS["recruitmentperiods"] }}
       list={RecruitmentPeriodList}
       create={RecruitmentPeriodCreate}
       edit={RecruitmentPeriodEdit}
@@ -188,7 +198,7 @@ export const App = () => (
 
     <Resource
       name="recruitmentroles"
-      options={{ label: "Recruitment roles" }}
+      options={{ label: RESOURCE_LABELS["recruitmentroles"] }}
       list={RecruitmentRoleList}
       create={RecruitmentRoleCreate}
       edit={RecruitmentRoleEdit}
@@ -196,17 +206,32 @@ export const App = () => (
 
     <Resource
       name="auditlogs"
-      options={{ label: "Audit logs" }}
+      options={{ label: RESOURCE_LABELS["auditlogs"] }}
       list={AuditLogList}
       show={AuditLogShow}
     />
 
     <Resource
       name="blogposts"
-      options={{ label: "Blog posts" }}
+      options={{ label: RESOURCE_LABELS["blogposts"] }}
       list={BlogpostList}
       create={BlogpostCreate}
       edit={BlogpostEdit}
+    />
+
+    <Resource
+      name="timeline-eras"
+      options={{ label: RESOURCE_LABELS["timeline-eras"] }}
+      list={TimelineEraList}
+      create={TimelineEraCreate}
+      edit={TimelineEraEdit}
+    />
+    <Resource
+      name="timeline-entries"
+      options={{ label: RESOURCE_LABELS["timeline-entries"] }}
+      list={TimelineEntryList}
+      create={TimelineEntryCreate}
+      edit={TimelineEntryEdit}
     />
   </Admin>
 );

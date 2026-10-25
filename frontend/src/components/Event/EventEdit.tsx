@@ -33,6 +33,8 @@ export const EventEdit = (props: EditProps) => {
         <TextInput source="location" />
         <TextInput source="description" />
         <TextInput source="food" />
+        <TextInput source="openTo" label="Open to" multiline />
+        <TextInput source="mapUrl" label="Map link" />
         <DateTimeInput
           source="eventStart"
           label="Event Start (Stockholm time)"

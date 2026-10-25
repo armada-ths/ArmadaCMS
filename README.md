@@ -1,17 +1,15 @@
 # ArmadaCMS
 
-[![Go checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/go-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/go-checks.yml)
-[![Frontend checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/frontend-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/frontend-checks.yml)
-[![Supabase checks](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml/badge.svg)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/supabase-checks.yml)
-[![Production deployment](https://img.shields.io/github/deployments/armada-ths/ArmadaCMS/Production?label=production&logo=googlecloud)](https://github.com/armada-ths/ArmadaCMS/deployments/Production)
-[![API status](https://img.shields.io/website?url=https%3A%2F%2Fcms.armada.nu%2Fhealth&label=CMS%20API)](https://cms.armada.nu/health)
-[![Last commit](https://img.shields.io/github/last-commit/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/commits)
-[![Open issues](https://img.shields.io/github/issues/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/issues)
+[![CI main](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/deploy.yml?branch=main&event=push&label=CI%20main&logo=githubactions)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/deploy.yml?query=branch%3Amain)
+[![CI staging](https://img.shields.io/github/actions/workflow/status/armada-ths/ArmadaCMS/deploy.yml?branch=staging&event=push&label=CI%20staging&logo=githubactions)](https://github.com/armada-ths/ArmadaCMS/actions/workflows/deploy.yml?query=branch%3Astaging)
+[![Production API status](https://img.shields.io/website?url=https%3A%2F%2Fcms.armada.nu%2Fhealth&label=CMS%20API%20production)](https://cms.armada.nu/health)
+[![Staging API status](https://img.shields.io/website?url=https%3A%2F%2Fstaging.cms.armada.nu%2Fhealth&label=CMS%20API%20staging)](https://staging.cms.armada.nu/health)
+
 [![License: MIT](https://img.shields.io/github/license/armada-ths/ArmadaCMS)](https://github.com/armada-ths/ArmadaCMS/blob/main/license.txt)
 [![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![React Admin 5](https://img.shields.io/badge/React_Admin-5-22A6F2?logo=react&logoColor=white)](https://marmelab.com/react-admin/)
-[![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TypeScript 6](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
 Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides REST endpoints consumed by the public website ([armada.nu](https://github.com/armada-ths/armada.nu)) and a React-Admin interface for content management.
@@ -35,27 +33,9 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ## Tech Stack
 
-### Backend
-
-- **Language**: Go 1.26
-- **Router**: [Gorilla Mux](https://github.com/gorilla/mux)
-- **ORM**: [GORM](https://gorm.io/) (Postgres)
-- **Auth**: JWT (Bearer tokens)
-- **Hot reload**: [Air](https://github.com/air-verse/air) (in Docker dev mode)
-
-### Admin Frontend
-
-- **Framework**: [React-Admin v5](https://marmelab.com/react-admin/)
-- **Build tool**: [Vite](https://vitejs.dev/)
-- **Language**: TypeScript
-- **UI**: MUI (Material UI)
-
-### Infrastructure
-
-- **Deployment**: Google Cloud Run (containerized Go API + bundled React-Admin frontend)
-- **Ingress**: External HTTPS load balancing in production; Cloud Run domain mapping in staging
-- **Database**: Supabase PostgreSQL (production project with a persistent staging branch)
-- **File storage**: Supabase Storage in local development, staging, and production
+- **Backend**: Go 1.26, [Gorilla Mux](https://github.com/gorilla/mux), [GORM](https://gorm.io/) and JWT authentication.
+- **Admin**: [React-Admin v5](https://marmelab.com/react-admin/), TypeScript, MUI and Vite.
+- **Infrastructure**: Google Cloud Run, Supabase PostgreSQL and Supabase Storage. Production uses an HTTPS load balancer; staging uses Cloud Run domain mapping.
 
 ## Prerequisites
 
@@ -65,241 +45,128 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 ## Getting Started
 
-1. **Clone the repo**
+1. **Clone and configure**
 
    ```bash
    git clone https://github.com/armada-ths/ArmadaCMS.git
    cd ArmadaCMS
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
    cp .env.example .env
    ```
 
-   The defaults are pre-configured for local Supabase and Docker. See `.env.example` for the full list of variables.
+   `.env.example` contains defaults for local Supabase and Docker.
 
-3. **Start the local development stack**
+2. **Start the backend and local Supabase**
 
    ```powershell
    ./scripts/dev-up.ps1 -Build
    ```
 
-   This starts a minimal local Supabase profile (Postgres, Storage API, and its Kong gateway) followed by the Go API with Air hot reload. The React-Admin frontend runs separately on the host so Vite can provide reliable HMR with Windows file watching.
+   This starts Postgres, Storage and the Go API with hot reload. Omit `-Build` on subsequent starts.
 
-   Only the first run requires `--build`. After that, use:
-
-   ```powershell
-   ./scripts/dev-up.ps1
-   ```
-
-   In a second terminal, start the admin frontend:
+3. **Start the admin frontend in a second terminal**
 
    ```powershell
    cd frontend
-   pnpm install
+   pnpm install --frozen-lockfile
    pnpm dev
    ```
 
-   Local database connection (e.g. for a DB GUI): `postgres:postgres@localhost:54322/postgres`
+   The frontend runs on the host for reliable Vite hot reload.
 
-   To stop the backend and Supabase while preserving local Supabase data:
+| Service  | Local address                                |
+| -------- | -------------------------------------------- |
+| Admin UI | <http://localhost:5173/admin>                |
+| API      | <http://localhost:8080/api/v1/>              |
+| Health   | <http://localhost:8080/health>               |
+| Database | `postgres:postgres@localhost:54322/postgres` |
 
-   ```powershell
-   ./scripts/dev-down.ps1
-   ```
-
-4. **Optionally clone a remote database**
-
-   `scripts/import-remote-db.ps1` replaces only the `public` schema in local Supabase Postgres, preserving Supabase's system and Storage schemas. Fill in the `SOURCE_DB_*` vars in `.env` (see `.env.example`), start the local stack, then run:
-
-   ```powershell
-   ./scripts/import-remote-db.ps1
-   ```
-
-   The remote database must be reachable from your machine — for Supabase, allowlist your IP under **Project Settings → Networking → Network restrictions**. Prefer cloning staging over production to avoid handling real data locally.
-
-   Use checked-in Supabase migrations for schema changes; an imported schema is disposable local data and can be replaced by `pnpx --yes supabase@2.118.0 db reset --local`.
-
-5. **Verify the app is running**
-
-   Once the development stack is running, the following URLs are available:
-   - **API**: [http://localhost:8080/api/v1/](http://localhost:8080/api/v1/)
-   - **Admin UI**: [http://localhost:5173/admin](http://localhost:5173/admin) (host-run Vite frontend)
-   - **Health check**: [http://localhost:8080/health](http://localhost:8080/health)
+Stop the backend and Supabase with `./scripts/dev-down.ps1`; local data is preserved. See [development scripts](scripts/README.md#local-development) for local photo behavior and optional database import.
 
 ## Database migrations
 
-**Local development, staging, and production** use checked-in SQL migrations. The hosted Supabase project is connected to this GitHub repository, so remote migrations are applied automatically on every push/merge to the tracked branches — no manual CLI commands required.
-
-- `supabase/config.toml` configures the Supabase project link.
-- `supabase/seed.sql` bootstraps deterministic roles and feature flags for remote environment resets.
-- `supabase/migrations/` holds all checked-in SQL migrations.
-
-To create a new migration, generate a diff against the current remote schema:
+Schema changes live in [`supabase/migrations/`](supabase/migrations/). The hosted Supabase GitHub integration applies migrations to its tracked branches; local changes are validated with the pinned CLI:
 
 ```bash
-pnpx --yes supabase@2.118.0 db diff -f <migration-name>
+pnpx supabase@2.118.0 db diff -f <migration-name>
+pnpx supabase@2.118.0 db reset --local
 ```
 
-To validate that all migrations apply cleanly from scratch:
-
-```bash
-pnpx --yes supabase@2.118.0 db reset --local
-```
-
-Roles and feature flags are seeded from `supabase/seed.sql` alongside the initial admin user (username and password: `admin`). This seed only runs in non-production contexts (new branches, `db reset`) so hardcoded credentials are acceptable.
+`db reset` replaces local database data with the migrations and [`supabase/seed.sql`](supabase/seed.sql). The non-production seed provides roles, feature flags and an `admin` / `admin` account; never use these credentials in production.
 
 ## VS Code workspace and launches
 
-This repo includes shared VS Code configuration in `.vscode/`:
+[`.vscode/tasks.json`](.vscode/tasks.json) provides start, rebuild and stop tasks. The admin launch in [`launch.json`](.vscode/launch.json) starts the full environment and stops it when debugging ends.
 
-- `tasks.json` — tasks for starting the backend with local Supabase, rebuilding the backend before start, starting the complete admin development environment, and stopping either the services or the complete local environment. The complete stop task also terminates the associated VS Code background tasks.
-- `launch.json` — `Dev: Open Admin UI (Starts Frontend + Backend + Local Supabase)` opens the admin UI after starting the complete development environment. Stopping the debug session runs the complete cleanup task automatically.
-
-If you work across both repos, use the shared workspace file committed in `armada.nu`:
-
-- `../armada.nu/Armada.code-workspace`
-
-That workspace opens both repositories with portable relative paths and includes multi-repo compound launches.
+For both Armada repositories, open [`../armada.nu/Armada.code-workspace`](../armada.nu/Armada.code-workspace). It includes shared launches and portable paths.
 
 ## Project Structure
 
 ```text
 ArmadaCMS/
-├── main.go               # Entry point — routing and server startup
-├── auth/
-│   └── middleware.go      # JWT Bearer token auth middleware
-├── Controllers/           # HTTP handlers (one per resource)
-├── models/                # GORM model structs
-├── db/
-│   └── connect.go         # Postgres connection setup
-├── infra/
-│   └── terraform/         # Terraform layout, shared conventions, and provider-specific roots
-├── utils/                 # Helpers (S3 upload, JWT, password hashing)
-├── frontend/              # React-Admin SPA (Vite)
-│   └── src/
-│       ├── App.tsx            # Resource registrations
-│       ├── dataProvider.ts    # Custom ra-data-simple-rest provider
-│       ├── components/        # List, Create, Edit per resource
-│       └── context/           # Auth provider, API endpoint config
-├── Dockerfile.dev         # Lightweight dev image (Go + Air only)
-├── Dockerfile.prod        # Production multi-stage build for Cloud Run
-├── docker-compose.yml     # Docker Compose (production-style)
-└── docker-compose.dev.yml # Docker Compose (hot-reload dev)
+├── main.go               # Routing and startup
+├── Controllers/          # HTTP handlers
+├── models/               # GORM models
+├── auth/                 # JWT authentication
+├── db/                   # Database connection
+├── utils/                # Storage, tokens and other helpers
+├── frontend/src/         # React-Admin resources and data/auth providers
+├── supabase/             # Migrations, seed and local configuration
+├── scripts/              # Local development and release tooling
+├── infra/terraform/      # Infrastructure configuration
+└── Dockerfile.{dev,prod}  # Development and production images
 ```
 
 ## Testing
 
-ArmadaCMS includes Go unit tests (currently focused on `auth/` and `utils/`) and frontend unit tests using [vitest](https://vitest.dev/) (currently focused on `utils/`).
+Run backend tests from the repository root (requires Go and libvips):
 
-- Run all Go tests locally:
+```bash
+go test -race -count=1 ./...
+```
 
-  ```bash
-  go test -race -count=1 ./...
-  ```
+Run frontend tests from `frontend/`:
 
-- Run tests for specific Go packages:
+```bash
+pnpm run test
+```
 
-  ```bash
-  go test ./auth/... ./utils/...
-  ```
-
-- Run the opt-in Storage integration test while the local stack is running:
-
-  ```powershell
-  $env:RUN_S3_INTEGRATION = "1"
-  $status = pnpx --yes supabase@2.118.0 status -o env
-  $env:AWS_ACCESS_KEY_ID = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_ID=').Line.Split('=', 2)[1].Trim('"')
-  $env:AWS_SECRET_ACCESS_KEY = ($status | Select-String '^S3_PROTOCOL_ACCESS_KEY_SECRET=').Line.Split('=', 2)[1].Trim('"')
-  go test -tags=integration -count=1 ./utils
-  ```
-
-- Run frontend unit tests:
-
-  ```bash
-  cd frontend && pnpm run test
-  ```
+[Integration test instructions](docs/testing/README.md) cover local Storage and the two opt-in PostgreSQL behavior tests. These require explicit test credentials; ordinary Go test runs skip them. See the [script guide](scripts/README.md#script-tests) for release-script tests and the [frontend guide](frontend/README.md#validate-changes) for lint/type checks.
 
 ## API
 
-All endpoints are under `/api/v1`. Routes are split into:
+Endpoints use `/api/v1`. Public reads need no authentication; writes and admin-only reads require a Bearer JWT obtained from `POST /api/v1/login`. See [Swagger](#swagger-docs) for available endpoints.
 
-- **Public** (no auth): `GET` endpoints for resources like exhibitors, events, profiles, teams, dates.
-- **Protected** (Bearer JWT): `POST`, `PUT`, `DELETE` and admin-only `GET` endpoints.
-
-Browser cross-origin access is restricted to `armada.nu`, common local development
-origins, and any exact origins listed in the optional comma-separated
-`CORS_ALLOWED_ORIGINS` environment variable.
-
-### Example endpoints
-
-| Method   | Endpoint                  | Auth     | Description         |
-| -------- | ------------------------- | -------- | ------------------- |
-| `POST`   | `/api/v1/login`           | No       | Get JWT tokens      |
-| `GET`    | `/api/v1/exhibitors`      | No       | List all exhibitors |
-| `POST`   | `/api/v1/exhibitors`      | Required | Create exhibitor    |
-| `PUT`    | `/api/v1/exhibitors/{id}` | Required | Update exhibitor    |
-| `DELETE` | `/api/v1/exhibitors/{id}` | Required | Delete exhibitor    |
-| `GET`    | `/api/v1/dates`           | No       | Get fair dates      |
-| `GET`    | `/health`                 | No       | Health check        |
+Cross-origin requests allow `armada.nu`, local development origins and any additional exact origins listed in `CORS_ALLOWED_ORIGINS`.
 
 ## Swagger docs
 
-The API is documented with [Swagger / OpenAPI 2.0](https://swagger.io/) using [swaggo/swag](https://github.com/swaggo/swag).
+Interactive API docs are available in [local development](http://localhost:8080/swagger/index.html), [staging](https://staging.cms.armada.nu/swagger/index.html) and [production](https://cms.armada.nu/swagger/index.html). Use **Authorize** with `Bearer <token>` for protected endpoints.
 
-**Swagger UI** is served at `/swagger/index.html`:
-
-| Environment | URL                                                |
-| ----------- | -------------------------------------------------- |
-| Local dev   | <http://localhost:8080/swagger/index.html>         |
-| Staging     | <https://staging.cms.armada.nu/swagger/index.html> |
-| Production  | <https://cms.armada.nu/swagger/index.html>         |
-
-Click **Authorize** in the UI and enter `Bearer <token>` (token obtained from `POST /api/v1/login`) to test protected endpoints.
-
-### Regenerating the spec
-
-Run this command from the repo root whenever you add or change routes or annotations:
+After changing routes or annotations, regenerate and commit the files in `docs/`:
 
 ```bash
 swag init --generalInfo main.go --output docs --parseInternal
 ```
 
-This overwrites `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Commit these generated files alongside your code changes.
-
-> **Prerequisites:** install the `swag` CLI once with `go install github.com/swaggo/swag/cmd/swag@latest`.
+Install the generator if needed with `go install github.com/swaggo/swag/cmd/swag@latest`.
 
 ## Cache Revalidation
 
-Write operations automatically purge the public site's ISR cache via `utils.RevalidateTag(tag)`, which POSTs to armada.nu's `/api/revalidate` endpoint. Tags are passed as the trailing `revalidateTags ...string` argument to the audit helpers. Requires `REVALIDATION_URL` and `REVALIDATION_SECRET` env vars (silently skipped if unset). See [`armada.nu/.github/copilot-instructions.md`](https://github.com/armada-ths/armada.nu/blob/main/.github/copilot-instructions.md) for the full tag inventory.
+Write operations invalidate the public site's cache through audit-helper revalidation tags. This requires `REVALIDATION_URL` and `REVALIDATION_SECRET`; it is skipped when unset. See the [shared tag conventions](https://github.com/armada-ths/armada.nu/blob/main/.github/copilot-instructions.md).
 
 ## CI / CD
 
-CI is handled by GitHub Actions and CD by Google Cloud Build.
+GitHub Actions runs Go linting/tests, frontend checks, local Supabase migration/Storage tests, CodeQL, and release-script regression tests. Pull requests also build the production container without publishing or deploying it. Path filters skip unaffected checks while retaining summary results.
 
-### GitHub Actions (CI)
+Pushes to `staging` deploy to **Staging**; `main` deploys to **Production**, when enabled. Image builds run alongside CI, but deployment requires all checks to pass for the same commit:
 
-Repository checks live in `.github/workflows/` and are path-filtered so unchanged areas are skipped cleanly:
+**Build → save recovery snapshot → deploy without traffic → preview test → update worker and move traffic → live test.**
 
-- `go-checks.yml` — for Go files, `go.mod`, `go.sum`, and workflow changes; runs `go vet ./...`, `golangci-lint run`, and `go test -race -count=1 ./...`.
-- `frontend-checks.yml` — for `frontend/**` and workflow changes; in `frontend/`, runs `pnpm install --frozen-lockfile`, `pnpm run lint:check`, `pnpm run type-check`, `pnpm run format:check`, and `pnpm run test`.
-- `supabase-checks.yml` — for `supabase/**` and workflow changes; starts the local Supabase stack, runs `supabase db reset --local`, and verifies migrations apply cleanly.
+Releases use short-lived GCP credentials and the same immutable image digest for the API and photo worker. Releases are serialized per environment; new pushes do not interrupt an active release. Failed activation or live verification restores the previous traffic and worker image. Rollback does not undo database writes or running worker executions, so schema and worker changes must remain backward compatible.
 
-All three workflows run on pushes to `main` and `staging` for matching paths, and on pull requests. Each workflow ends with an aggregate status job so checks pass when work is intentionally skipped because no relevant files changed. Superseded runs for the same workflow and branch or pull request are cancelled automatically, and every job has a timeout.
+Recovery snapshots and release results are retained as Actions artifacts for 90 days. See [release verification and recovery](scripts/README.md) for checks, failure behavior, and limitations.
 
-### Google Cloud Build (CD)
-
-Deployments are handled by Google Cloud Build using [`cloudbuild.yaml`](cloudbuild.yaml).
-
-- Cloud Build builds the production container from `Dockerfile.prod` and pushes images to Artifact Registry.
-- Branch pushes to `main` and `staging` deploy the resulting image to the corresponding Cloud Run service.
-- PR builds use the secret-free `cloudbuild-pr.yaml` configuration with a dedicated unprivileged service account. They validate the container build without publishing or deploying an image; external contributors require an owner or collaborator to comment `/gcbrun` first.
-- Trusted branch builds always build the commit SHA, publish that image, and deploy it.
-- The pipeline creates and updates GitHub deployment statuses via the configured GitHub App credentials.
-
-The GitHub → Cloud Build trigger wiring is managed in this repository's Terraform configuration, primarily in [`infra/terraform/gcp/prod/cloud_build.tf`](infra/terraform/gcp/prod/cloud_build.tf) and [`infra/terraform/gcp/staging/cloud_build.tf`](infra/terraform/gcp/staging/cloud_build.tf). Those roots provision the branch and PR triggers; `cloudbuild.yaml` defines the trusted branch build/deploy flow and `cloudbuild-pr.yaml` defines unprivileged PR validation.
+Actions are pinned to commit SHAs. [Dependabot](.github/dependabot.yml) opens weekly dependency updates; minor/patch updates are grouped, and major updates remain separate PRs.
 
 ## Operations notes
 
@@ -310,14 +177,7 @@ The GitHub → Cloud Build trigger wiring is managed in this repository's Terraf
 
 ## Infrastructure as code
 
-Terraform documentation is split by scope:
-
-- [`infra/terraform/README.md`](infra/terraform/README.md) — shared layout, conventions, workspace naming, and cross-workspace wiring
-- [`infra/terraform/gcp/prod/README.md`](infra/terraform/gcp/prod/README.md) — GCP production root details and workspace setup
-- [`infra/terraform/gcp/staging/README.md`](infra/terraform/gcp/staging/README.md) — GCP staging root details and workspace setup
-- [`infra/terraform/supabase/prod/README.md`](infra/terraform/supabase/prod/README.md) — Supabase production root details and workspace setup
-
-Use those documents as the canonical source for infrastructure specifics rather than duplicating them here.
+See the [Terraform guide](infra/terraform/README.md) for layout and shared conventions, with environment details in [GCP production](infra/terraform/gcp/prod/README.md), [GCP staging](infra/terraform/gcp/staging/README.md) and [Supabase production](infra/terraform/supabase/prod/README.md).
 
 ## Adding a New Resource
 

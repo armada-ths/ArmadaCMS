@@ -24,7 +24,7 @@ $excludedServices = @(
 function Invoke-Supabase {
     param([string[]]$Arguments)
 
-    $null = & pnpx --yes "supabase@$supabaseVersion" @Arguments
+    $null = & pnpx "supabase@$supabaseVersion" @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Supabase CLI failed: supabase $($Arguments -join ' ')"
     }
@@ -58,7 +58,7 @@ Push-Location $repoRoot
 try {
     Invoke-Supabase -Arguments @("start", "--exclude", ($excludedServices -join ','))
 
-    $statusLines = & pnpx --yes "supabase@$supabaseVersion" status -o env
+    $statusLines = & pnpx "supabase@$supabaseVersion" status -o env
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to read local Supabase status."
     }
@@ -66,6 +66,13 @@ try {
     $env:LOCAL_SUPABASE_S3_ACCESS_KEY = Get-StatusValue -StatusLines $statusLines -Names @("S3_PROTOCOL_ACCESS_KEY_ID")
     $env:LOCAL_SUPABASE_S3_SECRET_KEY = Get-StatusValue -StatusLines $statusLines -Names @("S3_PROTOCOL_ACCESS_KEY_SECRET")
     $env:LOCAL_SUPABASE_S3_REGION = Get-StatusValue -StatusLines $statusLines -Names @("S3_PROTOCOL_REGION")
+
+    $previousPhotoAppBaseURL = $env:LOCAL_PHOTO_APP_BASE_URL
+    if (-not $env:LOCAL_PHOTO_APP_BASE_URL) {
+        $env:LOCAL_PHOTO_APP_BASE_URL = & (Join-Path $PSScriptRoot "local-photo-app-url.ps1")
+    }
+    Write-Host "Local photo event links: $env:LOCAL_PHOTO_APP_BASE_URL"
+    $env:LOCAL_PHOTO_RECAPTCHA_HOSTNAMES = "localhost,127.0.0.1,$(([uri]$env:LOCAL_PHOTO_APP_BASE_URL).Host)"
 
     $composeArguments = @("compose", "-f", "docker-compose.dev.yml", "up", "--remove-orphans")
     if ($Build) {
@@ -91,5 +98,14 @@ finally {
     Remove-Item Env:LOCAL_SUPABASE_S3_ACCESS_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:LOCAL_SUPABASE_S3_SECRET_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:LOCAL_SUPABASE_S3_REGION -ErrorAction SilentlyContinue
+    Remove-Item Env:LOCAL_PHOTO_RECAPTCHA_HOSTNAMES -ErrorAction SilentlyContinue
+    if (Get-Variable previousPhotoAppBaseURL -ErrorAction SilentlyContinue) {
+        if ($null -eq $previousPhotoAppBaseURL) {
+            Remove-Item Env:LOCAL_PHOTO_APP_BASE_URL -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:LOCAL_PHOTO_APP_BASE_URL = $previousPhotoAppBaseURL
+        }
+    }
     Pop-Location
 }

@@ -10,6 +10,7 @@ type Blogpost struct {
 	Author          string    `gorm:"column:author" json:"author"`
 	Published       bool      `gorm:"column:published;not null" json:"published"`
 	ImageURL        *string   `gorm:"column:image_url" json:"imageUrl,omitempty"`
+	ImageURLs       []string  `gorm:"column:image_urls;type:jsonb;serializer:json;not null;default:'[]'" json:"imageUrls"`
 	ShowCoverInPost bool      `gorm:"column:show_cover_in_post" json:"showCoverInPost"`
 	CreatedAt       time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"createdAt"`
 }
