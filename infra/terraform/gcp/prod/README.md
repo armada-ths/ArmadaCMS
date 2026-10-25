@@ -4,6 +4,7 @@ This Terraform root manages the **Google Cloud production runtime stack** for `A
 
 ## What it manages
 
+- Production Web Maps Embed key
 - Project APIs
 - Artifact Registry for container images
 - Secret Manager secrets and IAM bindings
@@ -57,13 +58,11 @@ This root consumes outputs from:
 
 For the full cross-workspace wiring and remote state sharing setup, see [`../../README.md`](../../README.md).
 
-## HCP Terraform workspace setup
+## Workspace execution
 
 Workspace: `armadacms-gcp-prod` in the `THS-Armada` organization.
 
-Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run `terraform init`.
-
-**Environment variables** (set in the workspace):
+**Workspace environment variables:**
 
 | Variable                            | Notes                                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------------- |
@@ -97,10 +96,4 @@ The `github_environment_variables` output exposes the two non-secret Actions con
 
 The image build uses a separate registry-only service account and branch-bound OIDC provider without a GitHub Environment deployment. The `github_build_repository_variables` output exposes its non-secret repository connection values. CI and the build run concurrently; the Environment-protected release job requires both to succeed. Only the deploy identity can change Cloud Run and impersonate the runtime account. Its Artifact Registry access is read-only.
 
-## Event maps
-
-`maps.tf` manages Web's Google Maps Embed API keys.
-Each key is restricted to `maps-embed-backend.googleapis.com` and the origins in
-`maps_embed_allowed_referrers`. Production, Preview and Development use separate
-keys. Preview permits `staging.armada.nu`; additional generated preview domains
-must be explicitly allowlisted. Never allow all `*.vercel.app` sites.
+The production root owns only the production Maps Embed key and project-wide Maps API enablement.

@@ -83,7 +83,7 @@ variable "revalidation_url" {
 }
 
 variable "deploy_cloud_run_service" {
-  description = "Whether Terraform should manage the Cloud Run service itself. Set to false during bootstrap until the required Secret Manager versions and an initial container image exist."
+  description = "Whether Terraform should manage the Cloud Run service itself; deployment requires populated secrets and a container image."
   type        = bool
   default     = false
 }

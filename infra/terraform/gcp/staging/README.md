@@ -4,6 +4,8 @@ This Terraform root manages the **Google Cloud staging runtime stack** for `Arma
 
 ## What it manages
 
+- Staging Web Maps Embed key
+
 - Project APIs
 - Secret Manager secrets and IAM bindings
 - Cloud Run service
@@ -40,10 +42,10 @@ Recovery snapshots and release outcomes are separate Actions artifacts retained 
 | `locals.tf`           | Derived names and Cloud Run env vars                                                                     |
 | `supabase_state.tf`   | `data.tfe_outputs.supabase_prod` — reads staging branch DB connection values and Supabase Storage config |
 | `services.tf`         | GCP API enablement                                                                                       |
-| `iam.tf`              | Runtime and deploy service accounts with resource-scoped permissions                                                      |
+| `iam.tf`              | Runtime and deploy service accounts with resource-scoped permissions                                     |
 | `secrets.tf`          | Secret Manager secrets                                                                                   |
 | `networking.tf`       | Cloud NAT, Cloud Router, static egress IP, optional VPC connector                                        |
-| `actions.tf` | GitHub OIDC federation, environment outputs and Terraform state moves |
+| `actions.tf`          | GitHub OIDC federation, environment outputs and Terraform state moves                                    |
 | `cloud_run.tf`        | Cloud Run service                                                                                        |
 | `domain_mapping.tf`   | Cloud Run custom domain mapping for `staging.cms.armada.nu`                                              |
 | `outputs.tf`          | Useful outputs (service account emails, image URI, secret IDs)                                           |
@@ -52,18 +54,15 @@ Recovery snapshots and release outcomes are separate Actions artifacts retained 
 
 ## Workspace dependencies
 
-This root reads `staging_db_host`, `staging_db_user`, `staging_db_name`, and all Supabase Storage values from `armadacms-supabase-prod` (staging is a branch of the same Supabase project as production). Grant `armadacms-gcp-staging` remote state read access to `armadacms-supabase-prod` under **Settings → Remote state sharing**.
+This root reads `staging_db_host`, `staging_db_user`, `staging_db_name`, and all Supabase Storage values from `armadacms-supabase-prod` (staging is a branch of the same Supabase project as production). The staging workspace requires output-read access to that workspace.
 
 For the full cross-workspace wiring layout, see [`../../README.md`](../../README.md).
 
-## HCP Terraform workspace setup
+## Workspace execution
 
 Workspace: `armadacms-gcp-staging` in the `THS-Armada` organization.
 
-Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run
-`terraform init`.
-
-**Environment variables** (set in the workspace):
+**Workspace environment variables:**
 
 | Variable                            | Notes                                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------------- |
@@ -101,3 +100,5 @@ The staging push workflow builds the image in parallel with CI, then persists re
 The `github_environment_variables` output exposes the two non-secret Actions connection values. OIDC trust permits only staging pushes from the ArmadaCMS deployment workflow and the `Staging` GitHub Environment. The deploy account reads the shared Artifact Registry repository and updates this environment's service and worker. Preview uses the tagged `run.app` address; live verification uses `staging.cms.armada.nu`.
 
 The image build uses a separate registry-only service account and branch-bound OIDC provider without a GitHub Environment deployment. The `github_build_repository_variables` output exposes its non-secret repository connection values. CI and the build run concurrently; the Environment-protected release job requires both to succeed. Only the deploy identity can change Cloud Run and impersonate the runtime account. Its Artifact Registry access is read-only.
+
+The staging root owns only the staging Maps Embed key. Maps API enablement is owned by production in the shared project.

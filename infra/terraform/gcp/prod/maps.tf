@@ -1,18 +1,19 @@
-# Browser-visible keys: separate environments and restrict both API and referrer.
-resource "google_apikeys_key" "maps_embed" {
-  for_each = var.maps_embed_allowed_referrers
-
+resource "google_apikeys_key" "maps_embed_production" {
   project      = var.project_id
-  name         = "armadanu-maps-embed-${each.key}"
-  display_name = "armada.nu Maps Embed (${each.key})"
+  name         = "armadanu-maps-embed-production"
+  display_name = "armada.nu Maps Embed (production)"
 
   restrictions {
     api_targets {
       service = "maps-embed-backend.googleapis.com"
     }
     browser_key_restrictions {
-      allowed_referrers = each.value
+      allowed_referrers = var.maps_embed_allowed_referrers
     }
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 
   depends_on = [
@@ -21,8 +22,19 @@ resource "google_apikeys_key" "maps_embed" {
   ]
 }
 
-output "maps_embed_api_keys" {
-  description = "Browser-restricted Maps Embed keys for the Web Vercel environments. Transfer to NEXT_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY without logging values."
-  value       = { for environment, key in google_apikeys_key.maps_embed : environment => key.key_string }
+variable "maps_embed_allowed_referrers" {
+  description = "Origins allowed to use this environment's Maps Embed browser key. Add specific preview domains rather than all vercel.app sites."
+  type        = list(string)
+  default     = ["https://armada.nu/*", "https://www.armada.nu/*"]
+
+  validation {
+    condition     = length(var.maps_embed_allowed_referrers) > 0 && alltrue([for referrer in var.maps_embed_allowed_referrers : can(regex("^https?://[^/]+/\\*$", referrer)) && !strcontains(referrer, "*.vercel.app")])
+    error_message = "Provide HTTP(S) origin referrers ending in /*; do not allow all vercel.app tenants."
+  }
+}
+
+output "maps_embed_api_key" {
+  description = "This environment's browser-restricted key for Web's NEXT_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY. Never log or commit the value."
+  value       = google_apikeys_key.maps_embed_production.key_string
   sensitive   = true
 }
