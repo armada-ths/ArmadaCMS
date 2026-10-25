@@ -9,22 +9,23 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 
 ## Root layout
 
-| Root             | HCP Terraform workspace   | What it manages                                                           |
-| ---------------- | ------------------------- | ------------------------------------------------------------------------- |
-| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager             |
-| `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata          |
+| Root             | HCP Terraform workspace   | What it manages                                                                                                             |
+| ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager                                                         |
+| `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata                                                           |
 | `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secrets; optional VPC egress is currently disabled |
-| `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA test/assessment keys only; local execution, remote state |
+| `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA and Maps keys; local execution, remote state                                                    |
 
 Workspace naming pattern: `armadacms-<provider>-<environment>`.
 
 ## GCP root — avoid local `terraform plan` (slow)
 
-The small `gcp/local` root uses local execution with the operator's Google credentials and HCP state storage. Its plans cannot modify hosted resources because it contains only the two developer reCAPTCHA keys.
+The small `gcp/local` root uses local execution with the operator's Google credentials and HCP state storage. Its plans cannot modify hosted resources because it contains only developer reCAPTCHA and Maps keys.
 
 The GCP root uses CLI-driven remote execution. Uploading the plan to HCP Terraform from a local machine is noticeably slow in this repo. Prefer **queueing plans from the HCP Terraform UI** instead.
 
-Local commands that are always fine: `terraform validate`, `terraform fmt`, `terraform import`, targeted `terraform state` operations.
+Use `terraform validate` and `terraform fmt` for local checks. Import, state-write and apply operations should be
+left to CI, not executed through the local CLI. The `gcp/local` root is the only exception, as it is not connected to any Git branch and is not used in CI.
 
 ## Cross-workspace state sharing (critical)
 
@@ -34,7 +35,7 @@ Roots share live values via `data "tfe_outputs"` — **do not hardcode outputs f
 - `gcp/prod` exports `static_egress_ip`, which is allowlisted manually in Supabase. The current `supabase/prod` root does not read GCP state or manage network restrictions.
 - `gcp/staging` reads `staging_db_host`, `staging_db_user`, and `staging_db_name` for the persistent Supabase staging branch, plus the shared production Storage configuration.
 
-For `data "tfe_outputs"` to work, each GCP workspace must be allowed to read `armadacms-supabase-prod` state. Configure this under the Supabase workspace's **Settings → Remote state sharing**. This is a one-time manual step and is not expressed in Terraform config.
+For `data "tfe_outputs"` to work, each GCP workspace must be allowed to read `armadacms-supabase-prod` state. This access is a workspace prerequisite and is not expressed in Terraform config.
 
 ## Secrets — GCP Secret Manager, not Terraform state
 

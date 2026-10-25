@@ -50,16 +50,13 @@ This root has no cross-workspace state dependencies.
 
 For the full cross-workspace layout, see [`../../README.md`](../../README.md).
 
-## HCP Terraform workspace setup
+## Workspace configuration
 
 Workspace: `armadacms-supabase-prod` in the `THS-Armada` organization.
 
-Copy `backend.tf.example` to `backend.tf`, fill in the workspace name, and run
-`terraform init`.
-
 ### Environment variables
 
-Set these in the HCP Terraform workspace:
+Required workspace inputs:
 
 | Variable                | Notes                                                              |
 | ----------------------- | ------------------------------------------------------------------ |
@@ -67,7 +64,7 @@ Set these in the HCP Terraform workspace:
 
 ### Terraform variables
 
-Set these in the HCP Terraform workspace:
+Required workspace inputs:
 
 | Variable            | Sensitive | Notes                                                                  |
 | ------------------- | --------- | ---------------------------------------------------------------------- |
@@ -75,25 +72,6 @@ Set these in the HCP Terraform workspace:
 | `database_password` | Yes       | Current production DB password; required because import cannot read it |
 
 Everything else has committed non-secret defaults in `prod.auto.tfvars`.
-
-## Console setup before first apply
-
-### In the Supabase dashboard
-
-1. Open **Account preferences → Access Tokens** and create a Personal Access Token for Terraform.
-2. Open **Organization Settings** and copy the **organization slug** for `organization_id`.
-3. Open **Project Settings → General** and confirm the project ref is `rsdjnixgxqauonaofrwr`.
-4. Confirm the project name is `ArmadaCMS` and the region is `eu-north-1`.
-5. Obtain the current database password. If you no longer know it, reset it in the dashboard first, then use the new value for Terraform.
-6. Optionally review the current API settings (`db_schema`, search path, max rows) so future Terraform changes do not surprise you. This root currently observes but does not manage those settings.
-
-### In HCP Terraform
-
-1. Create the workspace `armadacms-supabase-prod`.
-2. Add the sensitive environment variable `SUPABASE_ACCESS_TOKEN`.
-3. Add Terraform variable `organization_id` with the Supabase organization slug.
-4. Add sensitive Terraform variable `database_password` with the current DB password.
-5. Queue a run.
 
 ## Ongoing operations
 

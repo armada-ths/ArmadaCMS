@@ -106,7 +106,9 @@ func GetEventByID(w http.ResponseWriter, r *http.Request) {
 // @Accept mpfd
 // @Produce json
 // @Param name formData string true "Event name"
-// @Param location formData string true "Location"
+// @Param location formData string false "Location"
+// @Param openTo formData string false "Who the event is open to"
+// @Param mapUrl formData string false "Map link URL"
 // @Param eventStart formData string true "Start time (RFC3339)"
 // @Param eventEnd formData string true "End time (RFC3339)"
 // @Param description formData string false "Description"
@@ -150,6 +152,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		event.Name = r.FormValue("name")
 		event.EventroID = r.FormValue("eventroId")
 		event.Location = r.FormValue("location")
+		event.OpenTo = utils.StringPtr(r.FormValue("openTo"))
+		event.MapURL = utils.StringPtr(r.FormValue("mapUrl"))
 		eventStart, err := parseTime("eventStart")
 		if err != nil {
 			http.Error(w, "Invalid eventStart: expected RFC3339 datetime", http.StatusBadRequest)
@@ -201,6 +205,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	event.Description = utils.SanitizeEventDescription(event.Description)
+	NormalizeOptionalStringPointers(&event.OpenTo, &event.MapURL)
 
 	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
 		return tx.Create(&event).Error
@@ -220,6 +225,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "Event ID"
 // @Param name formData string false "Event name"
 // @Param location formData string false "Location"
+// @Param openTo formData string false "Who the event is open to"
+// @Param mapUrl formData string false "Map link URL"
 // @Param eventStart formData string false "Start time (RFC3339)"
 // @Param eventEnd formData string false "End time (RFC3339)"
 // @Param show formData bool false "Whether to show the event publicly"
@@ -261,6 +268,9 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	updates.Name = r.FormValue("name")
 	updates.Description = utils.SanitizeEventDescription(utils.StringPtr(r.FormValue("description")))
 	updates.Location = r.FormValue("location")
+	updates.OpenTo = utils.StringPtr(r.FormValue("openTo"))
+	updates.MapURL = utils.StringPtr(r.FormValue("mapUrl"))
+	NormalizeOptionalStringPointers(&updates.OpenTo, &updates.MapURL)
 	eventStart, err := parseTime("eventStart")
 	if err != nil {
 		http.Error(w, "Invalid eventStart: expected RFC3339 datetime", http.StatusBadRequest)
@@ -297,7 +307,7 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	fieldsToUpdate := []string{
 		"name", "description", "location", "event_start",
 		"event_end", "food", "registration_end", "signup_link",
-		"registration_required", "show", "fee",
+		"registration_required", "show", "fee", "open_to", "map_url",
 	}
 
 	imageUrl := r.FormValue("imageUrl")

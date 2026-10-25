@@ -77,7 +77,7 @@ variable "revalidation_url" {
 }
 
 variable "deploy_cloud_run_service" {
-  description = "Whether Terraform should manage the Cloud Run service itself. Set this to false for the initial bootstrap if secrets have not been populated yet."
+  description = "Whether Terraform should manage the Cloud Run service itself; deployment requires populated secrets."
   type        = bool
   default     = false
 }
