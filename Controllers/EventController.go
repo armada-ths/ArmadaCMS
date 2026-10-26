@@ -209,9 +209,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	event.Description = utils.SanitizeEventDescription(event.Description)
-	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 	NormalizeOptionalStringPointers(&event.OpenTo, &event.MapURL)
-	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 
 	readMultipartTranslations(r, &event)
 	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)

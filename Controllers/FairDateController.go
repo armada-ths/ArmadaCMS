@@ -91,6 +91,7 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	NormalizeOptionalStringPointers(&item.DescriptionSv)
 	item.EventroID = nil
 
 	if err := createWithAudit(r, "fairdates", &item, func(tx *gorm.DB) error {
