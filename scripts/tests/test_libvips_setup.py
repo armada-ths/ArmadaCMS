@@ -17,16 +17,25 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 
 args = sys.argv[1:]
 source_option = next(arg for arg in args if arg.startswith("Dir::Etc::sourcelist="))
-source = Path(source_option.split("=", 1)[1]).read_text()
+source_path = Path(source_option.split("=", 1)[1])
+source = source_path.read_text()
+archive_option = next(arg for arg in args if arg.startswith("Dir::Cache::archives="))
+archives = Path(archive_option.split("=", 1)[1])
+if os.environ.get("APT_CHECK_SANDBOX") == "1":
+    subprocess.run(["/usr/bin/sudo", "-n", "-u", "_apt", "--", "test", "-r", str(source_path)], check=True)
+    subprocess.run(["/usr/bin/sudo", "-n", "-u", "_apt", "--", "test", "-x", str(archives)], check=True)
+    subprocess.run(["/usr/bin/sudo", "-n", "-u", "_apt", "--", "test", "-x", str(source_path.parent / "lists")], check=True)
+
 mirror = "primary" if "azure.archive.ubuntu.com" in source else "fallback"
 phase = "update" if "update" in args else (
     "download" if "--download-only" in args else "install"
 )
 with open(os.environ["APT_CALLS"], "a", encoding="utf-8") as log:
-    log.write(json.dumps({"mirror": mirror, "phase": phase, "args": args}) + "\n")
+    log.write(json.dumps({"mirror": mirror, "phase": phase, "args": args, "source": str(source_path)}) + "\n")
 failure = os.environ.get("APT_FAILURE", "")
 if failure == "primary-update" and mirror == "primary" and phase == "update":
     sys.exit(100)
@@ -35,11 +44,14 @@ if phase == "download":
         sys.exit(124)
 if failure == "install" and phase == "install":
     sys.exit(100)
+if phase == "download":
+    assert (archives / "existing.deb").read_bytes() == b"cached-package"
+    (archives / "downloaded.deb").write_bytes(b"downloaded-package")
 '''
 
 @unittest.skipUnless(IS_UBUNTU, "libvips setup tests require Ubuntu")
 class LibvipsSetupTests(unittest.TestCase):
-    def run_setup(self, failure=""):
+    def run_setup(self, failure="", check_sandbox=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             binaries = root / "bin"
@@ -51,14 +63,12 @@ class LibvipsSetupTests(unittest.TestCase):
                 "pkg-config": "#!/bin/sh\necho 8.15.1\n",
             }
             for name, content in commands.items():
-                command = binaries / name
-                command.write_text(content, encoding="utf-8")
-                command.chmod(0o755)
+                (binaries / name).write_text(content, encoding="utf-8")
+                (binaries / name).chmod(0o755)
             log = root / "calls"
             cache = root / "cache"
             cache.mkdir()
-            cached_package = cache / "existing.deb"
-            cached_package.write_bytes(b"cached-package")
+            (cache / "existing.deb").write_bytes(b"cached-package")
             environment = {
                 **os.environ,
                 "PATH": str(binaries) + os.pathsep + os.environ["PATH"],
@@ -66,14 +76,18 @@ class LibvipsSetupTests(unittest.TestCase):
                 "VIPS_APT_CACHE": str(cache),
                 "APT_CALLS": str(log),
                 "APT_FAILURE": failure,
+                "APT_CHECK_SANDBOX": "1" if check_sandbox else "0",
             }
             result = subprocess.run(
                 ["bash", str(INSTALL)], env=environment, capture_output=True,
                 text=True, check=False, timeout=15,
             )
             calls = [json.loads(line) for line in log.read_text().splitlines()]
-            self.assertEqual(cached_package.read_bytes(), b"cached-package")
-            self.assertFalse(list(root.glob("libvips-apt.*")))
+            self.assertEqual((cache / "existing.deb").read_bytes(), b"cached-package")
+            for call in calls:
+                self.assertFalse(Path(call["source"]).parent.exists())
+            if result.returncode == 0:
+                self.assertEqual((cache / "downloaded.deb").read_bytes(), b"downloaded-package")
             return result, calls
 
     def test_primary_success_installs_offline_without_fallback(self):
@@ -109,3 +123,13 @@ class LibvipsSetupTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(calls), 3)
         self.assertTrue(all(call["mirror"] == "primary" for call in calls))
+
+    def test_apt_sandbox_can_access_staging_with_private_runner_temp(self):
+        sudo = subprocess.run(
+            ["/usr/bin/sudo", "-n", "true"], capture_output=True, check=False,
+        )
+        if sudo.returncode != 0:
+            self.skipTest("Noninteractive sudo is unavailable")
+        # TemporaryDirectory defaults to 0700, like a private runner ancestor.
+        result, _ = self.run_setup(check_sandbox=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
