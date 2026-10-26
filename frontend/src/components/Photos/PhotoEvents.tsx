@@ -267,6 +267,13 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
       validate={required()}
       fullWidth
     />
+    <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
+    <TextInput
+      source="descriptionSv"
+      label="Description (Swedish)"
+      multiline
+      fullWidth
+    />
     <TextInput source="description" label="Description" multiline fullWidth />
     <DateTimeInput
       source="uploads_open_at"
