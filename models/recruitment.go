@@ -6,6 +6,7 @@ type RecruitmentPeriod struct {
 	ID        uint              `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
 	EventroID *string           `gorm:"column:eventro_id;uniqueIndex" json:"eventroId,omitempty"`
 	Name      string            `gorm:"column:name;not null;default:''" json:"name"`
+	NameSv    *string           `gorm:"column:name_sv" json:"nameSv,omitempty"`
 	Link      string            `gorm:"column:link;not null;default:''" json:"link"`
 	StartDate *time.Time        `gorm:"column:start_date" json:"startDate,omitempty"`
 	EndDate   *time.Time        `gorm:"column:end_date" json:"endDate,omitempty"`

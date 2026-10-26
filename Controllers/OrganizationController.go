@@ -22,11 +22,13 @@ func GetOrganizationEndpoint(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.Profile{})
 	query.Preload("Team").Find(&profiles)
 	teams := make(map[string][]models.Person)
+	teamNamesSv := make(map[string]*string)
 	for _, profile := range profiles {
 		if profile.Team == nil || profile.TeamID == nil || profile.Team.TeamName == "" {
 			continue
 		}
 
+		teamNamesSv[profile.Team.TeamName] = profile.Team.TeamNameSv
 		members := teams[profile.Team.TeamName]
 		members = append(members, models.ConvertProfileToPerson(profile))
 		teams[profile.Team.TeamName] = members
@@ -35,6 +37,7 @@ func GetOrganizationEndpoint(w http.ResponseWriter, r *http.Request) {
 	for teamName, people := range teams {
 		groups = append(groups, models.OrganizationGroup{
 			Name:   teamName,
+			NameSv: teamNamesSv[teamName],
 			People: people,
 		})
 	}

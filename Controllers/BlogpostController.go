@@ -198,6 +198,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 	item.ImageURLs = images
 
+	readMultipartTranslations(r, &item)
 	if err := createWithAudit(r, "blogposts", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil, "blog-posts"); err != nil {
@@ -281,6 +282,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		updateMap["image_urls"] = string(encodedImages)
 	}
 
+	mergeMultipartTranslations(r, &item, updateMap)
 	before := item
 	if err := updateWithAudit(r, "blogposts", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error

@@ -154,7 +154,8 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload recruitmentRolePayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &payload)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
@@ -171,6 +172,7 @@ func UpdateRecruitmentRole(w http.ResponseWriter, r *http.Request) {
 		updates["recruitment_id"] = *payload.RecruitmentID
 	}
 
+	mergeJSONTranslations(rawUpdates, &payload, updates)
 	before := item
 	if err := updateWithAudit(r, "recruitmentroles", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updates).Error

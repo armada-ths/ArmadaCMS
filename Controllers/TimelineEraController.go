@@ -111,6 +111,7 @@ func CreateTimelineEra(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&era.TitleSv)
 	if !normalizeTimelineEra(&era) {
 		http.Error(w, "title and non-negative sortOrder are required", http.StatusBadRequest)
 		return
@@ -142,7 +143,8 @@ func UpdateTimelineEra(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var updates models.TimelineEra
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
@@ -150,9 +152,11 @@ func UpdateTimelineEra(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "title and non-negative sortOrder are required", http.StatusBadRequest)
 		return
 	}
+	updateMap := map[string]any{"title": updates.Title, "sort_order": updates.SortOrder}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := era
 	if err := updateWithAudit(r, "timeline-eras", id, before, &era, func(tx *gorm.DB) error {
-		return tx.Model(&era).Updates(map[string]any{"title": updates.Title, "sort_order": updates.SortOrder}).Error
+		return tx.Model(&era).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&era, id).Error
 	}, "timeline-entries"); err != nil {

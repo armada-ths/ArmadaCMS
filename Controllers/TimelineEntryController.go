@@ -129,6 +129,7 @@ func CreateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	var entry models.TimelineEntry
 	entry.Title = r.FormValue("title")
 	entry.Body = r.FormValue("body")
+	readMultipartTranslations(r, &entry)
 	if eraID, err := strconv.ParseUint(r.FormValue("eraId"), 10, strconv.IntSize); err == nil {
 		entry.EraID = uint(eraID)
 	}
@@ -228,6 +229,7 @@ func UpdateTimelineEntry(w http.ResponseWriter, r *http.Request) {
 	if !validateTimelineEntry(w, &updates) {
 		return
 	}
+	mergeMultipartTranslations(r, &updates, updateMap)
 	before := entry
 	if err := updateWithAudit(r, "timeline-entries", id, before, &entry, func(tx *gorm.DB) error {
 		return tx.Model(&entry).Updates(updateMap).Error

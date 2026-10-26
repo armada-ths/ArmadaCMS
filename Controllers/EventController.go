@@ -213,6 +213,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 	NormalizeOptionalStringPointers(&event.OpenTo, &event.MapURL)
 	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 
+	readMultipartTranslations(r, &event)
+	event.DescriptionSv = utils.SanitizeEventDescription(event.DescriptionSv)
 	if err := createWithAudit(r, "events", &event, func(tx *gorm.DB) error {
 		return tx.Create(&event).Error
 	}, nil, "events"); err != nil {
@@ -344,6 +346,20 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	readMultipartTranslations(r, &updates)
+	updates.DescriptionSv = utils.SanitizeEventDescription(updates.DescriptionSv)
+	filteredFields := fieldsToUpdate[:0]
+	for _, column := range fieldsToUpdate {
+		if column != "name_sv" && column != "description_sv" {
+			filteredFields = append(filteredFields, column)
+		}
+	}
+	fieldsToUpdate = filteredFields
+	for key := range translationValues(&updates) {
+		if _, present := r.MultipartForm.Value[key]; present {
+			fieldsToUpdate = append(fieldsToUpdate, utils.ToSnakeCase(key))
+		}
+	}
 	before := event
 	if err := updateWithAudit(r, "events", id, before, &event, func(tx *gorm.DB) error {
 		return tx.Model(&event).Select(fieldsToUpdate).Updates(updates).Error
