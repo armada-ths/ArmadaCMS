@@ -91,7 +91,7 @@ func CreateHighlightCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	NormalizeOptionalStringPointers(&item.Brand, &item.LinkText, &item.LinkUrl, &item.CtaEventName)
+	NormalizeOptionalStringPointers(&item.Brand, &item.LinkText, &item.LinkUrl, &item.CtaEventName, &item.TitleSv, &item.SubtitleSv, &item.DescriptionSv, &item.LinkTextSv)
 
 	if err := createWithAudit(r, "highlightcards", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
@@ -133,10 +133,14 @@ func UpdateHighlightCard(w http.ResponseWriter, r *http.Request) {
 	updateMap := BuildNormalizedSnakeCaseUpdateMap(
 		rawUpdates,
 		map[string]struct{}{
-			"brand":        {},
-			"linkText":     {},
-			"linkUrl":      {},
-			"ctaEventName": {},
+			"titleSv":       {},
+			"subtitleSv":    {},
+			"descriptionSv": {},
+			"linkTextSv":    {},
+			"brand":         {},
+			"linkText":      {},
+			"linkUrl":       {},
+			"ctaEventName":  {},
 		},
 		map[string]struct{}{
 			"id": {},

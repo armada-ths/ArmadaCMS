@@ -12,6 +12,7 @@ type HighlightCard struct {
 	DescriptionSv *string `gorm:"column:description_sv;type:text" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 	Brand         *string `gorm:"column:brand;default:'ARMADA'" json:"brand"`                     // Nullable with default
 	LinkText      *string `gorm:"column:link_text" json:"linkText"`                               // Nullable
-	LinkUrl       *string `gorm:"column:link_url" json:"linkUrl"`                                 // Nullable
-	CtaEventName  *string `gorm:"column:cta_event_name" json:"ctaEventName"`                      // Nullable: event name for tracking
+	LinkTextSv    *string `gorm:"column:link_text_sv" json:"linkTextSv,omitempty"`
+	LinkUrl       *string `gorm:"column:link_url" json:"linkUrl"`            // Nullable
+	CtaEventName  *string `gorm:"column:cta_event_name" json:"ctaEventName"` // Nullable: event name for tracking
 }

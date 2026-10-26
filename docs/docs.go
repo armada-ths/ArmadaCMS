@@ -5521,6 +5521,9 @@ const docTemplate = `{
                     "description": "Nullable",
                     "type": "string"
                 },
+                "linkTextSv": {
+                    "type": "string"
+                },
                 "linkUrl": {
                     "description": "Nullable",
                     "type": "string"
