@@ -24,12 +24,12 @@ var errPhotoLimitReached = errors.New("photo limit reached")
 func photoEventFromToken(w http.ResponseWriter, r *http.Request) (*models.PhotoEvent, bool) {
 	id, version, err := utils.ParsePhotoEventToken(mux.Vars(r)["token"])
 	if err != nil {
-		http.Error(w, "Invalid event link", http.StatusNotFound)
+		writePhotoPublicError(w, "invalid_event_link", "Invalid event link", http.StatusNotFound)
 		return nil, false
 	}
 	var event models.PhotoEvent
 	if err := db.DB.First(&event, id).Error; err != nil || event.DeletionRequestedAt != nil || event.TokenVersion != version {
-		http.Error(w, "Event is unavailable", http.StatusNotFound)
+		writePhotoPublicError(w, "event_is_unavailable", "Event is unavailable", http.StatusNotFound)
 		return nil, false
 	}
 	return &event, true
@@ -97,7 +97,7 @@ func PhotoEventAccess(w http.ResponseWriter, r *http.Request) {
 	if guestID := r.URL.Query().Get("guest_id"); guestID != "" {
 		count, err := photoGuestQuota(event, guestID)
 		if err != nil {
-			http.Error(w, "Invalid guest ID", http.StatusBadRequest)
+			writePhotoPublicError(w, "invalid_guest_id", "Invalid guest ID", http.StatusBadRequest)
 			return
 		}
 		remaining = max(0, remaining-int(count))
@@ -106,6 +106,7 @@ func PhotoEventAccess(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"name": event.Name, "description": event.Description,
+		"nameSv": event.NameSv, "descriptionSv": event.DescriptionSv,
 		"uploads_open_at": event.UploadsOpenAt, "uploads_close_at": event.UploadsCloseAt,
 		"gallery_close_at": event.GalleryCloseAt,
 		"uploads_open":     !now.Before(event.UploadsOpenAt) && now.Before(event.UploadsCloseAt),
@@ -120,35 +121,35 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now()
 	if now.Before(event.UploadsOpenAt) || !now.Before(event.UploadsCloseAt) {
-		http.Error(w, "Uploads are closed", http.StatusForbidden)
+		writePhotoPublicError(w, "uploads_are_closed", "Uploads are closed", http.StatusForbidden)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, utils.MaxPhotoOriginalBytes+1024*1024)
 	if err := r.ParseMultipartForm(1 << 20); err != nil {
-		http.Error(w, "Upload too large", http.StatusRequestEntityTooLarge)
+		writePhotoPublicError(w, "upload_too_large", "Upload too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 	if r.FormValue("privacy_confirmed") != "true" {
-		http.Error(w, "Privacy confirmation required", http.StatusBadRequest)
+		writePhotoPublicError(w, "privacy_confirmation_required", "Privacy confirmation required", http.StatusBadRequest)
 		return
 	}
 	guestID := r.FormValue("guest_id")
 	count, err := photoGuestQuota(event, guestID)
 	if err != nil {
-		http.Error(w, "Invalid guest ID", http.StatusBadRequest)
+		writePhotoPublicError(w, "invalid_guest_id", "Invalid guest ID", http.StatusBadRequest)
 		return
 	}
 	if count >= int64(event.MaxPhotosPerGuest) {
-		http.Error(w, "Photo limit reached", http.StatusTooManyRequests)
+		writePhotoPublicError(w, "photo_limit_reached", "Photo limit reached", http.StatusTooManyRequests)
 		return
 	}
 	if err := utils.VerifyPhotoRecaptcha(r.Context(), r.FormValue("recaptcha_token")); err != nil {
-		http.Error(w, "Verification failed", http.StatusForbidden)
+		writePhotoPublicError(w, "verification_failed", "Verification failed", http.StatusForbidden)
 		return
 	}
 	file, header, err := r.FormFile("photo")
 	if err != nil {
-		http.Error(w, "A photo is required", http.StatusBadRequest)
+		writePhotoPublicError(w, "a_photo_is_required", "A photo is required", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
@@ -162,22 +163,22 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	n, _ := file.Read(signature)
 	detected, err := utils.DetectPhotoFormat(signature[:n])
 	if err != nil {
-		http.Error(w, "Unsupported photo format", http.StatusUnsupportedMediaType)
+		writePhotoPublicError(w, "unsupported_photo_format", "Unsupported photo format", http.StatusUnsupportedMediaType)
 		return
 	}
 	format = detected
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		http.Error(w, "Invalid photo", http.StatusUnprocessableEntity)
+		writePhotoPublicError(w, "invalid_photo", "Invalid photo", http.StatusUnprocessableEntity)
 		return
 	}
 	jpeg, width, height, err := utils.ProcessPhoto(file, header.Size)
 	if err != nil {
-		http.Error(w, "Invalid photo", http.StatusUnprocessableEntity)
+		writePhotoPublicError(w, "invalid_photo", "Invalid photo", http.StatusUnprocessableEntity)
 		return
 	}
 	key := fmt.Sprintf("events/%d/%d.jpg", event.ID, time.Now().UnixNano())
 	if err := utils.UploadPrivatePhoto(r.Context(), key, bytes.NewReader(jpeg), "image/jpeg", false); err != nil {
-		http.Error(w, "Storage unavailable", http.StatusServiceUnavailable)
+		writePhotoPublicError(w, "storage_unavailable", "Storage unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	var thumbnailKey *string
@@ -192,7 +193,7 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	hash, err := utils.HashPhotoGuest(event.ID, guestID)
 	if err != nil {
 		cleanup()
-		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
+		writePhotoPublicError(w, "could_not_register_photo", "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
 	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, ThumbnailObjectKey: thumbnailKey, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
@@ -200,10 +201,10 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cleanup()
 		if errors.Is(err, errPhotoLimitReached) {
-			http.Error(w, "Photo limit reached", http.StatusTooManyRequests)
+			writePhotoPublicError(w, "photo_limit_reached", "Photo limit reached", http.StatusTooManyRequests)
 			return
 		}
-		http.Error(w, "Could not register photo", http.StatusServiceUnavailable)
+		writePhotoPublicError(w, "could_not_register_photo", "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
 	photoStatus := "pending"
@@ -232,14 +233,14 @@ func PhotoEventGallery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !time.Now().Before(event.GalleryCloseAt) {
-		http.Error(w, "Gallery is closed", http.StatusForbidden)
+		writePhotoPublicError(w, "gallery_is_closed", "Gallery is closed", http.StatusForbidden)
 		return
 	}
 	limit := 48
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed < 1 || parsed > 48 {
-			http.Error(w, "Invalid limit", http.StatusBadRequest)
+			writePhotoPublicError(w, "invalid_limit", "Invalid limit", http.StatusBadRequest)
 			return
 		}
 		limit = parsed
@@ -249,14 +250,14 @@ func PhotoEventGallery(w http.ResponseWriter, r *http.Request) {
 		decoded, err := base64.RawURLEncoding.DecodeString(raw)
 		var cursor galleryCursor
 		if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.ID == 0 || cursor.ModeratedAt.IsZero() {
-			http.Error(w, "Invalid cursor", http.StatusBadRequest)
+			writePhotoPublicError(w, "invalid_cursor", "Invalid cursor", http.StatusBadRequest)
 			return
 		}
 		query = query.Where("(moderated_at, id) < (?, ?)", cursor.ModeratedAt, cursor.ID)
 	}
 	var photos []models.EventPhoto
 	if err := query.Order("moderated_at DESC, id DESC").Limit(limit + 1).Find(&photos).Error; err != nil {
-		http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+		writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	hasMore := len(photos) > limit
@@ -270,12 +271,12 @@ func PhotoEventGallery(w http.ResponseWriter, r *http.Request) {
 		}
 		url, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, time.Hour)
 		if err != nil {
-			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		thumbnail, err := utils.SignPhotoThumbnail(r.Context(), photo, time.Hour)
 		if err != nil {
-			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		items = append(items, map[string]any{"id": photo.ID, "url": url, "thumbnail_url": thumbnail, "urls_expires_at": time.Now().Add(time.Hour), "width": photo.Width, "height": photo.Height, "approved_at": photo.ModeratedAt})
@@ -301,19 +302,19 @@ func PhotoEventRefreshURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !time.Now().Before(event.GalleryCloseAt) {
-		http.Error(w, "Gallery is closed", http.StatusForbidden)
+		writePhotoPublicError(w, "gallery_is_closed", "Gallery is closed", http.StatusForbidden)
 		return
 	}
 	var input struct {
 		IDs []uint64 `json:"ids"`
 	}
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&input) != nil || len(input.IDs) < 1 || len(input.IDs) > 100 {
-		http.Error(w, "Invalid photo IDs", http.StatusBadRequest)
+		writePhotoPublicError(w, "invalid_photo_ids", "Invalid photo IDs", http.StatusBadRequest)
 		return
 	}
 	var photos []models.EventPhoto
 	if err := db.DB.Where("event_id = ? AND status = 'approved' AND id IN ? AND object_key IS NOT NULL", event.ID, input.IDs).Find(&photos).Error; err != nil {
-		http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+		writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	urls := make(map[uint64]string, len(photos))
@@ -324,13 +325,13 @@ func PhotoEventRefreshURLs(w http.ResponseWriter, r *http.Request) {
 		}
 		url, err := utils.SignPrivatePhoto(r.Context(), *photo.ObjectKey, false, time.Hour)
 		if err != nil {
-			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		urls[photo.ID] = url
 		thumbnail, err := utils.SignPhotoThumbnail(r.Context(), photo, time.Hour)
 		if err != nil {
-			http.Error(w, "Gallery unavailable", http.StatusServiceUnavailable)
+			writePhotoPublicError(w, "gallery_unavailable", "Gallery unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		thumbnails[photo.ID] = thumbnail

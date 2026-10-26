@@ -57,6 +57,11 @@ func testTranslationPersistence(t *testing.T, resources []any) {
 			t.Fatalf("fixture table %s already exists; use a fresh database", table)
 		}
 		columns := []string{`id bigint PRIMARY KEY`, `original_text text NOT NULL`}
+		for _, field := range statement.Schema.Fields {
+			if field.AutoUpdateTime != 0 {
+				columns = append(columns, fmt.Sprintf(`"%s" timestamptz`, field.DBName))
+			}
+		}
 		fields := translationValues(resource)
 		for key := range fields {
 			column := columnByJSON[key]

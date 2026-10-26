@@ -21,6 +21,10 @@ import {
 import { useState } from "react";
 import {
   Box,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Button,
   Dialog,
   DialogActions,
@@ -64,6 +68,7 @@ function EventActions() {
   const record = useRecordContext<PhotoEvent>();
   const notify = useNotify();
   const refresh = useRefresh();
+  const [linkLocale, setLinkLocale] = useState("en");
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState<"rotate" | "delete" | null>(
     null,
@@ -74,7 +79,7 @@ function EventActions() {
     setBusy(true);
     try {
       const response = await httpClient(
-        `${globalApi()}/photoevents/${record.id}/${rotate ? "rotate" : "link"}`,
+        `${globalApi()}/photoevents/${record.id}/${rotate ? "rotate" : "link"}?locale=${linkLocale}`,
         { method: rotate ? "POST" : "GET" },
       );
       await navigator.clipboard.writeText(
@@ -92,7 +97,7 @@ function EventActions() {
 
   const downloadQR = async (format: "svg" | "png") => {
     const response = await fetch(
-      `${globalApi()}/photoevents/${record.id}/qr?format=${format}`,
+      `${globalApi()}/photoevents/${record.id}/qr?format=${format}&locale=${linkLocale}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") ?? ""}`,
@@ -141,6 +146,20 @@ function EventActions() {
         py: 1,
       }}
     >
+      <FormControl size="small" sx={{ minWidth: 110 }}>
+        <InputLabel id={"photo-link-language-" + record.id}>
+          Link language
+        </InputLabel>
+        <Select
+          labelId={"photo-link-language-" + record.id}
+          label="Link language"
+          value={linkLocale}
+          onChange={(event) => setLinkLocale(event.target.value)}
+        >
+          <MenuItem value="en">English</MenuItem>
+          <MenuItem value="sv">Swedish</MenuItem>
+        </Select>
+      </FormControl>
       <Button
         size="small"
         variant="outlined"
@@ -265,6 +284,13 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
       source="name"
       label="Event name"
       validate={required()}
+      fullWidth
+    />
+    <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
+    <TextInput
+      source="descriptionSv"
+      label="Description (Swedish)"
+      multiline
       fullWidth
     />
     <TextInput source="description" label="Description" multiline fullWidth />

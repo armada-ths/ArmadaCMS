@@ -20,7 +20,9 @@ Event descriptions are sanitized in both languages. Eventro synchronization uses
 - Fair dates: fair.descriptionSv.
 - History: entry titleSv/bodySv and eraTitleSv; era administration exposes titleSv.
 
-Photo-event translations and language-specific link/QR generation are maintained in the Photos follow-up. These fields are additive so an older frontend/backend can run without deleting translations.
+Photo events expose nameSv and descriptionSv in the access response. Admin forms edit both fields; sparse updates follow the same rules. Link, QR and rotation endpoints accept locale=en/sv (regional Swedish normalizes to sv), and generate language-prefixed event links. The admin Link language selector chooses the language of shared links and QR codes.
+
+Public photo error responses keep their status/text body and add X-Armada-Error-Code, exposed through CORS. Clients translate known codes and render a local generic error for missing/unknown codes; do not match the English response text. These contracts are additive so older clients can continue handling statuses and text bodies. Photo quotas, permissions and storage behavior remain independent of locale.
 
 ## Verification
 

@@ -44,7 +44,7 @@ func TestPhotoEventLinkUsesConfiguredTokenSecret(t *testing.T) {
 	t.Setenv("PHOTO_TOKEN_SECRET", strings.Repeat("s", 48))
 	t.Setenv("PHOTO_APP_BASE_URL", "")
 	w := httptest.NewRecorder()
-	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2})
+	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2}, "en")
 	if w.Code != http.StatusOK {
 		t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String())
 	}
@@ -54,7 +54,7 @@ func TestPhotoEventLinkUsesConfiguredTokenSecret(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	token := strings.TrimPrefix(body.URL, "https://photos.armada.nu/e/")
+	token := strings.TrimPrefix(body.URL, "https://photos.armada.nu/en/e/")
 	id, version, err := utils.ParsePhotoEventToken(token)
 	if err != nil || id != 3 || version != 2 {
 		t.Fatalf("unexpected event token: id=%d version=%d err=%v", id, version, err)
@@ -65,7 +65,7 @@ func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
 	t.Setenv("PHOTO_TOKEN_SECRET", strings.Repeat("s", 48))
 	t.Setenv("PHOTO_APP_BASE_URL", "https://staging.armada.nu/photos/")
 	w := httptest.NewRecorder()
-	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2})
+	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2}, "en")
 	if w.Code != http.StatusOK {
 		t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String())
 	}
@@ -75,7 +75,7 @@ func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	const prefix = "https://staging.armada.nu/photos/e/"
+	const prefix = "https://staging.armada.nu/photos/en/e/"
 	if !strings.HasPrefix(body.URL, prefix) {
 		t.Fatalf("unexpected staging URL: %q", body.URL)
 	}
@@ -83,7 +83,7 @@ func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
 	if err != nil || id != 3 || version != 2 {
 		t.Fatalf("unexpected event token: id=%d version=%d err=%v", id, version, err)
 	}
-	if got := photoEventURL("test-token"); got != prefix+"test-token" {
+	if got := photoEventURL("test-token", "en"); got != prefix+"test-token" {
 		t.Fatalf("QR URL source differs from event link: %q", got)
 	}
 }
@@ -95,6 +95,15 @@ func TestPhotoPreviewRefreshRejectsInvalidIDs(t *testing.T) {
 		RefreshEventPhotoURLs(response, httptest.NewRequest(http.MethodPost, "/eventphotos/refresh", strings.NewReader(body)))
 		if response.Code != http.StatusBadRequest {
 			t.Fatalf("invalid request accepted: %d", response.Code)
+		}
+	}
+}
+
+func TestPhotoEventURLsCarrySelectedLocale(t *testing.T) {
+	t.Setenv("PHOTO_APP_BASE_URL", "https://photos.armada.nu")
+	for input, want := range map[string]string{"sv": "sv", "sv-SE": "sv", "en": "en", "fr": "en", "": "en"} {
+		if got := photoEventURL("event.token", input); got != "https://photos.armada.nu/"+want+"/e/event.token" {
+			t.Fatalf("locale %q: %s", input, got)
 		}
 	}
 }
