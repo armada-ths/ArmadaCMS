@@ -134,6 +134,8 @@ pnpm run test
 
 ## API
 
+See [Public content translations](docs/translations.md) for Swedish field, sparse update and public response conventions.
+
 Endpoints use `/api/v1`. Public reads need no authentication; writes and admin-only reads require a Bearer JWT obtained from `POST /api/v1/login`. See [Swagger](#swagger-docs) for available endpoints.
 
 Cross-origin requests allow `armada.nu`, local development origins and any additional exact origins listed in `CORS_ALLOWED_ORIGINS`.
