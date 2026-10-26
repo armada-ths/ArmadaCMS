@@ -5458,11 +5458,18 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "linkText": {
                     "description": "Nullable",
+                    "type": "string"
+                },
+                "linkTextSv": {
                     "type": "string"
                 },
                 "linkUrl": {
@@ -5472,7 +5479,15 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string"
                 },
+                "subtitleSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }

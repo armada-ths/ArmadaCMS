@@ -62,6 +62,8 @@ export const HighlightCardForm = () => (
       fullWidth
     />
 
+    <TextInput source="linkTextSv" label="Link text (Swedish)" fullWidth />
+
     <TextInput
       source="linkUrl"
       label="Link URL"
