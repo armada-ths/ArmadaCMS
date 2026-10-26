@@ -21,6 +21,7 @@ CI runs the test inside the existing backend container; it does not require Go o
 The Go workflow runs database tests in a separate PostgreSQL 17 service, and the existing `go-checks` check requires them to pass whenever Go changes. No hosted credentials are used; GitHub Actions removes the service and its data after the job.
 
 - `TestDeleteUserWithRefreshTokens`: deletes a user and their tokens, preserves other users, and verifies audit entries and rollback when deletion fails.
+- `TestPhotoTranslationPersistence`: applies the same SQL NULL/preservation checks to photo-event translations in a rolled-back transaction.
 - `TestPublicTranslationPersistence`: verifies every public content translation can be preserved, cleared to SQL NULL and normalized without changing original text, in an isolated local `translation_test` database (TRANSLATION_TEST_DSN). Schema and data are rolled back after the test.
 - `TestPhotoGuestQuotaLifetimeAndConcurrentUploads`: verifies that deleted/rejected photos still consume quota and concurrent uploads cannot exceed it.
 
