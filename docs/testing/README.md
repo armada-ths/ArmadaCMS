@@ -18,9 +18,10 @@ CI runs the test inside the existing backend container; it does not require Go o
 
 ## PostgreSQL behavior tests
 
-The Go workflow runs two database tests in a separate PostgreSQL 17 service, and the existing `go-checks` check requires them to pass whenever Go changes. No hosted credentials are used; GitHub Actions removes the service and its data after the job.
+The Go workflow runs database tests in a separate PostgreSQL 17 service, and the existing `go-checks` check requires them to pass whenever Go changes. No hosted credentials are used; GitHub Actions removes the service and its data after the job.
 
 - `TestDeleteUserWithRefreshTokens`: deletes a user and their tokens, preserves other users, and verifies audit entries and rollback when deletion fails.
+- `TestPublicTranslationPersistence`: verifies every public content translation can be preserved, cleared to SQL NULL and normalized without changing original text, in an isolated local `translation_test` database (TRANSLATION_TEST_DSN). Schema and data are rolled back after the test.
 - `TestPhotoGuestQuotaLifetimeAndConcurrentUploads`: verifies that deleted/rejected photos still consume quota and concurrent uploads cannot exceed it.
 
 `TestPhotoRejectionRetentionIntegration` is an additional opt-in test in the main package. It uses `PHOTO_RETENTION_TEST_DSN`, restricted to a local `photo_retention_test` database containing the migrated public schema. It checks reject/approve, deadline expiry, audit entries, storage failures and concurrent cleanup against a mock S3 endpoint; it never accesses hosted Storage. Run it with `go test -race -count=1 ./... -run TestPhotoRejectionRetentionIntegration` after providing that disposable database.

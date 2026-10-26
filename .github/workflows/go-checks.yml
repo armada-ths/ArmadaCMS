@@ -149,14 +149,16 @@ jobs:
         run: |
           docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE user_delete_test'
           docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE photo_quota_test'
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE translation_test'
 
       - name: Run database behavior tests
         env:
           USER_DELETE_TEST_DSN: postgresql://postgres:postgres@localhost:5432/user_delete_test?sslmode=disable
           PHOTO_QUOTA_TEST_DSN: postgresql://postgres:postgres@localhost:5432/photo_quota_test?sslmode=disable
+          TRANSLATION_TEST_DSN: postgresql://postgres:postgres@localhost:5432/translation_test?sslmode=disable
         run: >-
           go test -race -count=1 -timeout=5m -v ./Controllers
-          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads)$'
+          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence)$'
 
   go-checks:
     runs-on: ubuntu-24.04
