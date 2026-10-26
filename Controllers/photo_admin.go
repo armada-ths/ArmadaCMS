@@ -187,7 +187,7 @@ func RotatePhotoEventToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Rotation failed", 500)
 		return
 	}
-	writePhotoEventLink(w, token)
+	writePhotoEventLink(w, token, r.URL.Query().Get("locale"))
 }
 
 func PhotoEventLink(w http.ResponseWriter, r *http.Request) {
@@ -196,29 +196,34 @@ func PhotoEventLink(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	photoEventLink(w, event)
+	photoEventLink(w, event, r.URL.Query().Get("locale"))
 }
 
-func photoEventLink(w http.ResponseWriter, event models.PhotoEvent) {
+func photoEventLink(w http.ResponseWriter, event models.PhotoEvent, locale string) {
 	token, err := utils.PhotoEventToken(event.ID, event.TokenVersion)
 	if err != nil {
 		http.Error(w, "Link configuration missing", 500)
 		return
 	}
-	writePhotoEventLink(w, token)
+	writePhotoEventLink(w, token, locale)
 }
 
-func writePhotoEventLink(w http.ResponseWriter, token string) {
+func writePhotoEventLink(w http.ResponseWriter, token string, locale string) {
 	w.Header().Set("Cache-Control", "no-store")
-	photoAdminJSON(w, map[string]string{"url": photoEventURL(token)})
+	photoAdminJSON(w, map[string]string{"url": photoEventURL(token, locale)})
 }
 
-func photoEventURL(token string) string {
+func photoEventURL(token string, locale string) string {
+	if strings.ToLower(strings.Split(locale, "-")[0]) != "sv" {
+		locale = "en"
+	} else {
+		locale = "sv"
+	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PHOTO_APP_BASE_URL")), "/")
 	if baseURL == "" {
 		baseURL = "https://photos.armada.nu"
 	}
-	return baseURL + "/e/" + token
+	return baseURL + "/" + locale + "/e/" + token
 }
 
 func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +237,7 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "QR configuration missing", 500)
 		return
 	}
-	link := photoEventURL(token)
+	link := photoEventURL(token, r.URL.Query().Get("locale"))
 	qr, err := qrcode.New(link, qrcode.Medium)
 	if err != nil {
 		http.Error(w, "QR generation failed", 500)
