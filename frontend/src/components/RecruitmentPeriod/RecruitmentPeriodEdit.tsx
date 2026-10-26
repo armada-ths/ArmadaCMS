@@ -9,6 +9,7 @@ import {
 export const RecruitmentPeriodEdit = (props: EditProps) => (
   <Edit {...props}>
     <SimpleForm>
+      <TextInput source="nameSv" label="name (Swedish)" fullWidth />
       <TextInput source="name" fullWidth />
       <TextInput source="link" fullWidth />
       <DateTimeInput source="startDate" />

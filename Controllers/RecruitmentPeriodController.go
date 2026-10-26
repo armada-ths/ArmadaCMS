@@ -17,6 +17,7 @@ import (
 )
 
 type recruitmentPeriodPayload struct {
+	NameSv    *string `json:"nameSv"`
 	EventroID *string `json:"eventroId"`
 	Name      string  `json:"name"`
 	Link      string  `json:"link"`
@@ -119,6 +120,7 @@ func CreateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	item := models.RecruitmentPeriod{
 		EventroID: trimStringPointer(payload.EventroID),
 		Name:      strings.TrimSpace(payload.Name),
+		NameSv:    trimStringPointer(payload.NameSv),
 		Link:      strings.TrimSpace(payload.Link),
 		StartDate: startDate,
 		EndDate:   endDate,
@@ -159,7 +161,8 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload recruitmentPeriodPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &payload)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
@@ -184,6 +187,7 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 		"end_date":   endDate,
 	}
 
+	mergeJSONTranslations(rawUpdates, &payload, updates)
 	before := item
 	if err := updateWithAudit(r, "recruitmentperiods", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updates).Error

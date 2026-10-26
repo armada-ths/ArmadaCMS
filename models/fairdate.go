@@ -9,13 +9,13 @@ type FairDateConfig struct {
 	EventroID     *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
 	Description   string  `gorm:"column:description;not null" json:"description"`
 	DescriptionSv *string `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
-	FairDays      string  `gorm:"column:fair_days;not null" json:"fairDays"` // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
-	IRStart      string  `gorm:"column:ir_start;not null" json:"irStart"`
-	IREnd        string  `gorm:"column:ir_end;not null" json:"irEnd"`
-	IRAcceptance string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
-	FRStart      string  `gorm:"column:fr_start;not null" json:"frStart"`
-	FREnd        string  `gorm:"column:fr_end;not null" json:"frEnd"`
-	EventsStart  string  `gorm:"column:events_start;not null" json:"eventsStart"`
+	FairDays      string  `gorm:"column:fair_days;not null" json:"fairDays"`            // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
+	IRStart       string  `gorm:"column:ir_start;not null" json:"irStart"`
+	IREnd         string  `gorm:"column:ir_end;not null" json:"irEnd"`
+	IRAcceptance  string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
+	FRStart       string  `gorm:"column:fr_start;not null" json:"frStart"`
+	FREnd         string  `gorm:"column:fr_end;not null" json:"frEnd"`
+	EventsStart   string  `gorm:"column:events_start;not null" json:"eventsStart"`
 }
 
 // FairDate is the nested JSON structure returned by the public API.

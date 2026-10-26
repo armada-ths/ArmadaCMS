@@ -167,6 +167,7 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	readMultipartTranslations(r, &profile)
 	if err := createWithAudit(r, "profiles", &profile, func(tx *gorm.DB) error {
 		return tx.Create(&profile).Error
 	}, func(tx *gorm.DB) error {
@@ -281,6 +282,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updateMap["photo"] = updates.Photo
 	}
 
+	mergeMultipartTranslations(r, &profile, updateMap)
 	before := profile
 	if err := updateWithAudit(r, "profiles", id, before, &profile, func(tx *gorm.DB) error {
 		return tx.Model(&profile).Updates(updateMap).Error
@@ -292,7 +294,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updates)
+	json.NewEncoder(w).Encode(profile)
 }
 
 // DeleteProfile deletes a profile by ID.

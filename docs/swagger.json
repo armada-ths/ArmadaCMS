@@ -5046,6 +5046,9 @@
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "startDate": {
                     "type": "string"
                 }
@@ -5245,7 +5248,13 @@
                 "fee": {
                     "type": "string"
                 },
+                "feeSv": {
+                    "type": "string"
+                },
                 "food": {
+                    "type": "string"
+                },
+                "foodSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5255,6 +5264,9 @@
                     "type": "string"
                 },
                 "location": {
+                    "type": "string"
+                },
+                "locationSv": {
                     "type": "string"
                 },
                 "mapUrl": {
@@ -5268,6 +5280,9 @@
                     "type": "string"
                 },
                 "openTo": {
+                    "type": "string"
+                },
+                "openToSv": {
                     "type": "string"
                 },
                 "registrationEnd": {
@@ -5499,6 +5514,9 @@
                     "description": "Nullable",
                     "type": "string"
                 },
+                "linkTextSv": {
+                    "type": "string"
+                },
                 "linkUrl": {
                     "description": "Nullable",
                     "type": "string"
@@ -5540,6 +5558,9 @@
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "people": {
                     "type": "array",
                     "items": {
@@ -5570,6 +5591,9 @@
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                },
+                "roleSv": {
                     "type": "string"
                 }
             }
@@ -5606,6 +5630,9 @@
                 },
                 "title": {
                     "type": "string"
+                },
+                "titleSv": {
+                    "type": "string"
                 }
             }
         },
@@ -5640,6 +5667,9 @@
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "roles": {
@@ -5743,10 +5773,16 @@
                 "body": {
                     "type": "string"
                 },
+                "bodySv": {
+                    "type": "string"
+                },
                 "eraId": {
                     "type": "integer"
                 },
                 "eraTitle": {
+                    "type": "string"
+                },
+                "eraTitleSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5759,6 +5795,9 @@
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }
@@ -5773,6 +5812,9 @@
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }

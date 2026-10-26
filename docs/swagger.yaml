@@ -75,6 +75,8 @@ definitions:
         type: string
       name:
         type: string
+      nameSv:
+        type: string
       startDate:
         type: string
     type: object
@@ -207,13 +209,19 @@ definitions:
         type: string
       fee:
         type: string
+      feeSv:
+        type: string
       food:
+        type: string
+      foodSv:
         type: string
       id:
         type: integer
       imageUrl:
         type: string
       location:
+        type: string
+      locationSv:
         type: string
       mapUrl:
         type: string
@@ -223,6 +231,8 @@ definitions:
         description: 'Nullable: Swedish translation'
         type: string
       openTo:
+        type: string
+      openToSv:
         type: string
       registrationEnd:
         type: string
@@ -376,6 +386,8 @@ definitions:
       linkText:
         description: Nullable
         type: string
+      linkTextSv:
+        type: string
       linkUrl:
         description: Nullable
         type: string
@@ -404,6 +416,8 @@ definitions:
     properties:
       name:
         type: string
+      nameSv:
+        type: string
       people:
         items:
           $ref: '#/definitions/models.Person'
@@ -424,6 +438,8 @@ definitions:
       rank:
         type: string
       role:
+        type: string
+      roleSv:
         type: string
     type: object
   models.Profile:
@@ -448,6 +464,8 @@ definitions:
         type: integer
       title:
         type: string
+      titleSv:
+        type: string
     type: object
   models.Program:
     properties:
@@ -470,6 +488,8 @@ definitions:
       link:
         type: string
       name:
+        type: string
+      nameSv:
         type: string
       roles:
         items:
@@ -540,9 +560,13 @@ definitions:
     properties:
       body:
         type: string
+      bodySv:
+        type: string
       eraId:
         type: integer
       eraTitle:
+        type: string
+      eraTitleSv:
         type: string
       id:
         type: integer
@@ -552,6 +576,8 @@ definitions:
         type: integer
       title:
         type: string
+      titleSv:
+        type: string
     type: object
   models.TimelineEra:
     properties:
@@ -560,6 +586,8 @@ definitions:
       sortOrder:
         type: integer
       title:
+        type: string
+      titleSv:
         type: string
     type: object
   models.Tokens:
