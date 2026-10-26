@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       go: ${{ steps.filter.outputs.go }}
@@ -35,12 +35,13 @@ jobs:
               - 'go.sum'
               - '.golangci.yml'
               - '.github/workflows/go-checks.yml'
+              - '.github/actions/setup-libvips/**'
               - '.github/workflows/deploy.yml'
 
   vet:
     needs: changes
     if: needs.changes.outputs.go == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -55,9 +56,7 @@ jobs:
           cache: true
 
       - name: Install image processing libraries
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
+        uses: ./.github/actions/setup-libvips
 
       - name: Run go vet
         run: go vet ./...
@@ -65,7 +64,7 @@ jobs:
   lint:
     needs: changes
     if: needs.changes.outputs.go == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -80,9 +79,7 @@ jobs:
           cache: true
 
       - name: Install image processing libraries
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
+        uses: ./.github/actions/setup-libvips
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
@@ -92,7 +89,7 @@ jobs:
   test:
     needs: changes
     if: needs.changes.outputs.go == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -107,9 +104,7 @@ jobs:
           cache: true
 
       - name: Install image processing libraries
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
+        uses: ./.github/actions/setup-libvips
 
       - name: Run go test
         run: go test -race -count=1 ./...
@@ -117,7 +112,7 @@ jobs:
   database-test:
     needs: changes
     if: needs.changes.outputs.go == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -146,9 +141,7 @@ jobs:
           cache: true
 
       - name: Install image processing libraries
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libvips-dev
+        uses: ./.github/actions/setup-libvips
 
       - name: Create isolated test databases
         env:
@@ -166,7 +159,7 @@ jobs:
           -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads)$'
 
   go-checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [changes, vet, lint, test, database-test]
     if: always()
