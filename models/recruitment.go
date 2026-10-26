@@ -6,6 +6,7 @@ type RecruitmentPeriod struct {
 	ID        uint              `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
 	EventroID *string           `gorm:"column:eventro_id;uniqueIndex" json:"eventroId,omitempty"`
 	Name      string            `gorm:"column:name;not null;default:''" json:"name"`
+	NameSv    *string           `gorm:"column:name_sv" json:"nameSv,omitempty"`
 	Link      string            `gorm:"column:link;not null;default:''" json:"link"`
 	StartDate *time.Time        `gorm:"column:start_date" json:"startDate,omitempty"`
 	EndDate   *time.Time        `gorm:"column:end_date" json:"endDate,omitempty"`
@@ -20,5 +21,7 @@ type RecruitmentRole struct {
 	TeamID        *uint              `gorm:"column:team_id;index" json:"team_id,omitempty"`
 	Team          *Team              `gorm:"foreignKey:TeamID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team,omitempty"`
 	Name          string             `gorm:"column:name;not null;default:''" json:"name"`
+	NameSv        *string            `gorm:"column:name_sv" json:"nameSv,omitempty"` // Nullable: Swedish translation
 	Description   string             `gorm:"column:description;not null;default:''" json:"description"`
+	DescriptionSv *string            `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 }

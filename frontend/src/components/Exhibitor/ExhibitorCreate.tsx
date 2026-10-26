@@ -74,6 +74,7 @@ export const ExhibitorCreate = (props: CreateProps) => {
           }}
         />
         <TextInput source="about" />
+        <TextInput source="aboutSv" label="About (Swedish)" />
         <TextInput source="purpose" />
         <TextInput source="logoSquared" />
         <div>

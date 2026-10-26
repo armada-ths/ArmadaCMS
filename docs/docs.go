@@ -5053,6 +5053,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "startDate": {
                     "type": "string"
                 }
@@ -5064,10 +5067,16 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "recruitmentId": {
@@ -5190,7 +5199,15 @@ const docTemplate = `{
                 "text": {
                     "type": "string"
                 },
+                "textSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "userId": {
@@ -5206,6 +5223,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5213,6 +5234,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventEnd": {
@@ -5230,7 +5255,13 @@ const docTemplate = `{
                 "fee": {
                     "type": "string"
                 },
+                "feeSv": {
+                    "type": "string"
+                },
                 "food": {
+                    "type": "string"
+                },
+                "foodSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5242,13 +5273,23 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "locationSv": {
+                    "type": "string"
+                },
                 "mapUrl": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "openTo": {
+                    "type": "string"
+                },
+                "openToSv": {
                     "type": "string"
                 },
                 "registrationEnd": {
@@ -5269,6 +5310,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "about": {
+                    "type": "string"
+                },
+                "aboutSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "cities": {
@@ -5361,6 +5406,9 @@ const docTemplate = `{
                         },
                         "description": {
                             "type": "string"
+                        },
+                        "descriptionSv": {
+                            "type": "string"
                         }
                     }
                 },
@@ -5395,6 +5443,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventroId": {
@@ -5500,6 +5552,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5507,6 +5563,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "people": {
@@ -5539,6 +5598,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                },
+                "roleSv": {
                     "type": "string"
                 }
             }
@@ -5575,6 +5637,9 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
+                },
+                "titleSv": {
+                    "type": "string"
                 }
             }
         },
@@ -5585,6 +5650,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5607,6 +5676,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "roles": {
                     "type": "array",
                     "items": {
@@ -5624,6 +5696,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
@@ -5631,6 +5707,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "recruitment": {
@@ -5672,6 +5752,10 @@ const docTemplate = `{
                 },
                 "team_name": {
                     "type": "string"
+                },
+                "team_name_sv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5696,10 +5780,16 @@ const docTemplate = `{
                 "body": {
                     "type": "string"
                 },
+                "bodySv": {
+                    "type": "string"
+                },
                 "eraId": {
                     "type": "integer"
                 },
                 "eraTitle": {
+                    "type": "string"
+                },
+                "eraTitleSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5712,6 +5802,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }
@@ -5726,6 +5819,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }

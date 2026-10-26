@@ -88,6 +88,7 @@ func CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "programs", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil, "programs"); err != nil {
@@ -120,14 +121,20 @@ func UpdateProgram(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates models.Program
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := map[string]any{}
+	if _, present := rawUpdates["name"]; present {
+		updateMap["name"] = updates.Name
+	}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := item
 	if err := updateWithAudit(r, "programs", id, before, &item, func(tx *gorm.DB) error {
-		return tx.Model(&item).Updates(updates).Error
+		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
 	}, "programs"); err != nil {

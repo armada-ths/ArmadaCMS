@@ -88,6 +88,7 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "employments", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
@@ -123,14 +124,20 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates models.Employment
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := map[string]any{}
+	if _, present := rawUpdates["name"]; present {
+		updateMap["name"] = updates.Name
+	}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := item
 	if err := updateWithAudit(r, "employments", id, before, &item, func(tx *gorm.DB) error {
-		return tx.Model(&item).Updates(updates).Error
+		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.Preload("Exhibitor").First(&item, id).Error
 	}, "employments"); err != nil {

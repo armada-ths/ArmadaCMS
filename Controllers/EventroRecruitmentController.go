@@ -41,16 +41,20 @@ type eventroRecruitmentRoleDetail struct {
 }
 
 type recruitmentRoleResponse struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	NameSv        *string `json:"nameSv,omitempty"`
+	DescriptionSv *string `json:"descriptionSv,omitempty"`
+	Name          string  `json:"name"`
+	Description   string  `json:"description"`
 }
 
 type recruitmentResponse struct {
-	Name      string                               `json:"name"`
-	Link      string                               `json:"link"`
-	StartDate string                               `json:"start_date"`
-	EndDate   string                               `json:"end_date"`
-	Groups    map[string][]recruitmentRoleResponse `json:"groups"`
+	NameSv       *string                              `json:"nameSv,omitempty"`
+	GroupNamesSv map[string]string                    `json:"groupNamesSv,omitempty"`
+	Name         string                               `json:"name"`
+	Link         string                               `json:"link"`
+	StartDate    string                               `json:"start_date"`
+	EndDate      string                               `json:"end_date"`
+	Groups       map[string][]recruitmentRoleResponse `json:"groups"`
 }
 
 // FetchRecruitmentsEventro syncs recruitment data from the Eventro API.
@@ -559,16 +563,22 @@ func selectRecruitmentPeriod(periods []models.RecruitmentPeriod, now time.Time) 
 
 func mapRecruitmentPeriodToResponse(period models.RecruitmentPeriod) recruitmentResponse {
 	groups := map[string][]recruitmentRoleResponse{}
+	groupNamesSv := map[string]string{}
 
 	for _, role := range period.Roles {
 		teamName := ""
 		if role.Team != nil {
 			teamName = strings.TrimSpace(role.Team.TeamName)
+			if role.Team.TeamNameSv != nil {
+				groupNamesSv[teamName] = *role.Team.TeamNameSv
+			}
 		}
 
 		groups[teamName] = append(groups[teamName], recruitmentRoleResponse{
-			Name:        role.Name,
-			Description: role.Description,
+			Name:          role.Name,
+			NameSv:        role.NameSv,
+			DescriptionSv: role.DescriptionSv,
+			Description:   role.Description,
 		})
 	}
 
@@ -583,10 +593,12 @@ func mapRecruitmentPeriodToResponse(period models.RecruitmentPeriod) recruitment
 	}
 
 	return recruitmentResponse{
-		Name:      period.Name,
-		Link:      period.Link,
-		StartDate: startDate,
-		EndDate:   endDate,
-		Groups:    groups,
+		Name:         period.Name,
+		NameSv:       period.NameSv,
+		GroupNamesSv: groupNamesSv,
+		Link:         period.Link,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		Groups:       groups,
 	}
 }

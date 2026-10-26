@@ -75,6 +75,8 @@ definitions:
         type: string
       name:
         type: string
+      nameSv:
+        type: string
       startDate:
         type: string
     type: object
@@ -82,9 +84,13 @@ definitions:
     properties:
       description:
         type: string
+      descriptionSv:
+        type: string
       eventroRoleId:
         type: string
       name:
+        type: string
+      nameSv:
         type: string
       recruitmentId:
         type: integer
@@ -165,7 +171,13 @@ definitions:
         type: boolean
       text:
         type: string
+      textSv:
+        description: 'Nullable: Swedish translation'
+        type: string
       title:
+        type: string
+      titleSv:
+        description: 'Nullable: Swedish translation'
         type: string
       userId:
         type: integer
@@ -176,10 +188,16 @@ definitions:
         type: integer
       name:
         type: string
+      nameSv:
+        description: 'Nullable: Swedish translation'
+        type: string
     type: object
   models.Event:
     properties:
       description:
+        type: string
+      descriptionSv:
+        description: 'Nullable: Swedish translation'
         type: string
       eventEnd:
         type: string
@@ -191,7 +209,11 @@ definitions:
         type: string
       fee:
         type: string
+      feeSv:
+        type: string
       food:
+        type: string
+      foodSv:
         type: string
       id:
         type: integer
@@ -199,11 +221,18 @@ definitions:
         type: string
       location:
         type: string
+      locationSv:
+        type: string
       mapUrl:
         type: string
       name:
         type: string
+      nameSv:
+        description: 'Nullable: Swedish translation'
+        type: string
       openTo:
+        type: string
+      openToSv:
         type: string
       registrationEnd:
         type: string
@@ -217,6 +246,9 @@ definitions:
   models.Exhibitor:
     properties:
       about:
+        type: string
+      aboutSv:
+        description: 'Nullable: Swedish translation'
         type: string
       cities:
         type: string
@@ -278,6 +310,8 @@ definitions:
             type: array
           description:
             type: string
+          descriptionSv:
+            type: string
         type: object
       fr:
         properties:
@@ -299,6 +333,9 @@ definitions:
   models.FairDateConfig:
     properties:
       description:
+        type: string
+      descriptionSv:
+        description: 'Nullable: Swedish translation'
         type: string
       eventroId:
         type: string
@@ -371,10 +408,15 @@ definitions:
         type: integer
       name:
         type: string
+      nameSv:
+        description: 'Nullable: Swedish translation'
+        type: string
     type: object
   models.OrganizationGroup:
     properties:
       name:
+        type: string
+      nameSv:
         type: string
       people:
         items:
@@ -396,6 +438,8 @@ definitions:
       rank:
         type: string
       role:
+        type: string
+      roleSv:
         type: string
     type: object
   models.Profile:
@@ -420,12 +464,17 @@ definitions:
         type: integer
       title:
         type: string
+      titleSv:
+        type: string
     type: object
   models.Program:
     properties:
       id:
         type: integer
       name:
+        type: string
+      nameSv:
+        description: 'Nullable: Swedish translation'
         type: string
     type: object
   models.RecruitmentPeriod:
@@ -440,6 +489,8 @@ definitions:
         type: string
       name:
         type: string
+      nameSv:
+        type: string
       roles:
         items:
           $ref: '#/definitions/models.RecruitmentRole'
@@ -451,11 +502,17 @@ definitions:
     properties:
       description:
         type: string
+      descriptionSv:
+        description: 'Nullable: Swedish translation'
+        type: string
       eventroRoleId:
         type: string
       id:
         type: integer
       name:
+        type: string
+      nameSv:
+        description: 'Nullable: Swedish translation'
         type: string
       recruitment:
         $ref: '#/definitions/models.RecruitmentPeriod'
@@ -483,6 +540,9 @@ definitions:
         type: integer
       team_name:
         type: string
+      team_name_sv:
+        description: 'Nullable: Swedish translation'
+        type: string
     type: object
   models.Tier:
     enum:
@@ -500,9 +560,13 @@ definitions:
     properties:
       body:
         type: string
+      bodySv:
+        type: string
       eraId:
         type: integer
       eraTitle:
+        type: string
+      eraTitleSv:
         type: string
       id:
         type: integer
@@ -512,6 +576,8 @@ definitions:
         type: integer
       title:
         type: string
+      titleSv:
+        type: string
     type: object
   models.TimelineEra:
     properties:
@@ -520,6 +586,8 @@ definitions:
       sortOrder:
         type: integer
       title:
+        type: string
+      titleSv:
         type: string
     type: object
   models.Tokens:

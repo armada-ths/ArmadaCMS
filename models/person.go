@@ -10,11 +10,13 @@ type Person struct {
 	Email       *string `json:"email"`
 	Picture     *string `json:"picture"`
 	LinkedInURL *string `json:"linkedin_url"`
+	RoleSv      *string `json:"roleSv,omitempty"`
 	Role        string  `json:"role"`
 }
 
 // OrganizationGroup represents a single organization group with its members
 type OrganizationGroup struct {
+	NameSv *string  `json:"nameSv,omitempty"`
 	Name   string   `json:"name"`
 	People []Person `json:"people"`
 }
@@ -37,5 +39,6 @@ func ConvertProfileToPerson(profile Profile) Person {
 		Picture:     optional(profile.Photo),
 		LinkedInURL: optional(profile.Linkedin),
 		Role:        profile.Title,
+		RoleSv:      profile.TitleSv,
 	}
 }

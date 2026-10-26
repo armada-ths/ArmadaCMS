@@ -12,6 +12,7 @@ export const RecruitmentRoleEdit = (props: EditProps) => (
   <Edit {...props}>
     <SimpleForm>
       <TextInput source="name" fullWidth />
+      <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
       <ReferenceInput source="team_id" reference="teams">
         <SelectInput optionText="team_name" emptyText="No team" />
       </ReferenceInput>
@@ -21,6 +22,11 @@ export const RecruitmentRoleEdit = (props: EditProps) => (
       <MarkdownInput
         source="description"
         label="Description (Markdown)"
+        enableImageFeatures={false}
+      />
+      <MarkdownInput
+        source="descriptionSv"
+        label="Description (Swedish - Markdown)"
         enableImageFeatures={false}
       />
     </SimpleForm>

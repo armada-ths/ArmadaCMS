@@ -44,6 +44,7 @@ export const ProfileCreate = (props: CreateProps) => {
   return (
     <Create {...props}>
       <SimpleForm>
+        <TextInput source="titleSv" label="title (Swedish)" fullWidth />
         <TextInput label="Name" source="name" />
         <SelectInput
           label="Rank"
