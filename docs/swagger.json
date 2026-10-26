@@ -5057,10 +5057,16 @@
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "recruitmentId": {
@@ -5183,7 +5189,15 @@
                 "text": {
                     "type": "string"
                 },
+                "textSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "userId": {
@@ -5199,6 +5213,10 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5206,6 +5224,10 @@
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventEnd": {
@@ -5241,6 +5263,10 @@
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "openTo": {
                     "type": "string"
                 },
@@ -5262,6 +5288,10 @@
             "type": "object",
             "properties": {
                 "about": {
+                    "type": "string"
+                },
+                "aboutSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "cities": {
@@ -5354,6 +5384,9 @@
                         },
                         "description": {
                             "type": "string"
+                        },
+                        "descriptionSv": {
+                            "type": "string"
                         }
                     }
                 },
@@ -5388,6 +5421,10 @@
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventroId": {
@@ -5451,6 +5488,10 @@
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -5465,7 +5506,15 @@
                 "subtitle": {
                     "type": "string"
                 },
+                "subtitleSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5477,6 +5526,10 @@
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5564,6 +5617,10 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5602,6 +5659,10 @@
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
@@ -5609,6 +5670,10 @@
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "recruitment": {
@@ -5649,6 +5714,10 @@
                     "type": "integer"
                 },
                 "team_name": {
+                    "type": "string"
+                },
+                "team_name_sv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }

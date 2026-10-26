@@ -5064,10 +5064,16 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "recruitmentId": {
@@ -5190,7 +5196,15 @@ const docTemplate = `{
                 "text": {
                     "type": "string"
                 },
+                "textSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "userId": {
@@ -5206,6 +5220,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5213,6 +5231,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventEnd": {
@@ -5248,6 +5270,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "openTo": {
                     "type": "string"
                 },
@@ -5269,6 +5295,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "about": {
+                    "type": "string"
+                },
+                "aboutSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "cities": {
@@ -5361,6 +5391,9 @@ const docTemplate = `{
                         },
                         "description": {
                             "type": "string"
+                        },
+                        "descriptionSv": {
+                            "type": "string"
                         }
                     }
                 },
@@ -5395,6 +5428,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventroId": {
@@ -5458,6 +5495,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -5472,7 +5513,15 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string"
                 },
+                "subtitleSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5484,6 +5533,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5571,6 +5624,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5609,6 +5666,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
@@ -5616,6 +5677,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "recruitment": {
@@ -5656,6 +5721,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "team_name": {
+                    "type": "string"
+                },
+                "team_name_sv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }

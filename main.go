@@ -394,7 +394,7 @@ func HandleCORS(next http.Handler) http.Handler {
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RefreshAuthorization, Content-Range, Range")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Range, X-Armada-Error-Code")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

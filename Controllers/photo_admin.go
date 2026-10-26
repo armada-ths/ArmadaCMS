@@ -84,6 +84,7 @@ func CreatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	if event.MaxPhotosPerGuest == 0 {
 		event.MaxPhotosPerGuest = 25
 	}
+	NormalizeOptionalStringPointers(&event.NameSv, &event.DescriptionSv)
 	if err := validatePhotoEvent(event); err != nil {
 		photoEventBadRequest(w, err.Error())
 		return
@@ -103,7 +104,8 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input models.PhotoEvent
-	if json.NewDecoder(r.Body).Decode(&input) != nil {
+	raw, decodeErr := decodeWithFields(r.Body, &input)
+	if decodeErr != nil {
 		photoEventBadRequest(w, "Invalid event data. Dates must include a timezone")
 		return
 	}
@@ -117,8 +119,15 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		photoEventBadRequest(w, err.Error())
 		return
 	}
+	if _, present := raw["nameSv"]; !present {
+		input.NameSv = before.NameSv
+	}
+	if _, present := raw["descriptionSv"]; !present {
+		input.DescriptionSv = before.DescriptionSv
+	}
+	NormalizeOptionalStringPointers(&input.NameSv, &input.DescriptionSv)
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
+		return tx.Model(&before).Updates(map[string]any{"name_sv": input.NameSv, "description_sv": input.DescriptionSv, "name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return
