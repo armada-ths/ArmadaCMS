@@ -29,6 +29,8 @@ type eventroEventResponse struct {
 	CustomFields            map[string]json.RawMessage `json:"customFields"`
 	ID                      string                     `json:"id"`
 	Name                    string                     `json:"name"`
+	URL                     *string                    `json:"url"`
+	Location                *string                    `json:"location"`
 	Description             *string                    `json:"description"`
 	Participants            int                        `json:"participants"`
 	AllowWaitlist           bool                       `json:"allowWaitlist"`
@@ -109,12 +111,13 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 			if findErr != nil && findErr != gorm.ErrRecordNotFound {
 				return findErr
 			}
-			preserveOmittedEventroFields(&ev, existing, e.CustomFields)
+			preserveOmittedEventroFields(&ev, existing, e)
 			if findErr == nil &&
 				existing.Location == ev.Location &&
 				stringPointersEqual(existing.Food, ev.Food) &&
 				stringPointersEqual(existing.OpenTo, ev.OpenTo) &&
 				stringPointersEqual(existing.MapURL, ev.MapURL) &&
+				stringPointersEqual(existing.SignupLink, ev.SignupLink) &&
 				existing.Name == ev.Name &&
 				stringPointersEqual(existing.Description, ev.Description) &&
 				existing.EventStart.Equal(ev.EventStart) &&
@@ -128,7 +131,7 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 				Columns: []clause.Column{{Name: "eventro_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{
 					"name", "description", "event_start", "event_end",
-					"registration_end", "event_max_capacity", "location", "food", "open_to", "map_url",
+					"registration_end", "event_max_capacity", "location", "food", "open_to", "map_url", "signup_link",
 				}),
 			}).Create(&ev)
 			if result.Error != nil {
@@ -208,7 +211,10 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		return &t
 	}
 
-	location, _ := eventroTextField(e.CustomFields, "location")
+	signupLink := e.URL
+	NormalizeOptionalStringPointers(&signupLink)
+
+	location, _ := eventroEventLocation(e)
 	food, _ := eventroTextField(e.CustomFields, "food")
 	openTo, _ := eventroTextField(e.CustomFields, "opento")
 	mapURL, _ := eventroTextField(e.CustomFields, "mapurl")
@@ -228,7 +234,7 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),
 		RegistrationEnd:  parseTime(e.ClosesForRegistrationAt),
 		ImageURL:         nil,
-		SignupLink:       nil,
+		SignupLink:       signupLink,
 		EventMaxCapacity: &e.MaxParticipants,
 	}
 }
@@ -256,8 +262,22 @@ func eventroTextField(fields map[string]json.RawMessage, key string) (*string, b
 	return value, true
 }
 
-func preserveOmittedEventroFields(event *models.Event, existing models.Event, fields map[string]json.RawMessage) {
-	if _, present := eventroTextField(fields, "location"); !present {
+func eventroEventLocation(input eventroEventResponse) (*string, bool) {
+	location := input.Location
+	NormalizeOptionalStringPointers(&location)
+	if location != nil {
+		return location, true
+	}
+	location, present := eventroTextField(input.CustomFields, "location")
+	return location, present || input.Location != nil
+}
+
+func preserveOmittedEventroFields(event *models.Event, existing models.Event, input eventroEventResponse) {
+	if input.URL == nil {
+		event.SignupLink = existing.SignupLink
+	}
+	fields := input.CustomFields
+	if _, present := eventroEventLocation(input); !present {
 		event.Location = existing.Location
 	}
 	if _, present := eventroTextField(fields, "food"); !present {

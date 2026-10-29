@@ -41,13 +41,82 @@ func TestEventroOptionalFields(t *testing.T) {
 			if got.Location != "" || got.Food != nil || got.OpenTo != nil || got.MapURL != nil {
 				t.Fatalf("new optional fields = %#v", got)
 			}
-			preserveOmittedEventroFields(&got, existing, input.CustomFields)
+			preserveOmittedEventroFields(&got, existing, input)
 			if test.cleared {
 				if got.Location != "" || got.Food != nil || got.OpenTo != nil || got.MapURL != nil {
 					t.Fatalf("unset fields were not cleared: %#v", got)
 				}
 			} else if got.Location != old || !stringPointersEqual(got.Food, &old) || !stringPointersEqual(got.OpenTo, &old) || !stringPointersEqual(got.MapURL, &old) {
 				t.Fatalf("omitted fields were not preserved: %#v", got)
+			}
+		})
+	}
+}
+
+func TestEventroEventSignupLink(t *testing.T) {
+	for _, test := range []struct {
+		name, payload string
+		want          *string
+	}{
+		{"public event URL", `{"url":"https://app.eventro.se/event/123e4567-e89b-12d3-a456-426614174000"}`, stringPtrForEventroTest("https://app.eventro.se/event/123e4567-e89b-12d3-a456-426614174000")},
+		{"trimmed URL", `{"url":" https://app.eventro.se/event/event-1 "}`, stringPtrForEventroTest("https://app.eventro.se/event/event-1")},
+		{"empty URL", `{"url":""}`, nil},
+		{"blank URL", `{"url":"  "}`, nil},
+		{"null URL", `{"url":null}`, nil},
+		{"omitted URL", `{}`, nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var input eventroEventResponse
+			if err := json.Unmarshal([]byte(test.payload), &input); err != nil {
+				t.Fatal(err)
+			}
+			got := mapEventroToEvent(input)
+			if !stringPointersEqual(got.SignupLink, test.want) {
+				t.Fatalf("signup link = %v, want %v", got.SignupLink, test.want)
+			}
+			existing := models.Event{SignupLink: stringPtrForEventroTest("https://example.com/old-signup")}
+			preserveOmittedEventroFields(&got, existing, input)
+			want := test.want
+			if input.URL == nil {
+				want = existing.SignupLink
+			}
+			if !stringPointersEqual(got.SignupLink, want) {
+				t.Fatalf("signup link after preserving omitted fields = %v, want %v", got.SignupLink, want)
+			}
+		})
+	}
+}
+
+func stringPtrForEventroTest(value string) *string {
+	return &value
+}
+
+func TestEventroEventLocation(t *testing.T) {
+	for _, test := range []struct {
+		name, payload, want, wantExisting string
+	}{
+		{"top level wins", `{"location":" Main hall ","customFields":{"location":"Other hall"}}`, "Main hall", "Main hall"},
+		{"top level only", `{"location":" Main hall "}`, "Main hall", "Main hall"},
+		{"null top level falls back", `{"location":null,"customFields":{"location":" Other hall "}}`, "Other hall", "Other hall"},
+		{"blank top level falls back", `{"location":"  ","customFields":{"location":" Other hall "}}`, "Other hall", "Other hall"},
+		{"omitted top level falls back", `{"customFields":{"location":"Other hall"}}`, "Other hall", "Other hall"},
+		{"both omitted", `{}`, "", "Existing hall"},
+		{"null top level only", `{"location":null}`, "", "Existing hall"},
+		{"blank top level only", `{"location":"  "}`, "", ""},
+		{"explicitly cleared fallback", `{"location":null,"customFields":{"location":null}}`, "", ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var input eventroEventResponse
+			if err := json.Unmarshal([]byte(test.payload), &input); err != nil {
+				t.Fatal(err)
+			}
+			got := mapEventroToEvent(input)
+			if got.Location != test.want {
+				t.Fatalf("location = %q, want %q", got.Location, test.want)
+			}
+			preserveOmittedEventroFields(&got, models.Event{Location: "Existing hall"}, input)
+			if got.Location != test.wantExisting {
+				t.Fatalf("location after preserving omitted fields = %q, want %q", got.Location, test.wantExisting)
 			}
 		})
 	}
