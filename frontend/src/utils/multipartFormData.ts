@@ -16,7 +16,7 @@ type MultipartRules = {
 // Only fields whose API supports explicit clearing belong in this map.
 const multipartResources: Record<string, MultipartRules> = {
   profiles: { clearableFields: { team_id: { emptyValue: "" } } },
-  events: {},
+  events: { clearableFields: { imageUrl: { emptyValue: "" } } },
   exhibitors: {},
   blogposts: { blogpostImages: true },
   "timeline-entries": {

@@ -137,7 +137,7 @@ describe("shared multipart rules", () => {
   );
 
   it("keeps removal rules scoped to the supported resources", async () => {
-    const form = await submit("events", {
+    const form = await submit("exhibitors", {
       team_id: null,
       imageUrl: null,
       industries: [],
@@ -145,6 +145,38 @@ describe("shared multipart rules", () => {
     expect(form.has("team_id")).toBe(false);
     expect(form.has("imageUrl")).toBe(false);
     expect(form.get("industries")).toBe("[]");
+  });
+
+  it.each([null, ""])("clears an event image through %j", async (imageUrl) => {
+    const form = await submit("events", { imageUrl });
+    expect(form.get("imageUrl")).toBe("");
+    expect(form.has("file")).toBe(false);
+  });
+
+  it.each([{}, { imageUrl: undefined }])(
+    "preserves an event image when omitted: %j",
+    async (data) => {
+      const form = await submit("events", data);
+      expect(form.has("imageUrl")).toBe(false);
+      expect(form.has("file")).toBe(false);
+    },
+  );
+
+  it("sends an event replacement file alongside the saved URL", async () => {
+    const rawFile = new File(["photo"], "new.jpg", { type: "image/jpeg" });
+    const form = await submit("events", {
+      imageUrl: "https://example.com/old.jpg",
+      file: { rawFile },
+    });
+    expect(form.get("file")).toBe(rawFile);
+    expect(form.get("imageUrl")).toBe("https://example.com/old.jpg");
+  });
+
+  it("sends an event replacement URL", async () => {
+    const form = await submit("events", {
+      imageUrl: "https://example.com/new.jpg",
+    });
+    expect(form.get("imageUrl")).toBe("https://example.com/new.jpg");
   });
 
   it("clears a combined blog cover and gallery despite stale saved fields", async () => {
