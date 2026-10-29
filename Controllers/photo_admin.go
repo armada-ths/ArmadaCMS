@@ -57,6 +57,12 @@ func ListPhotoEvents(w http.ResponseWriter, r *http.Request) {
 	var events []models.PhotoEvent
 	params, _ := utils.ParseListParams(r.URL.Query())
 	query := utils.ApplySearch(db.DB.Model(&models.PhotoEvent{}), params.Filter["q"], "id", "name", "description")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := query.Order("created_at DESC").Find(&events).Error; err != nil {
 		http.Error(w, "List failed", 500)
 		return

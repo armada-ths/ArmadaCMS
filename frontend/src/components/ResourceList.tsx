@@ -1,12 +1,47 @@
-import { List, ListProps, SearchInput } from "react-admin";
+import {
+  List,
+  ListProps,
+  NullableBooleanInput,
+  NumberInput,
+  SearchInput,
+  SelectInput,
+  TextInput,
+  useResourceContext,
+} from "react-admin";
+import { RESOURCE_FILTERS, type ResourceFilter } from "./resourceFilters";
 
-/** Shared list shell so every resource has the same server-side search. */
-export const ResourceList = ({ filters = [], ...props }: ListProps) => (
-  <List
-    {...props}
-    filters={[
-      <SearchInput key="q" source="q" alwaysOn />,
-      ...(Array.isArray(filters) ? filters : [filters]),
-    ]}
-  />
-);
+const columnFilter = ({ source, label, type, choices }: ResourceFilter) => {
+  const props = { source, label };
+  switch (type) {
+    case "number":
+      return <NumberInput key={source} {...props} />;
+    case "boolean":
+      return <NullableBooleanInput key={source} {...props} />;
+    case "datetime":
+      // Keep fractional seconds intact for exact database comparisons.
+      return (
+        <TextInput key={source} {...props} placeholder="2026-11-01T12:00:00Z" />
+      );
+    case "select":
+      return <SelectInput key={source} {...props} choices={choices} />;
+    default:
+      return <TextInput key={source} {...props} />;
+  }
+};
+
+/** Shared search and exact column filters for every resource list. */
+export const ResourceList = ({ filters = [], ...props }: ListProps) => {
+  const resource = useResourceContext(props);
+  const definitions =
+    RESOURCE_FILTERS[resource as keyof typeof RESOURCE_FILTERS] ?? [];
+  return (
+    <List
+      {...props}
+      filters={[
+        <SearchInput key="q" source="q" alwaysOn />,
+        ...definitions.map(columnFilter),
+        ...(Array.isArray(filters) ? filters : [filters]),
+      ]}
+    />
+  );
+};

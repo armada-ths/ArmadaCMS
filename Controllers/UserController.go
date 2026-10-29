@@ -47,7 +47,7 @@ func GetUserEndpoint(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"username\",\"ASC\"]"
-// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.User
 // @Header 200 {string} Content-Range "users 0-24/100"
 // @Failure 500 {string} string "Internal server error"
@@ -60,11 +60,11 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.User{}).Preload("Roles")
 
 	query = utils.ApplySearch(query, params.Filter["q"], "id", "username", "name")
-	for k, v := range params.Filter {
-		if k == "q" {
-			continue
-		}
-		query = query.Where(k+" = ?", v)
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if len(params.Sort) == 2 {

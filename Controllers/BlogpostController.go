@@ -31,7 +31,7 @@ func requestHasValidAccessToken(r *http.Request) bool {
 	return err == nil
 }
 
-// allowedBlogpostColumns maps client-supplied field names to safe column names.
+// allowedBlogpostColumns maps client-supplied sort fields to safe column names.
 var allowedBlogpostColumns = map[string]string{
 	"id":         "id",
 	"title":      "title",
@@ -47,7 +47,7 @@ var allowedBlogpostColumns = map[string]string{
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"createdAt\",\"DESC\"]"
-// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.Blogpost
 // @Header 200 {string} Content-Range "blogposts 0-24/100"
 // @Router /blogposts [get]
@@ -62,12 +62,11 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author")
-	for k, v := range params.Filter {
-		col, ok := allowedBlogpostColumns[strings.ToLower(k)]
-		if !ok {
-			continue
-		}
-		query = query.Where(col+" = ?", v)
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if len(params.Sort) == 2 {

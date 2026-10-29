@@ -9,6 +9,7 @@ import {
   testDataProvider,
 } from "react-admin";
 import { ResourceList } from "./ResourceList";
+import { RESOURCE_FILTERS } from "./resourceFilters";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -30,7 +31,7 @@ test("search filters all records, resets pagination, preserves fixed filters, an
   root.render(
     <AdminContext dataProvider={testDataProvider({ getList })}>
       <ResourceList
-        resource="programs"
+        resource="featureflags"
         storeKey={false}
         disableSyncWithLocation
         filter={{ enabled: true }}
@@ -65,4 +66,112 @@ test("search filters all records, resets pagination, preserves fixed filters, an
     expect(filter.enabled).toBe(true);
     expect(filter.q || "").toBe("");
   });
+});
+
+const mountList = (resource: string) => {
+  const getList = vi
+    .fn()
+    .mockResolvedValue({ data: [{ id: 1, name: "Armada" }], total: 1 });
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  root.render(
+    <AdminContext dataProvider={testDataProvider({ getList })}>
+      <ResourceList
+        resource={resource}
+        storeKey={false}
+        disableSyncWithLocation
+      >
+        <Datagrid bulkActionButtons={false}>
+          <TextField source="name" />
+        </Datagrid>
+      </ResourceList>
+    </AdminContext>,
+  );
+  return getList;
+};
+
+const addFilter = async (label: string) => {
+  await page.getByRole("button", { name: "ra.action.add_filter" }).click();
+  await page
+    .getByRole("menuitemcheckbox", { name: label, exact: true })
+    .click();
+};
+
+test.each(
+  Object.entries(RESOURCE_FILTERS)
+    .filter(([, filters]) => filters.length)
+    .map(([resource]) => resource),
+)(
+  "%s exposes column filters and combines numeric ID with search",
+  async (resource) => {
+    const getList = mountList(resource);
+    await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+    await page
+      .getByRole("textbox", { name: "ra.action.search" })
+      .fill("Armada");
+    await vi.waitFor(() =>
+      expect(getList.mock.lastCall?.[1].filter.q).toBe("Armada"),
+    );
+    await addFilter("ID");
+    await page.getByRole("spinbutton", { name: "ID", exact: true }).fill("7");
+    await vi.waitFor(() =>
+      expect(getList.mock.lastCall?.[1].filter).toEqual({ q: "Armada", id: 7 }),
+    );
+  },
+);
+
+test("text column values are sent separately from free-text search and can be removed", async () => {
+  const getList = mountList("programs");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Name");
+  await page
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Computer Science");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      name: "Computer Science",
+    }),
+  );
+  await page.getByRole("button", { name: "ra.action.remove_filter" }).click();
+  await vi.waitFor(() => expect(getList.mock.lastCall?.[1].filter).toEqual({}));
+});
+
+test("false remains an active boolean filter", async () => {
+  const getList = mountList("featureflags");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Enabled");
+  await page.getByRole("combobox", { name: "Enabled", exact: true }).click();
+  await page
+    .getByRole("option", { name: "ra.boolean.false", exact: true })
+    .click();
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({ enabled: false }),
+  );
+});
+
+test("timestamp values retain their timezone and fractional seconds", async () => {
+  const getList = mountList("customusers");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Created at");
+  const timestamp = "2026-11-01T13:30:00.123456+01:00";
+  await page
+    .getByRole("textbox", { name: "Created at", exact: true })
+    .fill(timestamp);
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      created_at: timestamp,
+    }),
+  );
+});
+
+test("predefined choices send their stored column value", async () => {
+  const getList = mountList("exhibitors");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Tier");
+  await page.getByRole("combobox", { name: "Tier", exact: true }).click();
+  await page.getByRole("option", { name: "Gold", exact: true }).click();
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({ tier: "Gold" }),
+  );
 });

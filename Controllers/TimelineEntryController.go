@@ -19,7 +19,7 @@ import (
 // @Summary List timeline entries
 // @Tags timeline-entries
 // @Produce json
-// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Success 200 {array} models.TimelineEntry
 // @Router /timeline-entries [get]
@@ -37,14 +37,13 @@ func GetTimelineEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	query := db.DB.Model(&models.TimelineEntry{}).Joins("JOIN timeline_eras ON timeline_eras.id = timeline_entries.era_id")
 	query = utils.ApplySearch(query, params.Filter["q"], "timeline_entries.id", "timeline_entries.title", "timeline_entries.body", "timeline_eras.title")
-	for key, value := range params.Filter {
-		switch key {
-		case "eraId":
-			query = query.Where("timeline_entries.era_id = ?", value)
-		case "title":
-			query = query.Where("timeline_entries.title = ?", value)
-		}
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		http.Error(w, "List failed", http.StatusInternalServerError)

@@ -127,7 +127,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -453,7 +453,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -708,7 +708,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -1232,7 +1232,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1595,7 +1595,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1939,7 +1939,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2172,7 +2172,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2405,7 +2405,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2638,7 +2638,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3035,7 +3035,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3342,7 +3342,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3597,7 +3597,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3835,7 +3835,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4104,7 +4104,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4337,7 +4337,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4553,7 +4553,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -4785,7 +4785,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },

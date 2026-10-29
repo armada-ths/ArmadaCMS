@@ -18,7 +18,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"key\",\"ASC\"]"
-// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.FeatureFlag
 // @Header 200 {string} Content-Range "featureflags 0-4/5"
 // @Router /featureflags [get]
@@ -28,12 +28,13 @@ func GetFeatureFlags(w http.ResponseWriter, r *http.Request) {
 	usePagination := r.URL.Query().Get("range") != "" || r.URL.Query().Get("sort") != "" || r.URL.Query().Get("filter") != ""
 
 	query = utils.ApplySearch(query, params.Filter["q"], "id", "key", "description")
-	for k, v := range params.Filter {
-		if k == "q" {
-			continue
-		}
-		query = query.Where(utils.ToSnakeCase(k)+" = ?", v)
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(utils.ToSnakeCase(params.Sort[0]) + " " + params.Sort[1])
 	}

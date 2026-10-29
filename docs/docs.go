@@ -134,7 +134,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -460,7 +460,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -715,7 +715,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -1239,7 +1239,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1602,7 +1602,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1946,7 +1946,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2179,7 +2179,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2412,7 +2412,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2645,7 +2645,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3042,7 +3042,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3349,7 +3349,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3604,7 +3604,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3842,7 +3842,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4111,7 +4111,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4344,7 +4344,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4560,7 +4560,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },
@@ -4792,7 +4792,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "description": "Filter object; q searches text, other public scalar field names or database column names match exact values",
                         "name": "filter",
                         "in": "query"
                     },

@@ -617,8 +617,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -828,8 +828,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -992,8 +992,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -1321,8 +1321,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -1558,8 +1558,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -1779,8 +1779,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -1929,8 +1929,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2075,8 +2075,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2225,8 +2225,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2478,8 +2478,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2677,8 +2677,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2837,8 +2837,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -2987,8 +2987,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -3157,8 +3157,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -3307,8 +3307,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -3445,8 +3445,8 @@ paths:
   /timeline-entries:
     get:
       parameters:
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
@@ -3595,8 +3595,8 @@ paths:
   /timeline-eras:
     get:
       parameters:
-      - description: Filter object; q performs case-insensitive substring search across
-          this resource
+      - description: Filter object; q searches text, other public scalar field names
+          or database column names match exact values
         in: query
         name: filter
         type: string
