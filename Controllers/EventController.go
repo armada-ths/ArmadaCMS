@@ -230,7 +230,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request) {
 // @Param eventStart formData string false "Start time (RFC3339)"
 // @Param eventEnd formData string false "End time (RFC3339)"
 // @Param show formData bool false "Whether to show the event publicly"
-// @Param file formData file false "Event image"
+// @Param imageUrl formData string false "Existing image URL; an empty value removes the image"
+// @Param file formData file false "Event image; takes precedence over imageUrl"
 // @Success 200 {object} models.Event
 // @Failure 400 {string} string "Bad request"
 // @Failure 404 {string} string "Not found"
@@ -310,30 +311,17 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		"registration_required", "show", "fee", "open_to", "map_url",
 	}
 
-	imageUrl := r.FormValue("imageUrl")
-	if imageUrl != "" {
-		updates.ImageURL = &imageUrl
-		fieldsToUpdate = append(fieldsToUpdate, "image_url")
-	} else {
-		file, header, err := r.FormFile("file")
-		if err == nil {
-			defer file.Close()
-			fileURL, err := utils.UploadImage(file, header)
-			if err != nil {
-				if errors.Is(err, utils.ErrUnsupportedImageFormat) {
-					http.Error(w, "Unsupported image format. Allowed formats: JPG, JPEG, PNG, WEBP, GIF.", http.StatusBadRequest)
-					return
-				}
-				if errors.Is(err, utils.ErrFileTooLarge) {
-					http.Error(w, "Image file is too large. Maximum allowed size is 15 MB.", http.StatusBadRequest)
-					return
-				}
-				http.Error(w, "Failed to upload image", http.StatusInternalServerError)
-				return
-			}
-			updates.ImageURL = &fileURL
-			fieldsToUpdate = append(fieldsToUpdate, "image_url")
+	imageUpdates := make(map[string]any)
+	if _, err := applyMultipartImageUpdate(r, imageUpdates, utils.UploadImage); err != nil {
+		writeImageUploadError(w, err)
+		return
+	}
+	if imageURL, present := imageUpdates["image_url"]; present {
+		if imageURL != nil {
+			url := imageURL.(string)
+			updates.ImageURL = &url
 		}
+		fieldsToUpdate = append(fieldsToUpdate, "image_url")
 	}
 
 	before := event
@@ -347,7 +335,7 @@ func UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updates)
+	writeJSONResponse(w, http.StatusOK, event)
 }
 
 // DeleteEvent deletes an event by ID.

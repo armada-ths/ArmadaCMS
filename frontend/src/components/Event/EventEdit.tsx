@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "@mui/material";
+import { useFormContext, useWatch } from "react-hook-form";
 import {
   Edit,
   EditProps,
@@ -17,15 +19,6 @@ import {
 import { toLocalInputValue, toUTCISOString } from "@/utils/dateTimeHelpers";
 
 export const EventEdit = (props: EditProps) => {
-  const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
-    "upload",
-  );
-
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.value === "upload" || event.target.value === "link") {
-      setSelectedOption(event.target.value);
-    }
-  };
   return (
     <Edit {...props}>
       <SimpleForm>
@@ -58,48 +51,88 @@ export const EventEdit = (props: EditProps) => {
         <TextInput source="signupLink" />
         <NumberInput source="eventMaxCapacity" />
         <BooleanInput source="show" />
-        {/* Radio selection */}
-        <div>
-          <label>
-            <input
-              type="radio"
-              value="upload"
-              checked={selectedOption === "upload"}
-              onChange={handleChange}
-            />
-            Upload new photo
-          </label>
-
-          <label style={{ marginLeft: "1em" }}>
-            <input
-              type="radio"
-              value="link"
-              checked={selectedOption === "link"}
-              onChange={handleChange}
-            />
-            Enter link to photo
-          </label>
-        </div>
-
-        {/* Show input based on selected option */}
-        {selectedOption === "upload" && (
-          <ImageInput
-            label="Photo"
-            source="file"
-            accept={IMAGE_INPUT_ACCEPT}
-            validate={validateImageUpload}
-          >
-            <ImageField source="src" title="title" />
-          </ImageInput>
-        )}
-        {selectedOption === "link" && (
-          <TextInput label="Photo URL" source="imageUrl" />
-        )}
-        <div style={{ marginBottom: "1em" }}>
-          <p>Current image:</p>
-          <ImageField source="imageUrl" label="Current photo" />
-        </div>
+        <EventImageInput />
       </SimpleForm>
     </Edit>
+  );
+};
+
+const EventImageInput = () => {
+  const { setValue } = useFormContext();
+  const imageUrl = useWatch({ name: "imageUrl" });
+  const file = useWatch({ name: "file" });
+  const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
+    "upload",
+  );
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.value === "upload" || event.target.value === "link") {
+      if (event.target.value === "link") {
+        setValue("file", null, { shouldDirty: true, shouldValidate: true });
+      }
+      setSelectedOption(event.target.value);
+    }
+  };
+
+  const removePhoto = () => {
+    setValue("imageUrl", null, { shouldDirty: true, shouldValidate: true });
+    setValue("file", null, { shouldDirty: true, shouldValidate: true });
+  };
+
+  return (
+    <>
+      {/* Radio selection */}
+      <div>
+        <label>
+          <input
+            type="radio"
+            value="upload"
+            checked={selectedOption === "upload"}
+            onChange={handleChange}
+          />
+          Upload new photo
+        </label>
+
+        <label style={{ marginLeft: "1em" }}>
+          <input
+            type="radio"
+            value="link"
+            checked={selectedOption === "link"}
+            onChange={handleChange}
+          />
+          Enter link to photo
+        </label>
+      </div>
+
+      {/* Show input based on selected option */}
+      {selectedOption === "upload" && (
+        <ImageInput
+          label="Photo"
+          source="file"
+          accept={IMAGE_INPUT_ACCEPT}
+          validate={validateImageUpload}
+        >
+          <ImageField source="src" title="title" />
+        </ImageInput>
+      )}
+      {selectedOption === "link" && (
+        <TextInput label="Photo URL" source="imageUrl" />
+      )}
+      {imageUrl && !file && (
+        <div style={{ marginBottom: "1em" }}>
+          <p>Current image:</p>
+          <ImageField
+            source="imageUrl"
+            record={{ imageUrl }}
+            label="Current photo"
+          />
+        </div>
+      )}
+      {(imageUrl || file) && (
+        <Button type="button" onClick={removePhoto}>
+          Remove photo
+        </Button>
+      )}
+    </>
   );
 };

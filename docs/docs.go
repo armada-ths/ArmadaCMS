@@ -1501,8 +1501,14 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
+                        "type": "string",
+                        "description": "Existing image URL; an empty value removes the image",
+                        "name": "imageUrl",
+                        "in": "formData"
+                    },
+                    {
                         "type": "file",
-                        "description": "Event image",
+                        "description": "Event image; takes precedence over imageUrl",
                         "name": "file",
                         "in": "formData"
                     }

@@ -1511,7 +1511,11 @@ paths:
         in: formData
         name: show
         type: boolean
-      - description: Event image
+      - description: Existing image URL; an empty value removes the image
+        in: formData
+        name: imageUrl
+        type: string
+      - description: Event image; takes precedence over imageUrl
         in: formData
         name: file
         type: file
