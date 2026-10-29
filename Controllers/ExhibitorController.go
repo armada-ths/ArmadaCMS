@@ -35,7 +35,7 @@ func exhibitorSortColumn(field string) string {
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"tier\":\"Gold\"}"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Param all query bool false "Return all exhibitors without pagination, sorted by tier"
 // @Success 200 {array} models.Exhibitor
 // @Header 200 {string} Content-Range "exhibitors 0-24/100"
@@ -45,7 +45,11 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	var exhibitors []models.Exhibitor
 	query := db.DB.Model(&models.Exhibitor{})
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "type", "tier", "about", "purpose", "cities", "fair_location")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(k+" = ?", v)
 	}
 
@@ -56,7 +60,10 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var total int64
-	db.DB.Model(&models.Exhibitor{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	if all {
 		query = query.Order(`

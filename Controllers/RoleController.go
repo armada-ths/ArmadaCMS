@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"name\":\"admin\"}"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.Role
 // @Header 200 {string} Content-Range "roles 0-24/10"
 // @Security BearerAuth
@@ -31,7 +31,11 @@ func GetRoles(w http.ResponseWriter, r *http.Request) {
 	var roles []models.Role
 	query := db.DB.Model(&models.Role{})
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(k+" = ?", v)
 	}
 
@@ -43,7 +47,10 @@ func GetRoles(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Role{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Find(&roles)

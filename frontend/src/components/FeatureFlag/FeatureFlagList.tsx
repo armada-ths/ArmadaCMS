@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   BooleanField,
@@ -8,7 +8,7 @@ import {
 } from "react-admin";
 
 export const FeatureFlagList = (props: ListProps) => (
-  <List {...props}>
+  <ResourceList {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="key" />
@@ -16,5 +16,5 @@ export const FeatureFlagList = (props: ListProps) => (
       <BooleanField source="enabled" />
       <EditButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

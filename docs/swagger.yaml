@@ -617,7 +617,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -827,7 +828,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -990,7 +992,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -1318,7 +1321,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -1554,7 +1558,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -1774,7 +1779,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -1923,7 +1929,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2068,7 +2075,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2217,7 +2225,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2469,7 +2478,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2667,7 +2677,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2826,7 +2837,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -2975,7 +2987,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -3144,7 +3157,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -3293,7 +3307,8 @@ paths:
         in: query
         name: sort
         type: string
-      - description: Filter, e.g. {\
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
         in: query
         name: filter
         type: string
@@ -3430,6 +3445,11 @@ paths:
   /timeline-entries:
     get:
       parameters:
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
+        in: query
+        name: filter
+        type: string
       - description: Pagination range, e.g. [0,24]
         in: query
         name: range
@@ -3575,6 +3595,11 @@ paths:
   /timeline-eras:
     get:
       parameters:
+      - description: Filter object; q performs case-insensitive substring search across
+          this resource
+        in: query
+        name: filter
+        type: string
       - description: Pagination range, e.g. [0,24]
         in: query
         name: range

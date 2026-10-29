@@ -22,6 +22,7 @@ func normalizeTimelineEra(era *models.TimelineEra) bool {
 // @Summary List timeline eras
 // @Tags timeline-eras
 // @Produce json
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Success 200 {array} models.TimelineEra
 // @Router /timeline-eras [get]
@@ -50,6 +51,7 @@ func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title")
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		http.Error(w, "List failed", http.StatusInternalServerError)

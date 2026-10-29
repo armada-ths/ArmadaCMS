@@ -1,15 +1,15 @@
+import { ResourceList } from "../ResourceList";
 import {
   DateField,
   Datagrid,
   DeleteButton,
   EditButton,
-  List,
   ListProps,
   TextField,
 } from "react-admin";
 
 export const RecruitmentPeriodList = (props: ListProps) => (
-  <List {...props}>
+  <ResourceList {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="name" />
@@ -19,5 +19,5 @@ export const RecruitmentPeriodList = (props: ListProps) => (
       <EditButton />
       <DeleteButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

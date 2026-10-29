@@ -19,7 +19,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"team_name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"team_name\":\"core\"}"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.Team
 // @Header 200 {string} Content-Range "teams 0-24/10"
 // @Router /teams [get]
@@ -29,7 +29,11 @@ func GetTeams(w http.ResponseWriter, r *http.Request) {
 	var teams []models.Team
 	query := db.DB.Model(&models.Team{})
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "team_name")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(k+" = ?", v)
 	}
 
@@ -41,7 +45,10 @@ func GetTeams(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Team{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Find(&teams)

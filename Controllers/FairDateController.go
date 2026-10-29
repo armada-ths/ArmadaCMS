@@ -19,7 +19,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"description\",\"ASC\"]"
-// @Param filter query string false "Filter"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.FairDateConfig
 // @Header 200 {string} Content-Range "fairdates 0-24/5"
 // @Security BearerAuth
@@ -30,7 +30,11 @@ func GetFairDateConfigs(w http.ResponseWriter, r *http.Request) {
 	var items []models.FairDateConfig
 	query := db.DB.Model(&models.FairDateConfig{})
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "description", "fair_days")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(utils.ToSnakeCase(k)+" = ?", v)
 	}
 	if len(params.Sort) == 2 {
@@ -40,7 +44,10 @@ func GetFairDateConfigs(w http.ResponseWriter, r *http.Request) {
 	start, end := params.Range[0], params.Range[1]
 
 	var total int64
-	db.DB.Model(&models.FairDateConfig{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(end - start + 1)
 	query.Find(&items)

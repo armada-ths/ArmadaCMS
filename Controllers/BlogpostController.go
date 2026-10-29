@@ -47,7 +47,7 @@ var allowedBlogpostColumns = map[string]string{
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"createdAt\",\"DESC\"]"
-// @Param filter query string false "Filter"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.Blogpost
 // @Header 200 {string} Content-Range "blogposts 0-24/100"
 // @Router /blogposts [get]
@@ -61,6 +61,7 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("published = ?", true)
 	}
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author")
 	for k, v := range params.Filter {
 		col, ok := allowedBlogpostColumns[strings.ToLower(k)]
 		if !ok {

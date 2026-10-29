@@ -47,7 +47,7 @@ func GetUserEndpoint(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"username\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"name\":\"test\"}"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.User
 // @Header 200 {string} Content-Range "users 0-24/100"
 // @Failure 500 {string} string "Internal server error"
@@ -59,7 +59,11 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 	query := db.DB.Model(&models.User{}).Preload("Roles")
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "username", "name")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(k+" = ?", v)
 	}
 
@@ -71,7 +75,10 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.User{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Find(&users)

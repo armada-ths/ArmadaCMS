@@ -1,7 +1,7 @@
+import { ResourceList } from "../ResourceList";
 import { Chip } from "@mui/material";
 import type { FC } from "react";
 import {
-  List,
   Datagrid,
   TextField,
   DateField,
@@ -39,7 +39,7 @@ RolesField.displayName = "RolesField";
 
 export const UserList = (props: ListProps) => {
   return (
-    <List {...props}>
+    <ResourceList {...props}>
       <Datagrid>
         <TextField source="username" />
         <TextField source="name" />
@@ -49,6 +49,6 @@ export const UserList = (props: ListProps) => {
         <EditButton />
         <DeleteButton />
       </Datagrid>
-    </List>
+    </ResourceList>
   );
 };

@@ -130,6 +130,8 @@ Run frontend tests from `frontend/`:
 pnpm run test
 ```
 
+Run the shared list search browser test from `frontend/` with `pnpm exec vitest run --config vitest.browser.config.ts src/components/ResourceList.browser.tsx` (requires Playwright Chromium).
+
 [Integration test instructions](docs/testing/README.md) cover local Storage and the two opt-in PostgreSQL behavior tests. These require explicit test credentials; ordinary Go test runs skip them. See the [script guide](scripts/README.md#script-tests) for release-script tests and the [frontend guide](frontend/README.md#validate-changes) for lint/type checks.
 
 ## API
@@ -186,7 +188,7 @@ See the [Terraform guide](infra/terraform/README.md) for layout and shared conve
 3. Validate the migration with a local Supabase reset.
 4. Create a controller in `Controllers/` following existing CRUD patterns.
 5. Add routes in `main.go` (public for reads, protected for writes).
-6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
+6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`. Use the shared `ResourceList` shell for search. Apply `utils.ApplySearch` to the list query with explicit searchable columns and `filter.q`, and count the filtered query before pagination.
 7. Register the `<Resource>` in `frontend/src/App.tsx`.
 8. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
 9. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.

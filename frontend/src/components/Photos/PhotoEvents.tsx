@@ -1,3 +1,4 @@
+import { ResourceList } from "../ResourceList";
 import {
   BooleanInput,
   Create,
@@ -6,7 +7,6 @@ import {
   DateTimeInput,
   DeleteButton,
   Edit,
-  List,
   NumberInput,
   required,
   SaveButton,
@@ -306,13 +306,13 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
 );
 
 export const PhotoEventList = () => (
-  <List perPage={25} pagination={false}>
+  <ResourceList perPage={25} pagination={false}>
     <Datagrid rowClick="edit">
       <TextField source="name" label="Event" />
       <DateField source="uploads_close_at" label="Uploads close" showTime />
       <EventActions />
     </Datagrid>
-  </List>
+  </ResourceList>
 );
 export const PhotoEventCreate = () => (
   <Create>

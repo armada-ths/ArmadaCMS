@@ -134,7 +134,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -460,7 +460,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -715,7 +715,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -1239,7 +1239,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1602,7 +1602,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     },
@@ -1946,7 +1946,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2179,7 +2179,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2412,7 +2412,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -2645,7 +2645,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3042,7 +3042,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3349,7 +3349,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3604,7 +3604,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -3842,7 +3842,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4111,7 +4111,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4344,7 +4344,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter, e.g. {\\",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
                         "name": "filter",
                         "in": "query"
                     }
@@ -4558,6 +4558,12 @@ const docTemplate = `{
                 ],
                 "summary": "List timeline entries",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "name": "filter",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "Pagination range, e.g. [0,24]",
@@ -4784,6 +4790,12 @@ const docTemplate = `{
                 ],
                 "summary": "List timeline eras",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter object; q performs case-insensitive substring search across this resource",
+                        "name": "filter",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "Pagination range, e.g. [0,24]",

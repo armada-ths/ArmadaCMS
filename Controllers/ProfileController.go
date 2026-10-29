@@ -22,7 +22,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"team_id\":1}"
+// @Param filter query string false "Filter object; q performs case-insensitive substring search across this resource"
 // @Success 200 {array} models.Profile
 // @Header 200 {string} Content-Range "profiles 0-24/100"
 // @Router /profiles [get]
@@ -32,7 +32,11 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.Profile
 	query := db.DB.Model(&models.Profile{})
 
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank")
 	for k, v := range params.Filter {
+		if k == "q" {
+			continue
+		}
 		query = query.Where(k+" = ?", v)
 	}
 
@@ -44,7 +48,10 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Profile{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Preload("Team").Find(&profiles)
