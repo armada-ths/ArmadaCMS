@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   NumberField,
@@ -11,7 +11,7 @@ import {
 
 export const TimelineEntryList = (props: ListProps) => {
   return (
-    <List {...props} sort={{ field: "timelineOrder", order: "ASC" }}>
+    <ResourceList {...props} sort={{ field: "timelineOrder", order: "ASC" }}>
       <Datagrid>
         <ReferenceField
           source="eraId"
@@ -41,6 +41,6 @@ export const TimelineEntryList = (props: ListProps) => {
         <EditButton />
         <DeleteButton />
       </Datagrid>
-    </List>
+    </ResourceList>
   );
 };

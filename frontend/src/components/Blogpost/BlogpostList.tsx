@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   BooleanField,
@@ -10,7 +10,7 @@ import {
 } from "react-admin";
 
 export const BlogpostList = (props: ListProps) => (
-  <List {...props} sort={{ field: "createdAt", order: "DESC" }}>
+  <ResourceList {...props} sort={{ field: "createdAt", order: "DESC" }}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="title" />
@@ -20,5 +20,5 @@ export const BlogpostList = (props: ListProps) => (
       <EditButton />
       <DeleteButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

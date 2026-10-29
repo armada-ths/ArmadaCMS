@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"eventStart\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"show\":true}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Param public query bool false "If true, only return events with show=true"
 // @Success 200 {array} models.Event
 // @Header 200 {string} Content-Range "events 0-24/100"
@@ -32,8 +32,12 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.Event{})
 
 	// Apply dynamic filters from React Admin
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "description", "location", "open_to", "food")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Apply `show=true` only if query param `public=true` is passed
@@ -67,7 +71,10 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Event{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query.Offset(start).Limit(limit).Find(&events)
 	for i := range events {

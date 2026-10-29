@@ -19,7 +19,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"title\",\"ASC\"]"
-// @Param filter query string false "Filter"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.HighlightCard
 // @Header 200 {string} Content-Range "highlightcards 0-24/5"
 // @Security BearerAuth
@@ -30,9 +30,14 @@ func GetHighlightCards(w http.ResponseWriter, r *http.Request) {
 	var items []models.HighlightCard
 	query := db.DB.Model(&models.HighlightCard{})
 
-	for k, v := range params.Filter {
-		query = query.Where(utils.ToSnakeCase(k)+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "subtitle", "description", "brand", "link_text")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(utils.ToSnakeCase(params.Sort[0]) + " " + params.Sort[1])
 	}
@@ -40,7 +45,10 @@ func GetHighlightCards(w http.ResponseWriter, r *http.Request) {
 	start, end := params.Range[0], params.Range[1]
 
 	var total int64
-	db.DB.Model(&models.HighlightCard{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(end - start + 1)
 	query.Find(&items)

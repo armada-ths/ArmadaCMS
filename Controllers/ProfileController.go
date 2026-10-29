@@ -22,7 +22,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"team_id\":1}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.Profile
 // @Header 200 {string} Content-Range "profiles 0-24/100"
 // @Router /profiles [get]
@@ -32,8 +32,12 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.Profile
 	query := db.DB.Model(&models.Profile{})
 
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if len(params.Sort) == 2 {
@@ -44,7 +48,10 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.Profile{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Preload("Team").Find(&profiles)

@@ -30,7 +30,7 @@ type recruitmentPeriodPayload struct {
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.RecruitmentPeriod
 // @Header 200 {string} Content-Range "recruitmentperiods 0-24/10"
 // @Security BearerAuth
@@ -41,9 +41,14 @@ func GetRecruitmentPeriods(w http.ResponseWriter, r *http.Request) {
 	var items []models.RecruitmentPeriod
 	query := db.DB.Model(&models.RecruitmentPeriod{})
 
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(params.Sort[0] + " " + params.Sort[1])
 	}
@@ -52,7 +57,10 @@ func GetRecruitmentPeriods(w http.ResponseWriter, r *http.Request) {
 	limit := end - start + 1
 
 	var total int64
-	db.DB.Model(&models.RecruitmentPeriod{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(limit)
 	query.Preload("Roles").Preload("Roles.Team").Find(&items)

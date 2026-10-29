@@ -22,6 +22,7 @@ func normalizeTimelineEra(era *models.TimelineEra) bool {
 // @Summary List timeline eras
 // @Tags timeline-eras
 // @Produce json
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Success 200 {array} models.TimelineEra
 // @Router /timeline-eras [get]
@@ -49,6 +50,13 @@ func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 				query = query.Where("id IN ?", ids)
 			}
 		}
+	}
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
