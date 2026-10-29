@@ -17,7 +17,16 @@ type MultipartRules = {
 const multipartResources: Record<string, MultipartRules> = {
   profiles: { clearableFields: { team_id: { emptyValue: "" } } },
   events: { clearableFields: { imageUrl: { emptyValue: "" } } },
-  exhibitors: {},
+  exhibitors: {
+    clearableFields: {
+      logoFreesize: { emptyValue: "" },
+      cities: { emptyValue: "" },
+      logoSquared: { emptyValue: "" },
+      mapImg: { emptyValue: "" },
+      vyerPosition: { emptyValue: "" },
+      locationSpecial: { emptyValue: "" },
+    },
+  },
   blogposts: { blogpostImages: true },
   "timeline-entries": {
     clearableFields: { imageUrl: { emptyValue: "", clearEmptyArray: true } },

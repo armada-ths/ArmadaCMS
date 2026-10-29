@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Edit,
   EditProps,
@@ -9,6 +9,8 @@ import {
   BooleanInput,
   ImageInput,
   ImageField,
+  useRecordContext,
+  type Identifier,
 } from "react-admin";
 import {
   IMAGE_INPUT_ACCEPT,
@@ -34,6 +36,34 @@ export interface Employment {
   id: number;
   name: string;
 }
+
+// The API embeds named records for list views; reference inputs require IDs.
+const referenceIds = (values: unknown): Identifier[] =>
+  Array.isArray(values)
+    ? values.flatMap((value) => {
+        const id =
+          typeof value === "object" && value !== null ? value.id : value;
+        return typeof id === "number" || typeof id === "string" ? [id] : [];
+      })
+    : [];
+
+const ExhibitorEditForm = ({ children }: { children: ReactNode }) => {
+  const record = useRecordContext();
+  const formRecord = useMemo(
+    () =>
+      record
+        ? {
+            ...record,
+            industries: referenceIds(record.industries),
+            programs: referenceIds(record.programs),
+            employments: referenceIds(record.employments),
+          }
+        : undefined,
+    [record],
+  );
+
+  return <SimpleForm record={formRecord}>{children}</SimpleForm>;
+};
 export const ExhibitorEdit = (props: EditProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
     "upload",
@@ -67,7 +97,7 @@ export const ExhibitorEdit = (props: EditProps) => {
           .filter(Boolean),
       })}
     >
-      <SimpleForm>
+      <ExhibitorEditForm>
         <TextInput source="name" />
         <TextInput source="type" />
         <TextInput source="tier" />
@@ -144,7 +174,7 @@ export const ExhibitorEdit = (props: EditProps) => {
         <TextInput source="locationSpecial" />
         <BooleanInput source="climateCompensation" />
         <TextInput source="flyer" />
-      </SimpleForm>
+      </ExhibitorEditForm>
     </Edit>
   );
 };

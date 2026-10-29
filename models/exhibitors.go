@@ -20,6 +20,7 @@ type Exhibitor struct {
 	Purpose         *string `gorm:"column:purpose" json:"purpose,omitempty"`
 	LogoSquaredUrl  *string `gorm:"column:logo_squared_url" json:"logoSquared,omitempty"`
 	LogoFreesizeUrl *string `gorm:"column:logo_freesize_url" json:"logoFreesize,omitempty"`
+	LogoThumbnail   *string `gorm:"column:logo_thumbnail" json:"logoThumbnail,omitempty"`
 	MapImg          *string `gorm:"column:map_img" json:"mapImg,omitempty"`
 
 	Industries  []Industry   `gorm:"many2many:exhibitor_industries;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"industries,omitempty"`

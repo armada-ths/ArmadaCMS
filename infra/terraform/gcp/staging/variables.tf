@@ -295,3 +295,14 @@ variable "recaptcha_allowed_domains" {
   type        = list(string)
   default     = ["armada.nu", "photos.armada.nu"]
 }
+
+variable "eventro_product_tiers" {
+  description = "Exact Eventro product IDs mapped to exhibitor package tiers or Ignore for add-ons. Unknown products are reviewed in the CMS."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for id, tier in var.eventro_product_tiers : trimspace(id) != "" && contains(["Standard", "Bronze", "Silver", "Gold", "Ignore"], tier)])
+    error_message = "Each product ID must be non-empty and map to Standard, Bronze, Silver, Gold, or Ignore."
+  }
+}

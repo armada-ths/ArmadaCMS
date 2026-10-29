@@ -1215,6 +1215,93 @@ const docTemplate = `{
                 }
             }
         },
+        "/eventrosyncreview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "Review Eventro changes and CMS corrections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CMS resource name",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.EventroReviewRow"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "Keep a CMS correction or resume Eventro synchronization for one field",
+                "parameters": [
+                    {
+                        "description": "Reviewed values and decision",
+                        "name": "decision",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.EventroReviewDecision"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient resource permissions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Values changed; reload the review",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "produces": [
@@ -4956,6 +5043,73 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controllers.EventroReviewDecision": {
+            "type": "object",
+            "properties": {
+                "choice": {
+                    "type": "string"
+                },
+                "cms": {},
+                "eventro": {},
+                "field": {
+                    "type": "string"
+                },
+                "recordId": {
+                    "type": "integer"
+                },
+                "resource": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.EventroReviewField": {
+            "type": "object",
+            "properties": {
+                "cms": {},
+                "conflict": {
+                    "type": "boolean"
+                },
+                "eventro": {},
+                "field": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.EventroReviewRow": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.EventroReviewField"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "missing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notice": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "unmappedProducts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EventroOrderedProduct"
+                    }
+                }
+            }
+        },
         "controllers.changePasswordBody": {
             "type": "object",
             "properties": {
@@ -5283,6 +5437,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.EventroOrderedProduct": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "productId": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Exhibitor": {
             "type": "object",
             "properties": {
@@ -5329,6 +5497,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "logoSquared": {
+                    "type": "string"
+                },
+                "logoThumbnail": {
                     "type": "string"
                 },
                 "mapImg": {

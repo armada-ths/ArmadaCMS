@@ -1,5 +1,50 @@
 basePath: /api/v1
 definitions:
+  controllers.EventroReviewDecision:
+    properties:
+      choice:
+        type: string
+      cms: {}
+      eventro: {}
+      field:
+        type: string
+      recordId:
+        type: integer
+      resource:
+        type: string
+    type: object
+  controllers.EventroReviewField:
+    properties:
+      cms: {}
+      conflict:
+        type: boolean
+      eventro: {}
+      field:
+        type: string
+    type: object
+  controllers.EventroReviewRow:
+    properties:
+      fields:
+        items:
+          $ref: '#/definitions/controllers.EventroReviewField'
+        type: array
+      id:
+        type: integer
+      missing:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      notice:
+        type: string
+      resource:
+        type: string
+      unmappedProducts:
+        items:
+          $ref: '#/definitions/models.EventroOrderedProduct'
+        type: array
+    type: object
   controllers.changePasswordBody:
     properties:
       newPassword:
@@ -214,6 +259,15 @@ definitions:
       signupLink:
         type: string
     type: object
+  models.EventroOrderedProduct:
+    properties:
+      displayName:
+        type: string
+      name:
+        type: string
+      productId:
+        type: string
+    type: object
   models.Exhibitor:
     properties:
       about:
@@ -245,6 +299,8 @@ definitions:
       logoFreesize:
         type: string
       logoSquared:
+        type: string
+      logoThumbnail:
         type: string
       mapImg:
         type: string
@@ -1308,6 +1364,60 @@ paths:
       security:
       - BearerAuth: []
       summary: Sync recruitment data from Eventro
+      tags:
+      - eventro
+  /eventrosyncreview:
+    get:
+      parameters:
+      - description: CMS resource name
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/controllers.EventroReviewRow'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Review Eventro changes and CMS corrections
+      tags:
+      - eventro
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reviewed values and decision
+        in: body
+        name: decision
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.EventroReviewDecision'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "403":
+          description: Insufficient resource permissions
+          schema:
+            type: string
+        "409":
+          description: Values changed; reload the review
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Keep a CMS correction or resume Eventro synchronization for one field
       tags:
       - eventro
   /events:

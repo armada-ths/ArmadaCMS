@@ -1,3 +1,4 @@
+import { EventroSyncReview } from "./EventroSyncReview";
 import { useState } from "react";
 import { useNotify } from "react-admin";
 import {
@@ -78,7 +79,9 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
         params: fairId ? { fairId } : undefined,
         responseType: "text",
       });
-      notify(`${name}: ${response.data}`, { type: "success" });
+      notify(`${name}: ${response.data}`, {
+        type: /failed: [1-9]/.test(response.data) ? "warning" : "success",
+      });
     } catch (err) {
       notify(`${name}: ${formatRequestError(err)}`, { type: "error" });
     } finally {
@@ -160,13 +163,15 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
               </Button>
             ))}
           </Stack>
+          <EventroSyncReview perms={perms} syncVersion={syncing} />
           <Typography
             variant="caption"
             color="text.secondary"
             sx={{ display: "block", mt: 1.5 }}
           >
-            Recruitment and profile sync are non-destructive and only fill
-            missing data.
+            Eventro changes update untouched fields. CMS corrections are
+            preserved and conflicting changes are available for review. Sync
+            never deletes records.
           </Typography>
         </CardContent>
       </Card>
@@ -181,9 +186,9 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
         <DialogContent>
           {selectingFor?.path === "/eventrofairdates" && !loadingFairs && (
             <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
-              This will sync the selected Eventro timeline into the matching
-              fair date entry and permanently delete any other fair date
-              entries.
+              This syncs the selected timeline and preserves CMS corrections.
+              Other fair date configurations remain unchanged; review which
+              configuration should be active.
             </Alert>
           )}
           {loadingFairs ? (
