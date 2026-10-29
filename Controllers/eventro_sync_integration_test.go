@@ -66,9 +66,52 @@ func TestEventroReviewDatabaseFlow(t *testing.T) {
 	if current.Name != "Eventro correction" {
 		t.Fatal("source update not persisted")
 	}
-	if err := database.Model(&current).Update("name", "CMS correction").Error; err != nil {
+	getReview := func() []EventroReviewRow {
+		req := httptest.NewRequest(http.MethodGet, "/eventrosyncreview?resource=profiles", nil)
+		token, err := utils.GenerateAccessToken(0, nil, []string{"eventrosync.access", "profiles.edit"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		response := httptest.NewRecorder()
+		auth.Middleware(auth.RequirePermission("eventrosync.access", GetEventroSyncReview)).ServeHTTP(response, req)
+		if response.Code != 200 {
+			t.Fatalf("review: %d %s", response.Code, response.Body.String())
+		}
+		var rows []EventroReviewRow
+		if err := json.Unmarshal(response.Body.Bytes(), &rows); err != nil {
+			t.Fatal(err)
+		}
+		return rows
+	}
+	saveCMSName := func(name string) {
+		if err := database.First(&current, current.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		before := current
+		current.Name = name
+		if err := updateWithAudit(r, "profiles", current.ID, before, &current, func(tx *gorm.DB) error {
+			return tx.Model(&current).Update("name", name).Error
+		}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Old records without editor acknowledgement must not generate review on GET.
+	if err := database.Model(&current).Update("name", "Legacy unacknowledged edit").Error; err != nil {
 		t.Fatal(err)
 	}
+	if rows := getReview(); len(rows) != 0 {
+		t.Fatalf("GET manufactured a conflict for a CMS-only edit: %#v", rows)
+	}
+	saveCMSName("CMS correction")
+	if rows := getReview(); len(rows) != 0 {
+		t.Fatalf("manual save needs immediate review: %#v", rows)
+	}
+	manualState, err := loadEventroSyncState(database, "profiles", current.ID)
+	if err != nil || !manualState.Overrides["name"] || manualState.Conflicts["name"] {
+		t.Fatalf("manual edit was not acknowledged: %v %#v", err, manualState)
+	}
+
 	incoming := models.Profile{EventroKey: &key, Name: "New Eventro value"}
 	if err := database.Transaction(func(tx *gorm.DB) error {
 		_, _, _, err := syncEventroRecordWithAudit(tx, r, "profiles", &incoming, "eventro_key", key, nil, nil)
@@ -107,13 +150,48 @@ func TestEventroReviewDatabaseFlow(t *testing.T) {
 	if response := request([]string{"eventrosync.access", "profiles.edit"}, stale); response.Code != 409 {
 		t.Fatalf("stale review: %d %s", response.Code, response.Body.String())
 	}
+
+	if rows := getReview(); len(rows) != 1 {
+		t.Fatalf("expected unresolved difference: %#v", rows)
+	}
+	keep := decision
+	keep.Choice = "cms"
+	if response := request([]string{"eventrosync.access", "profiles.edit"}, keep); response.Code != 200 {
+		t.Fatalf("keep CMS: %d %s", response.Code, response.Body.String())
+	}
+	if rows := getReview(); len(rows) != 0 {
+		t.Fatalf("acknowledged CMS correction still needs review: %#v", rows)
+	}
+	resync := func(name string) {
+		incoming.Name = name
+		if err := database.Transaction(func(tx *gorm.DB) error {
+			_, _, _, err := syncEventroRecordWithAudit(tx, r, "profiles", &incoming, "eventro_key", key, nil, nil)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	saveCMSName("CMS correction v2")
+	decision.CMS = json.RawMessage(`"CMS correction v2"`)
+	if rows := getReview(); len(rows) != 0 {
+		t.Fatalf("edit after Keep CMS was not acknowledged: %#v", rows)
+	}
+	resync("New Eventro value")
+	if rows := getReview(); len(rows) != 0 {
+		t.Fatalf("unchanged source reopened review: %#v", rows)
+	}
+	resync("Later Eventro value")
+	if rows := getReview(); len(rows) != 1 || len(rows[0].Fields) != 1 || !rows[0].Fields[0].Conflict {
+		t.Fatalf("new Eventro change must require review: %#v", rows)
+	}
+	decision.Eventro = json.RawMessage(`"Later Eventro value"`)
 	if response := request([]string{"eventrosync.access", "profiles.edit"}, decision); response.Code != 200 {
 		t.Fatalf("resolve: %d %s", response.Code, response.Body.String())
 	}
 	if err := database.First(&current, current.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if current.Name != "New Eventro value" {
+	if current.Name != "Later Eventro value" {
 		t.Fatal("review decision not persisted")
 	}
 	state, err = loadEventroSyncState(database, "profiles", current.ID)

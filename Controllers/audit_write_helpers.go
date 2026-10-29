@@ -68,6 +68,9 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 				return err
 			}
 		}
+		if err := acknowledgeEventroCMSEdits(tx, r, resourceType, before, after); err != nil {
+			return err
+		}
 		return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
 	})
 	if err == nil {
@@ -95,6 +98,9 @@ func updateWithGroupedAudit[T any](r *http.Request, resourceType string, resourc
 			if err := reload(tx); err != nil {
 				return err
 			}
+		}
+		if err := acknowledgeEventroCMSEdits(tx, audit.WithParent(r, group.ID), resourceType, before, after); err != nil {
+			return err
 		}
 		return audit.FinalizeGroup(tx, group.ID, "completed", after)
 	})

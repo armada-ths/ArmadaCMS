@@ -86,10 +86,20 @@ type EventroReviewRow struct {
 }
 
 func eventroReviewValues(resource string, entity any) map[string]json.RawMessage {
-	if resource == "exhibitors" {
-		return exhibitorSyncValues(*entity.(*models.Exhibitor))
+	value := reflect.ValueOf(entity)
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() {
+			return nil
+		}
+		value = value.Elem()
 	}
-	return eventroStructValues(entity, eventroResourceSpecs[resource].fields)
+	if !value.IsValid() || value.Kind() != reflect.Struct {
+		return nil
+	}
+	if resource == "exhibitors" {
+		return exhibitorSyncValues(value.Interface().(models.Exhibitor))
+	}
+	return eventroStructValues(value.Interface(), eventroResourceSpecs[resource].fields)
 }
 
 func eventroReviewQuery(tx *gorm.DB, resource string) *gorm.DB {
@@ -160,7 +170,7 @@ func GetEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 			row.Notice = "Multiple fair date configurations exist. Review which one should remain active; sync never deletes other configurations."
 		}
 		for field, source := range state.Source {
-			if state.Overrides[field] || !sameEventroValue(values[field], source) {
+			if state.Conflicts[field] && !sameEventroValue(values[field], source) {
 				row.Fields = append(row.Fields, EventroReviewField{Field: field, CMS: values[field], Eventro: source, Conflict: state.Conflicts[field]})
 			}
 		}
@@ -220,7 +230,7 @@ func ResolveEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	before, after := spec.newModel(), spec.newModel()
-	err := updateWithAudit(r, decision.Resource, decision.RecordID, before, &after, func(tx *gorm.DB) error {
+	err := updateWithAudit(eventroSourceWriteRequest(r), decision.Resource, decision.RecordID, before, &after, func(tx *gorm.DB) error {
 		if err := eventroReviewQuery(tx.Clauses(clause.Locking{Strength: "UPDATE"}), decision.Resource).First(before, decision.RecordID).Error; err != nil {
 			return err
 		}

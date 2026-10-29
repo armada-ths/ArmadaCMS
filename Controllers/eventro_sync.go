@@ -3,16 +3,67 @@ package controllers
 import (
 	"ArmadaCMS/main/audit"
 	"ArmadaCMS/main/models"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+type eventroSourceWriteKey struct{}
+
+func eventroSourceWriteRequest(r *http.Request) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), eventroSourceWriteKey{}, true))
+}
+
+// A normal editor save acknowledges changed fields as CMS-owned, without
+// altering the last imported source. Only a later source change can reopen review.
+func acknowledgeEventroCMSEdits(tx *gorm.DB, r *http.Request, resource string, before, after any) error {
+	if _, supported := eventroResourceSpecs[resource]; !supported {
+		return nil
+	}
+	if sourceWrite, _ := r.Context().Value(eventroSourceWriteKey{}).(bool); sourceWrite {
+		return nil
+	}
+	oldValues, newValues := eventroReviewValues(resource, before), eventroReviewValues(resource, after)
+	changed := []string{}
+	for field, value := range newValues {
+		if !sameEventroValue(oldValues[field], value) {
+			changed = append(changed, field)
+		}
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	id, err := strconv.ParseUint(getResourceID(after), 10, 64)
+	if err != nil {
+		return err
+	}
+	state, err := loadEventroSyncState(tx, resource, uint(id))
+	if err != nil {
+		return err
+	}
+	if len(state.Source) == 0 {
+		return nil
+	}
+	stateJSON, _ := json.Marshal(state)
+	var stateBefore models.EventroSyncState
+	_ = json.Unmarshal(stateJSON, &stateBefore)
+	if state.Overrides == nil {
+		state.Overrides = map[string]bool{}
+	}
+	for _, field := range changed {
+		state.Overrides[field] = true
+		delete(state.Conflicts, field)
+	}
+	return saveEventroSyncStateWithAudit(tx, r, stateBefore, &state)
+}
 
 type eventroResourceSpec struct {
 	newModel func() any

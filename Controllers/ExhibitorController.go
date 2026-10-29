@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -19,6 +20,18 @@ var exhibitorSortColumns = map[string]string{
 	"type":         "type",
 	"tier":         "tier",
 	"fairLocation": "fair_location",
+}
+
+func parseExhibitorTier(value string) (*models.Tier, error) {
+	tier := models.Tier(strings.TrimSpace(value))
+	switch tier {
+	case "":
+		return nil, nil
+	case models.TierStandard, models.TierBronze, models.TierSilver, models.TierGold:
+		return &tier, nil
+	default:
+		return nil, errors.New("tier must be Standard, Bronze, Silver, or Gold")
+	}
 }
 
 func exhibitorSortColumn(field string) string {
@@ -160,9 +173,10 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.VyerPosition = trimmedOptionalFormValue(r, "vyerPosition", exhibitor.VyerPosition)
 	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	exhibitor.Tier, err = parseExhibitorTier(r.FormValue("tier"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Handle logo
@@ -275,9 +289,13 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
 	// --- Tier (custom type) ---
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	if _, present := r.MultipartForm.Value["tier"]; present {
+		tier, err := parseExhibitorTier(r.FormValue("tier"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		exhibitor.Tier = tier
 	}
 
 	// --- Handle logo upload or link ---

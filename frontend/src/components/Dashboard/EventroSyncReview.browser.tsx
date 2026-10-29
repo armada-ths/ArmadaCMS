@@ -86,6 +86,33 @@ test("reviews and applies one field with both expected values", async () => {
   await expect.element(page.getByText("No items need review.")).toBeVisible();
 });
 
+test("keeping CMS removes the resolved item from review", async () => {
+  mocks.get
+    .mockResolvedValueOnce({ data: [row] })
+    .mockResolvedValue({ data: [] });
+  mocks.post.mockResolvedValue({ data: { success: true } });
+  render();
+  await page
+    .getByRole("button", { name: "Review sync and data quality" })
+    .click();
+  await page.getByRole("button", { name: "Keep CMS" }).click();
+  await vi.waitFor(() =>
+    expect(mocks.post).toHaveBeenCalledWith(
+      "/eventrosyncreview",
+      expect.objectContaining({ choice: "cms", field: "title" }),
+    ),
+  );
+  await expect.element(page.getByText("No items need review.")).toBeVisible();
+  await expect
+    .element(page.getByText("CMS title", { exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Review sync and data quality" })
+    .click();
+  await expect.element(page.getByText("No items need review.")).toBeVisible();
+});
+
 test("failed review leaves correction visible and re-enables actions", async () => {
   mocks.get.mockResolvedValue({ data: [row] });
   mocks.post.mockRejectedValue(new Error("409 values changed"));

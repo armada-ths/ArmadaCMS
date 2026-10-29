@@ -19,6 +19,7 @@ const multipartResources: Record<string, MultipartRules> = {
   events: { clearableFields: { imageUrl: { emptyValue: "" } } },
   exhibitors: {
     clearableFields: {
+      tier: { emptyValue: "" },
       logoFreesize: { emptyValue: "" },
       cities: { emptyValue: "" },
       logoSquared: { emptyValue: "" },

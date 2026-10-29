@@ -22,6 +22,7 @@ import {
   validateExternalUrl,
 } from "@/utils/externalLinkGuards";
 import { InputAdornment } from "@mui/material";
+import { ExhibitorTierInput } from "./ExhibitorTierInput";
 
 export interface Program {
   id: number;
@@ -100,7 +101,7 @@ export const ExhibitorEdit = (props: EditProps) => {
       <ExhibitorEditForm>
         <TextInput source="name" />
         <TextInput source="type" />
-        <TextInput source="tier" />
+        <ExhibitorTierInput />
         <TextInput
           source="companyWebsite"
           format={formatExternalUrlInput}
