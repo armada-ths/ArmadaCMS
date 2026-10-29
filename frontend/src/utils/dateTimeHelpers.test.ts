@@ -11,6 +11,13 @@ describe("dateTimeHelpers", () => {
     expect(toLocalInputValue(parsed!)).toBe(localValue);
   });
 
+  it("handles invalid and incomplete input without throwing", () => {
+    for (const value of ["invalid", "2026-11-01T"]) {
+      expect(toUTCISOString(value)).toBeNull();
+      expect(toLocalInputValue(value)).toBe("");
+    }
+  });
+
   it("keeps an empty input empty for required-field validation", () => {
     expect(toUTCISOString("")).toBeNull();
   });

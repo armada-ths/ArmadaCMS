@@ -1,4 +1,6 @@
 import {
+  DateInput,
+  DateTimeInput,
   List,
   ListProps,
   NullableBooleanInput,
@@ -9,6 +11,7 @@ import {
   useResourceContext,
 } from "react-admin";
 import { RESOURCE_FILTERS, type ResourceFilter } from "./resourceFilters";
+import { toLocalInputValue, toUTCISOString } from "../utils/dateTimeHelpers";
 
 const columnFilter = ({ source, label, type, choices }: ResourceFilter) => {
   const props = { source, label };
@@ -17,10 +20,16 @@ const columnFilter = ({ source, label, type, choices }: ResourceFilter) => {
       return <NumberInput key={source} {...props} />;
     case "boolean":
       return <NullableBooleanInput key={source} {...props} />;
+    case "date":
+      return <DateInput key={source} {...props} />;
     case "datetime":
-      // Keep fractional seconds intact for exact database comparisons.
       return (
-        <TextInput key={source} {...props} placeholder="2026-11-01T12:00:00Z" />
+        <DateTimeInput
+          key={source}
+          {...props}
+          format={toLocalInputValue}
+          parse={toUTCISOString}
+        />
       );
     case "select":
       return <SelectInput key={source} {...props} choices={choices} />;

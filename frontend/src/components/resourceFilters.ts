@@ -3,7 +3,7 @@ import type { ResourceName } from "../navigation/catalog";
 export type ResourceFilter = {
   source: string;
   label: string;
-  type?: "text" | "number" | "boolean" | "datetime" | "select";
+  type?: "text" | "number" | "boolean" | "date" | "datetime" | "select";
   choices?: { id: string; name: string }[];
 };
 const text = (source: string, label: string): ResourceFilter => ({
@@ -19,6 +19,11 @@ const boolean = (source: string, label: string): ResourceFilter => ({
   source,
   label,
   type: "boolean",
+});
+const date = (source: string, label: string): ResourceFilter => ({
+  source,
+  label,
+  type: "date",
 });
 const datetime = (source: string, label: string): ResourceFilter => ({
   source,
@@ -109,12 +114,12 @@ export const RESOURCE_FILTERS: Record<ResourceName, ResourceFilter[]> = {
     eventroId,
     description,
     text("fair_days", "Fair days"),
-    text("ir_start", "IR start"),
-    text("ir_end", "IR end"),
-    text("ir_acceptance", "IR acceptance"),
-    text("fr_start", "FR start"),
-    text("fr_end", "FR end"),
-    text("events_start", "Events start"),
+    date("ir_start", "IR start"),
+    date("ir_end", "IR end"),
+    date("ir_acceptance", "IR acceptance"),
+    date("fr_start", "FR start"),
+    date("fr_end", "FR end"),
+    date("events_start", "Events start"),
   ],
   featureflags: [
     id,

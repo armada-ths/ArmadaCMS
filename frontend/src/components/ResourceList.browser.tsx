@@ -150,17 +150,35 @@ test("false remains an active boolean filter", async () => {
   );
 });
 
-test("timestamp values retain their timezone and fractional seconds", async () => {
+test("timestamp filters use the CMS date-time picker and send UTC values", async () => {
   const getList = mountList("customusers");
   await vi.waitFor(() => expect(getList).toHaveBeenCalled());
   await addFilter("Created at");
-  const timestamp = "2026-11-01T13:30:00.123456+01:00";
-  await page
-    .getByRole("textbox", { name: "Created at", exact: true })
-    .fill(timestamp);
+  const input = page.getByLabelText("Created at", { exact: true });
+  await expect.element(input).toHaveAttribute("type", "datetime-local");
+  const localValue = "2026-11-01T13:30";
+  await input.fill(localValue);
   await vi.waitFor(() =>
     expect(getList.mock.lastCall?.[1].filter).toEqual({
-      created_at: timestamp,
+      created_at: new Date(localValue).toISOString(),
+    }),
+  );
+  await input.fill("");
+  // The standard CMS date picker applies clearing when focus leaves the field.
+  await page.getByRole("textbox", { name: "ra.action.search" }).click();
+  await vi.waitFor(() => expect(getList.mock.lastCall?.[1].filter).toEqual({}));
+});
+
+test("fair date filters use a date-only picker", async () => {
+  const getList = mountList("fairdates");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("IR start");
+  const input = page.getByLabelText("IR start", { exact: true });
+  await expect.element(input).toHaveAttribute("type", "date");
+  await input.fill("2026-11-01");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      ir_start: "2026-11-01",
     }),
   );
 });
