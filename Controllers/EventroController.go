@@ -23,11 +23,6 @@ import (
 
 // ---------- Eventro API Models ----------
 
-type eventroExhibitorsResponse struct {
-	Exhibitors []eventroExhibitorResponse `json:"exhibitors"`
-	Count      int                        `json:"count"`
-}
-
 type eventroExhibitorResponse struct {
 	ID              string           `json:"id"`
 	Organization    eventroOrg       `json:"organization"`

@@ -19,11 +19,6 @@ import (
 
 // ---------- Eventro API Models ----------
 
-type eventroEventsResponse struct {
-	Events []eventroEventResponse `json:"events"`
-	Count  int                    `json:"count"`
-}
-
 type eventroEventResponse struct {
 	CustomFields            map[string]json.RawMessage `json:"customFields"`
 	ID                      string                     `json:"id"`

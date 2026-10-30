@@ -18,11 +18,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type eventroRecruitmentsResponse struct {
-	Recruitments []eventroRecruitmentResponse `json:"recruitments"`
-	Count        int                          `json:"count"`
-}
-
 type eventroRecruitmentResponse struct {
 	ID                     string                         `json:"id"`
 	Name                   string                         `json:"name"`

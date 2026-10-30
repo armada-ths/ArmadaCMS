@@ -89,5 +89,5 @@ func fetchEventroPages[T any](ctx context.Context, client *http.Client, endpoint
 			return all, nil
 		}
 	}
-	return nil, fmt.Errorf("Eventro pagination limit exceeded")
+	return nil, fmt.Errorf("eventro pagination limit exceeded")
 }

@@ -125,7 +125,7 @@ func GetEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !auth.HasPermission(auth.GetPermissionsFromContext(r), resource+".edit") {
-		http.Error(w, "insufficient resource permissions", 403)
+		http.Error(w, "insufficient resource permissions", http.StatusForbidden)
 		return
 	}
 	slice := reflect.New(reflect.SliceOf(reflect.TypeOf(spec.newModel()).Elem()))
@@ -216,7 +216,7 @@ func ResolveEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !auth.HasPermission(auth.GetPermissionsFromContext(r), decision.Resource+".edit") {
-		http.Error(w, "insufficient resource permissions", 403)
+		http.Error(w, "insufficient resource permissions", http.StatusForbidden)
 		return
 	}
 	allowed := false
@@ -292,7 +292,7 @@ func ResolveEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 	}, nil, spec.tags...)
 	if err != nil {
 		if errors.Is(err, errEventroReviewStale) {
-			http.Error(w, err.Error(), 409)
+			http.Error(w, err.Error(), http.StatusConflict)
 		} else {
 			http.Error(w, "failed to save review", 500)
 		}
