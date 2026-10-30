@@ -61,7 +61,6 @@ locals {
   # the same generic S3 env vars in local and hosted environments. Photo bucket
   # fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = {
-    EVENTRO_PRODUCT_TIERS         = jsonencode(var.eventro_product_tiers)
     DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
     DB_PORT                       = "5432"
     DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])

@@ -2,71 +2,56 @@ package controllers
 
 import (
 	"ArmadaCMS/main/models"
+	"encoding/json"
 	"testing"
 )
 
 func TestEventroProductMapping(t *testing.T) {
-	mapping, err := parseEventroProductTiers(`{"gold-id":"Gold","silver-id":"Silver"}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	products := []eventroProduct{{ProductID: "silver-id", Name: "Misleading Gold"}, {ProductID: "gold-id"}, {ProductID: "addon"}}
+	products := []eventroProduct{{ProductID: "silver-id", Name: "Misleading Gold", DisplayName: "Silver Kit"}, {ProductID: "gold-id", DisplayName: "Gold Kit"}, {ProductID: "addon", Name: "Add-on", DisplayName: "Extra power"}}
 	for _, list := range [][]eventroProduct{products, {products[2], products[1], products[0]}} {
-		tier, unknown := mappedEventroTier(list, mapping)
-		if tier == nil || *tier != models.TierGold || len(unknown) != 1 || unknown[0].ProductID != "addon" {
+		tier, unknown := mappedEventroTier(list)
+		if tier == nil || *tier != models.TierGold || len(unknown) != 1 || unknown[0].ProductID != "addon" || unknown[0].DisplayName != "Extra power" || unknown[0].Name != "Add-on" {
 			t.Fatal("incorrect deterministic tier mapping")
-		}
-	}
-	if tier, _ := mappedEventroTier(products, nil); tier != nil {
-		t.Fatal("unknown tier defaulted")
-	}
-	for _, raw := range []string{`{`, `{"id":"gold"}`, `{"":"Gold"}`} {
-		if _, err := parseEventroProductTiers(raw); err == nil {
-			t.Fatal("invalid mapping accepted")
 		}
 	}
 }
 
-func TestEventroIgnoredProducts(t *testing.T) {
-	mapping, err := parseEventroProductTiers(`{"addon":"Ignore","gold":"Gold","silver":"Silver","bronze":"Bronze","startup":"Standard"}`)
-	if err != nil {
+func TestEventroPackageTiers(t *testing.T) {
+	for displayName, want := range map[string]models.Tier{
+		"Startup Kit": models.TierStandard,
+		"Bronze Kit":  models.TierBronze,
+		"Silver Kit":  models.TierSilver,
+		"Gold Kit":    models.TierGold,
+	} {
+		tier, unknown := mappedEventroTier([]eventroProduct{{ProductID: "unrelated-id", DisplayName: displayName}})
+		if tier == nil || *tier != want || len(unknown) != 0 {
+			t.Fatalf("tier = %v, unknown = %v, want %s", tier, unknown, want)
+		}
+	}
+	if tier, unknown := mappedEventroTier(nil); tier != nil || len(unknown) != 0 {
+		t.Fatal("empty export assigned a tier or reported products")
+	}
+}
+
+func TestEventroDisplayNameMapping(t *testing.T) {
+	for _, id := range []string{"first-exhibitor-product", "second-exhibitor-product"} {
+		tier, unknown := mappedEventroTier([]eventroProduct{{ProductID: id, DisplayName: "Gold Kit"}})
+		if tier == nil || *tier != models.TierGold || len(unknown) != 0 {
+			t.Fatal("the same displayName must map independently of product ID")
+		}
+	}
+	for _, displayName := range []string{"", "gold kit", "Gold Kit Extra", " Gold Kit ", "Ignore"} {
+		product := eventroProduct{ProductID: "Gold Kit", Name: "Gold Kit", DisplayName: displayName}
+		tier, unknown := mappedEventroTier([]eventroProduct{product})
+		if tier != nil || len(unknown) != 1 || unknown[0].DisplayName != displayName {
+			t.Fatalf("non-matching displayName %q must be reported without name or ID fallback", displayName)
+		}
+	}
+	var product eventroProduct
+	if err := json.Unmarshal([]byte(`{"productId":"Gold Kit","name":"Gold Kit","displayName":null}`), &product); err != nil {
 		t.Fatal(err)
 	}
-	for _, scenario := range []struct {
-		name        string
-		products    []eventroProduct
-		wantTier    models.Tier
-		wantUnknown int
-	}{
-		{"only ignored", []eventroProduct{{ProductID: "addon", Name: "Gold marketing"}}, "", 0},
-		{"ignored before package", []eventroProduct{{ProductID: "addon"}, {ProductID: "silver"}}, models.TierSilver, 0},
-		{"ignored after package", []eventroProduct{{ProductID: "bronze"}, {ProductID: "addon"}}, models.TierBronze, 0},
-		{"standard remains classified", []eventroProduct{{ProductID: "addon"}, {ProductID: "startup"}}, models.TierStandard, 0},
-		{"highest real tier wins", []eventroProduct{{ProductID: "silver"}, {ProductID: "addon"}, {ProductID: "gold"}}, models.TierGold, 0},
-		{"unknown still reported", []eventroProduct{{ProductID: "addon"}, {ProductID: "unknown"}}, "", 1},
-	} {
-		t.Run(scenario.name, func(t *testing.T) {
-			tier, unknown := mappedEventroTier(scenario.products, mapping)
-			if len(unknown) != scenario.wantUnknown {
-				t.Fatalf("unmapped products = %#v", unknown)
-			}
-			if scenario.wantTier == "" {
-				if tier != nil {
-					t.Fatalf("ignored products assigned tier %q", *tier)
-				}
-			} else if tier == nil || *tier != scenario.wantTier {
-				t.Fatalf("tier = %v, want %s", tier, scenario.wantTier)
-			}
-			for _, product := range unknown {
-				if product.ProductID == "addon" {
-					t.Fatal("ignored add-on still reported")
-				}
-			}
-		})
-	}
-	for _, raw := range []string{`{"addon":"ignore"}`, `{"addon":"Ignored"}`, `{"addon":""}`} {
-		if _, err := parseEventroProductTiers(raw); err == nil {
-			t.Fatalf("invalid mapping accepted: %s", raw)
-		}
+	if tier, unknown := mappedEventroTier([]eventroProduct{product}); tier != nil || len(unknown) != 1 {
+		t.Fatal("null displayName must remain unmapped")
 	}
 }

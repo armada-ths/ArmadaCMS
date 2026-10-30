@@ -65,11 +65,6 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	baseURL := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/exhibitors/", url.PathEscape(fairID))
 
-	mapping, err := parseEventroProductTiers(os.Getenv("EVENTRO_PRODUCT_TIERS"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	allExhibitors, err := fetchEventroPages[eventroExhibitorResponse](r.Context(), client, baseURL, "exhibitors", os.Getenv("EVENTRO_API"), os.Getenv("EVENTRO_ORG"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -95,7 +90,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 
 	for _, e := range allExhibitors {
 		ex := mapEventroToExhibitor(e)
-		tier, unmapped := mappedEventroTier(e.OrderedProducts, mapping)
+		tier, unmapped := mappedEventroTier(e.OrderedProducts)
 		ex.Tier = tier
 		created := false
 		changed := false
