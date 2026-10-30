@@ -3,7 +3,12 @@ import {
   isMultipartResource,
 } from "./utils/multipartFormData";
 import simpleRestDataProvider from "ra-data-simple-rest";
-import { DataProvider, fetchUtils, HttpError } from "react-admin";
+import {
+  DataProvider,
+  fetchUtils,
+  HttpError,
+  type Identifier,
+} from "react-admin";
 import globalApi from "./context/globalApi";
 
 const endpoint = globalApi();
@@ -36,6 +41,18 @@ export const httpClient: (
 };
 
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
+
+export class BulkDeleteError extends Error {
+  constructor(
+    public readonly deletedIds: Identifier[],
+    public readonly failedIds: Identifier[],
+  ) {
+    super(
+      `${deletedIds.length} deleted. ${failedIds.length} could not be deleted. Retry the selected records.`,
+    );
+    this.name = "BulkDeleteError";
+  }
+}
 
 /** Upload helper */
 const uploadFormData = (
@@ -125,5 +142,36 @@ export const dataProvider: DataProvider = {
 
   delete: (resource, params) => {
     return baseDataProvider.delete(resource, params);
+  },
+
+  deleteMany: async (resource, params) => {
+    // Wait for every request, even after a failure. DELETE returns 204, so use
+    // the requested IDs rather than expecting IDs in the response body.
+    const ids = [...new Set(params.ids)];
+    const deleted = new Set<Identifier>();
+    let next = 0;
+    const worker = async () => {
+      while (next < ids.length) {
+        const id = ids[next++];
+        try {
+          await httpClient(
+            `${endpoint}/${resource}/${encodeURIComponent(id)}`,
+            {
+              method: "DELETE",
+            },
+          );
+          deleted.add(id);
+        } catch {
+          // Keep processing the queue; report all failures together below.
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(5, ids.length) }, worker));
+    const deletedIds = ids.filter((id) => deleted.has(id));
+    const failedIds = ids.filter((id) => !deleted.has(id));
+    if (failedIds.length) {
+      throw new BulkDeleteError(deletedIds, failedIds);
+    }
+    return { data: deletedIds };
   },
 };
