@@ -154,6 +154,8 @@ Install the generator if needed with `go install github.com/swaggo/swag/cmd/swag
 
 ## Cache Revalidation
 
+Eventro import field ownership, conflict review and package mapping are described in [Eventro synchronization](docs/eventro-sync.md).
+
 Write operations invalidate the public site's cache through audit-helper revalidation tags. This requires `REVALIDATION_URL` and `REVALIDATION_SECRET`; it is skipped when unset. See the [shared tag conventions](https://github.com/armada-ths/armada.nu/blob/main/.github/copilot-instructions.md).
 
 ## CI / CD

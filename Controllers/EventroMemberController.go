@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 	"unicode"
 
 	"gorm.io/gorm"
@@ -42,7 +43,7 @@ type eventroMember struct {
 // @Router /eventromembers [get]
 func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 	endpoint := "https://app.eventro.se/api/v1/members/export"
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
 	if err != nil {
 		http.Error(w, "failed to create request", http.StatusInternalServerError)
 		return
@@ -50,7 +51,7 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("EVENTRO_API"))
 	req.Header.Set("organization", os.Getenv("EVENTRO_ORG"))
 
-	resp, err := (&http.Client{}).Do(req)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
 		http.Error(w, "failed to contact Eventro API", http.StatusBadGateway)
 		return
@@ -79,6 +80,7 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	childRequest := audit.WithParent(r, group.ID)
 
+	seenMembers := map[string]bool{}
 	for _, group := range result.Groups {
 		eventroGroup := strings.TrimSpace(group.Group)
 		rank := resolveAllowedRank(eventroGroup)
@@ -92,10 +94,11 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 			}
 
 			eventroKey := buildEventroMemberKey(firstName, surname)
-			if eventroKey == "" {
+			if eventroKey == "" || seenMembers[eventroKey] {
 				continue
 			}
 
+			seenMembers[eventroKey] = true
 			role := strings.TrimSpace(m.Role)
 
 			email := ""
@@ -105,110 +108,23 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 
 			image := strings.TrimSpace(m.Image)
 
-			var existing models.Profile
-			err := db.DB.Where("eventro_key = ?", eventroKey).First(&existing).Error
-			if err != nil && err != gorm.ErrRecordNotFound {
-				log.Printf("❌ Failed reading profile for key %s: %v", eventroKey, err)
+			profile := models.Profile{EventroKey: &eventroKey, Name: fullName, Rank: rank, Title: role, Email: email, Photo: image}
+			var created, changed bool
+			err := db.DB.Transaction(func(tx *gorm.DB) error {
+				_, inserted, updated, err := syncEventroRecordWithAudit(tx, childRequest, "profiles", &profile, "eventro_key", eventroKey, map[string]any{"LOWER(name)": strings.ToLower(fullName)}, nil)
+				created, changed = inserted, updated
+				return err
+			})
+			if err != nil {
 				failed++
 				continue
 			}
-
-			if err == gorm.ErrRecordNotFound {
-				// fallback dedupe: if a profile with the same name already exists,
-				// reuse it instead of creating a duplicate
-				errByName := db.DB.
-					Where("LOWER(name) = ?", strings.ToLower(fullName)).
-					First(&existing).Error
-
-				if errByName != nil && errByName != gorm.ErrRecordNotFound {
-					log.Printf("❌ Failed reading profile for name %s: %v", fullName, errByName)
-					failed++
-					continue
-				}
-
-				if errByName == nil {
-					updates := map[string]interface{}{}
-					if existing.EventroKey == nil {
-						updates["eventro_key"] = eventroKey
-					}
-					if strings.TrimSpace(existing.Rank) == "" && rank != "" {
-						updates["rank"] = rank
-					}
-					if strings.TrimSpace(existing.Title) == "" && role != "" {
-						updates["title"] = role
-					}
-					if strings.TrimSpace(existing.Email) == "" && email != "" {
-						updates["email"] = email
-					}
-					if strings.TrimSpace(existing.Photo) == "" && image != "" {
-						updates["photo"] = image
-					}
-
-					if len(updates) > 0 {
-						if updateErr := updateProfileFromEventroWithAudit(childRequest, &existing, updates); updateErr != nil {
-							log.Printf("❌ Failed updating existing profile by name %s: %v", fullName, updateErr)
-							failed++
-							continue
-						}
-						updated++
-					}
-
-					continue
-				}
-
-				profile := models.Profile{
-					EventroKey: &eventroKey,
-					Name:       fullName,
-					Rank:       rank,
-					Title:      role,
-					Linkedin:   "",
-					Email:      email,
-					Photo:      image,
-				}
-
-				if createErr := db.DB.Transaction(func(tx *gorm.DB) error {
-					if err := tx.Create(&profile).Error; err != nil {
-						return err
-					}
-					return audit.LogCreate(tx, childRequest, "profiles", profile.ID, profile)
-				}); createErr != nil {
-					log.Printf("❌ Failed creating member %s: %v", fullName, createErr)
-					failed++
-					continue
-				}
-
+			if created {
 				inserted++
-				continue
 			}
-
-			updates := map[string]interface{}{}
-			if strings.TrimSpace(existing.Name) == "" {
-				updates["name"] = fullName
+			if changed {
+				updated++
 			}
-			if strings.TrimSpace(existing.Rank) == "" && rank != "" {
-				updates["rank"] = rank
-			}
-			if strings.TrimSpace(existing.Title) == "" && role != "" {
-				updates["title"] = role
-			}
-			if strings.TrimSpace(existing.Email) == "" && email != "" {
-				updates["email"] = email
-			}
-			if strings.TrimSpace(existing.Photo) == "" && image != "" {
-				updates["photo"] = image
-			}
-
-			if len(updates) == 0 {
-				continue
-			}
-
-			if updateErr := updateProfileFromEventroWithAudit(childRequest, &existing, updates); updateErr != nil {
-				log.Printf("❌ Failed updating member %s: %v", fullName, updateErr)
-				failed++
-				continue
-			}
-
-			updated++
 		}
 	}
 
@@ -221,26 +137,14 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 		go utils.RevalidateTag("organization")
 	}
 	message := fmt.Sprintf(
-		"Sync completed — inserted: %d, updated: %d",
+		"Sync completed — inserted: %d, updated: %d, failed: %d",
 		inserted,
 		updated,
+		failed,
 	)
 	log.Printf("✅ %s", message)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(message))
-}
-
-func updateProfileFromEventroWithAudit(r *http.Request, profile *models.Profile, updates map[string]any) error {
-	before := *profile
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(profile).Updates(updates).Error; err != nil {
-			return err
-		}
-		if err := tx.First(profile, profile.ID).Error; err != nil {
-			return err
-		}
-		return audit.LogUpdate(tx, r, "profiles", profile.ID, before, profile)
-	})
 }
 
 func resolveAllowedRank(eventroGroup string) string {

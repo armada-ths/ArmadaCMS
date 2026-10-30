@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -20,6 +20,18 @@ var exhibitorSortColumns = map[string]string{
 	"type":         "type",
 	"tier":         "tier",
 	"fairLocation": "fair_location",
+}
+
+func parseExhibitorTier(value string) (*models.Tier, error) {
+	tier := models.Tier(strings.TrimSpace(value))
+	switch tier {
+	case "":
+		return nil, nil
+	case models.TierStandard, models.TierBronze, models.TierSilver, models.TierGold:
+		return &tier, nil
+	default:
+		return nil, errors.New("tier must be Standard, Bronze, Silver, or Gold")
+	}
 }
 
 func exhibitorSortColumn(field string) string {
@@ -155,10 +167,16 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
+	exhibitor.Cities = trimmedOptionalFormValue(r, "cities", exhibitor.Cities)
+	exhibitor.LogoSquaredUrl = trimmedOptionalFormValue(r, "logoSquared", exhibitor.LogoSquaredUrl)
+	exhibitor.MapImg = trimmedOptionalFormValue(r, "mapImg", exhibitor.MapImg)
+	exhibitor.VyerPosition = trimmedOptionalFormValue(r, "vyerPosition", exhibitor.VyerPosition)
+	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	exhibitor.Tier, err = parseExhibitorTier(r.FormValue("tier"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Handle logo
@@ -264,11 +282,20 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
+	exhibitor.Cities = trimmedOptionalFormValue(r, "cities", exhibitor.Cities)
+	exhibitor.LogoSquaredUrl = trimmedOptionalFormValue(r, "logoSquared", exhibitor.LogoSquaredUrl)
+	exhibitor.MapImg = trimmedOptionalFormValue(r, "mapImg", exhibitor.MapImg)
+	exhibitor.VyerPosition = trimmedOptionalFormValue(r, "vyerPosition", exhibitor.VyerPosition)
+	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
 	// --- Tier (custom type) ---
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	if _, present := r.MultipartForm.Value["tier"]; present {
+		tier, err := parseExhibitorTier(r.FormValue("tier"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		exhibitor.Tier = tier
 	}
 
 	// --- Handle logo upload or link ---
@@ -293,22 +320,34 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		exhibitor.LogoFreesizeUrl = &fileURL
 	}
 
+	if _, present := r.MultipartForm.Value["logoFreesize"]; present && r.FormValue("logoFreesize") == "" {
+		if _, _, err := r.FormFile("file"); err != nil {
+			exhibitor.LogoFreesizeUrl = nil
+		}
+	}
+	if !stringPointersEqual(exhibitor.LogoFreesizeUrl, before.LogoFreesizeUrl) {
+		exhibitor.LogoThumbnail = nil
+	}
+
 	// --- Decode many-to-many JSON arrays ---
 	var updates models.Exhibitor
 
 	if val := r.FormValue("programs"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Programs); err != nil {
-			log.Printf("❌ Failed to parse programs JSON: %v", err)
+			http.Error(w, "invalid programs value", http.StatusBadRequest)
+			return
 		}
 	}
 	if val := r.FormValue("industries"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Industries); err != nil {
-			log.Printf("❌ Failed to parse industries JSON: %v", err)
+			http.Error(w, "invalid industries value", http.StatusBadRequest)
+			return
 		}
 	}
 	if val := r.FormValue("employments"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Employments); err != nil {
-			log.Printf("❌ Failed to parse employments JSON: %v", err)
+			http.Error(w, "invalid employments value", http.StatusBadRequest)
+			return
 		}
 	}
 

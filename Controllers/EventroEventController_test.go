@@ -41,7 +41,7 @@ func TestEventroOptionalFields(t *testing.T) {
 			if got.Location != "" || got.Food != nil || got.OpenTo != nil || got.MapURL != nil {
 				t.Fatalf("new optional fields = %#v", got)
 			}
-			preserveOmittedEventroFields(&got, existing, input)
+			mergeEventroEventForTest(t, &got, existing, input)
 			if test.cleared {
 				if got.Location != "" || got.Food != nil || got.OpenTo != nil || got.MapURL != nil {
 					t.Fatalf("unset fields were not cleared: %#v", got)
@@ -75,7 +75,7 @@ func TestEventroEventSignupLink(t *testing.T) {
 				t.Fatalf("signup link = %v, want %v", got.SignupLink, test.want)
 			}
 			existing := models.Event{SignupLink: stringPtrForEventroTest("https://example.com/old-signup")}
-			preserveOmittedEventroFields(&got, existing, input)
+			mergeEventroEventForTest(t, &got, existing, input)
 			want := test.want
 			if input.URL == nil {
 				want = existing.SignupLink
@@ -114,10 +114,25 @@ func TestEventroEventLocation(t *testing.T) {
 			if got.Location != test.want {
 				t.Fatalf("location = %q, want %q", got.Location, test.want)
 			}
-			preserveOmittedEventroFields(&got, models.Event{Location: "Existing hall"}, input)
+			mergeEventroEventForTest(t, &got, models.Event{Location: "Existing hall"}, input)
 			if got.Location != test.wantExisting {
 				t.Fatalf("location after preserving omitted fields = %q, want %q", got.Location, test.wantExisting)
 			}
 		})
 	}
+}
+
+// Exercise the same field selection and three-way merge as the import path.
+func mergeEventroEventForTest(t *testing.T, incoming *models.Event, existing models.Event, input eventroEventResponse) {
+	t.Helper()
+	current := eventroStructValues(&existing, eventroResourceSpecs["events"].fields)
+	state := models.EventroSyncState{Source: current}
+	updates := mergeEventroValues(current, eventroStructValues(incoming, eventroEventSyncFields(input)), &state, false)
+	merged := existing
+	for field, value := range updates {
+		if err := applyEventroStructValue(&merged, field, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	*incoming = merged
 }

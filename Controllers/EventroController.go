@@ -23,11 +23,6 @@ import (
 
 // ---------- Eventro API Models ----------
 
-type eventroExhibitorsResponse struct {
-	Exhibitors []eventroExhibitorResponse `json:"exhibitors"`
-	Count      int                        `json:"count"`
-}
-
 type eventroExhibitorResponse struct {
 	ID              string           `json:"id"`
 	Organization    eventroOrg       `json:"organization"`
@@ -36,9 +31,10 @@ type eventroExhibitorResponse struct {
 }
 
 type eventroOrg struct {
-	Name    string `json:"name"`
-	Website string `json:"website"`
-	Logo    string `json:"logo"`
+	Name          string `json:"name"`
+	LogoThumbnail string `json:"logoThumbnail"`
+	Website       string `json:"website"`
+	Logo          string `json:"logo"`
 }
 
 type eventroCatalogue struct {
@@ -47,12 +43,6 @@ type eventroCatalogue struct {
 	Locations   []string `json:"locations"`
 	Industries  []string `json:"industries"`
 	About       string   `json:"about"`
-}
-
-type eventroProduct struct {
-	ProductID   string `json:"productId"`
-	Name        string `json:"name"`
-	DisplayName string `json:"displayName"`
 }
 
 // ---------- Controller ----------
@@ -75,48 +65,16 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	baseURL := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/exhibitors/", url.PathEscape(fairID))
 
-	allExhibitors := []eventroExhibitorResponse{}
-	page := 0
-
-	for {
-		url := fmt.Sprintf("%s?pageIndex=%d", baseURL, page)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			http.Error(w, "failed to create request", http.StatusInternalServerError)
+	allExhibitors, err := fetchEventroPages[eventroExhibitorResponse](r.Context(), client, baseURL, "exhibitors", os.Getenv("EVENTRO_API"), os.Getenv("EVENTRO_ORG"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	for _, exhibitor := range allExhibitors {
+		if strings.TrimSpace(exhibitor.Organization.Name) == "" {
+			http.Error(w, "missing exhibitor name", http.StatusBadGateway)
 			return
 		}
-		req.Header.Set("Authorization", "Bearer "+os.Getenv("EVENTRO_API"))
-		req.Header.Set("organization", os.Getenv("EVENTRO_ORG"))
-
-		resp, err := client.Do(req)
-		if err != nil {
-			http.Error(w, "failed to contact Eventro API", http.StatusBadGateway)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			http.Error(w, "unexpected Eventro status: "+resp.Status, http.StatusBadGateway)
-			return
-		}
-
-		var result eventroExhibitorsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			log.Printf("❌ Failed to decode Eventro response (page %d): %v", page, err)
-			http.Error(w, "failed to decode Eventro response", http.StatusInternalServerError)
-			return
-		}
-
-		if len(result.Exhibitors) == 0 {
-			break
-		}
-
-		allExhibitors = append(allExhibitors, result.Exhibitors...)
-
-		if len(allExhibitors) >= result.Count {
-			break
-		}
-		page++
 	}
 
 	inserted := 0
@@ -132,21 +90,35 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 
 	for _, e := range allExhibitors {
 		ex := mapEventroToExhibitor(e)
+		tier, unmapped := mappedEventroTier(e.OrderedProducts)
+		ex.Tier = tier
 		created := false
 		changed := false
 		err := db.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "eventro:exhibitors:"+e.ID).Error; err != nil {
+				return err
+			}
 			var before models.Exhibitor
-			findErr := tx.Preload("Industries").Preload("Employments").Preload("Programs").
+			findErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Industries").Preload("Employments").Preload("Programs").
 				Where("eventro_id = ?", ex.EventroID).First(&before).Error
 			if findErr != nil && findErr != gorm.ErrRecordNotFound {
 				return findErr
 			}
+			state := models.EventroSyncState{Resource: "exhibitors", RecordID: before.ID, FairID: fairID}
+			if before.ID != 0 {
+				if err := tx.First(&state, "resource = ? AND record_id = ?", "exhibitors", before.ID).Error; err != nil && err != gorm.ErrRecordNotFound {
+					return err
+				}
+			}
+			stateBefore, _ := json.Marshal(state)
+			state.FairID, state.UnmappedProducts = fairID, unmapped
+			ex = mergeEventroExhibitor(before, ex, &state, findErr == gorm.ErrRecordNotFound)
 			result := tx.Session(&gorm.Session{FullSaveAssociations: false, SkipHooks: true}).
 				Omit("Industries", "Industries.*", "Employments", "Employments.*", "Programs", "Programs.*").
 				Clauses(clause.OnConflict{
 					Columns: []clause.Column{{Name: "eventro_id"}},
 					DoUpdates: clause.AssignmentColumns([]string{
-						"name", "tier", "company_website", "about", "logo_freesize_url", "cities",
+						"name", "tier", "company_website", "about", "logo_freesize_url", "logo_thumbnail", "cities",
 					}),
 				}).Create(&ex)
 			if result.Error != nil {
@@ -162,51 +134,16 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			ex.ID = persisted.ID
-			for i := range ex.Industries {
-				result := tx.Where("name = ?", ex.Industries[i].Name).FirstOrCreate(&ex.Industries[i])
-				if result.Error != nil {
-					return result.Error
-				}
-				if result.RowsAffected > 0 {
-					if err := audit.LogCreate(tx, childRequest, "industries", ex.Industries[i].ID, ex.Industries[i]); err != nil {
-						return err
-					}
-				}
+			if err := persistEventroExhibitorCategories(tx, childRequest, &ex, before); err != nil {
+				return err
 			}
-			for i := range ex.Employments {
-				result := tx.Where("name = ?", ex.Employments[i].Name).FirstOrCreate(&ex.Employments[i])
-				if result.Error != nil {
-					return result.Error
-				}
-				if result.RowsAffected > 0 {
-					if err := audit.LogCreate(tx, childRequest, "employments", ex.Employments[i].ID, ex.Employments[i]); err != nil {
-						return err
-					}
-				}
+			state.RecordID = ex.ID
+			if err := tx.Save(&state).Error; err != nil {
+				return err
 			}
-			for i := range ex.Programs {
-				result := tx.Where("name = ?", ex.Programs[i].Name).FirstOrCreate(&ex.Programs[i])
-				if result.Error != nil {
-					return result.Error
-				}
-				if result.RowsAffected > 0 {
-					if err := audit.LogCreate(tx, childRequest, "programs", ex.Programs[i].ID, ex.Programs[i]); err != nil {
-						return err
-					}
-				}
-			}
-			if !sameIndustryIDs(before.Industries, ex.Industries) {
-				if err := tx.Model(&ex).Association("Industries").Replace(ex.Industries); err != nil {
-					return err
-				}
-			}
-			if !sameEmploymentIDs(before.Employments, ex.Employments) {
-				if err := tx.Model(&ex).Association("Employments").Replace(ex.Employments); err != nil {
-					return err
-				}
-			}
-			if !sameProgramIDs(before.Programs, ex.Programs) {
-				if err := tx.Model(&ex).Association("Programs").Replace(ex.Programs); err != nil {
+			stateAfter, _ := json.Marshal(state)
+			if string(stateBefore) != string(stateAfter) {
+				if err := audit.LogUpdate(tx, childRequest, "eventro_sync_states", ex.ID, json.RawMessage(stateBefore), state); err != nil {
 					return err
 				}
 			}
@@ -252,7 +189,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("✅ Sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", inserted, updated)
+	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d, unchanged: %d, failed: %d", inserted, updated, unchanged, failed)
 }
 
 func sameIndustryIDs(left, right []models.Industry) bool {
@@ -312,8 +249,6 @@ func sortExhibitorAssociations(exhibitor *models.Exhibitor) {
 // ---------- Mapping Helpers ----------
 
 func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
-	tierStr := deriveTier(e.OrderedProducts)
-	tier := models.Tier(tierStr)
 
 	// Safely handle optional strings
 	website := strings.TrimSpace(e.Organization.Website)
@@ -323,14 +258,14 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 
 	// Join all locations into a single cities string
 	var cities *string
-	if len(e.Catalogue.Locations) > 0 {
-		joined := strings.Join(e.Catalogue.Locations, ", ")
+	if len(normalizedEventroLabels(e.Catalogue.Locations)) > 0 {
+		joined := strings.Join(normalizedEventroLabels(e.Catalogue.Locations), ", ")
 		cities = &joined
 	}
 
 	// Map related entities
 	industries := make([]models.Industry, 0, len(e.Catalogue.Industries))
-	for _, i := range e.Catalogue.Industries {
+	for _, i := range normalizedEventroLabels(e.Catalogue.Industries) {
 		name := strings.TrimSpace(i)
 		if name == "" {
 			continue
@@ -339,7 +274,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	employments := make([]models.Employment, 0, len(e.Catalogue.Employments))
-	for _, emp := range e.Catalogue.Employments {
+	for _, emp := range normalizedEventroLabels(e.Catalogue.Employments) {
 		name := strings.TrimSpace(emp)
 		if name == "" {
 			continue
@@ -348,7 +283,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	programs := make([]models.Program, 0, len(e.Catalogue.Educations))
-	for _, edu := range e.Catalogue.Educations {
+	for _, edu := range normalizedEventroLabels(e.Catalogue.Educations) {
 		name := strings.TrimSpace(edu)
 		if name == "" {
 			continue
@@ -357,13 +292,14 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	return models.Exhibitor{
-		EventroID:           nullIfEmpty(eventroId),
-		Name:                e.Organization.Name,
-		Type:                "company",
-		Tier:                &tier,
+		EventroID: nullIfEmpty(eventroId),
+		Name:      e.Organization.Name,
+		Type:      "company",
+
 		CompanyWebsite:      nullIfEmpty(website),
 		About:               nullIfEmpty(about),
 		LogoFreesizeUrl:     nullIfEmpty(logo),
+		LogoThumbnail:       nullIfEmpty(strings.TrimSpace(e.Organization.LogoThumbnail)),
 		Cities:              cities,
 		Industries:          industries,
 		Employments:         employments,
@@ -378,23 +314,4 @@ func nullIfEmpty(s string) *string {
 		return nil
 	}
 	return &s
-}
-
-// ---------- Tier Derivation ----------
-
-func deriveTier(products []eventroProduct) string {
-	for _, p := range products {
-		n := strings.ToLower(p.Name)
-		d := strings.ToLower(p.DisplayName)
-
-		switch {
-		case strings.Contains(n, "gold") || strings.Contains(d, "gold"):
-			return "Gold"
-		case strings.Contains(n, "silver") || strings.Contains(d, "silver"):
-			return "Silver"
-		case strings.Contains(n, "bronze") || strings.Contains(d, "bronze"):
-			return "Bronze"
-		}
-	}
-	return "Bronze"
 }
