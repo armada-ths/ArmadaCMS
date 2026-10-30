@@ -41,12 +41,9 @@ func acknowledgeEventroCMSEdits(tx *gorm.DB, r *http.Request, resource string, b
 	if len(changed) == 0 {
 		return nil
 	}
-	id, err := strconv.ParseUint(getResourceID(after), 10, 64)
+	id, err := strconv.ParseUint(getResourceID(after), 10, strconv.IntSize)
 	if err != nil {
 		return err
-	}
-	if id > uint64(^uint(0)) {
-		return fmt.Errorf("resource id out of range for uint: %d", id)
 	}
 	state, err := loadEventroSyncState(tx, resource, uint(id))
 	if err != nil {
