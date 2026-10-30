@@ -1,4 +1,14 @@
-import { Admin, AppBar, Logout, Resource, Layout, UserMenu } from "react-admin";
+import {
+  Admin,
+  AppBar,
+  Logout,
+  Resource,
+  Layout,
+  UserMenu,
+  defaultLightTheme,
+  defaultDarkTheme,
+} from "react-admin";
+import { BulkDeleteButton } from "./components/BulkDeleteButton";
 import { Route } from "react-router-dom";
 import {
   PhotoEventList,
@@ -69,6 +79,19 @@ import { ReactNode } from "react";
 
 export const MyMenu = ResourceMenu;
 
+const bulkDeleteDefaults = {
+  RaDatagrid: { defaultProps: { bulkActionButtons: <BulkDeleteButton /> } },
+};
+
+const lightTheme = {
+  ...defaultLightTheme,
+  components: { ...defaultLightTheme.components, ...bulkDeleteDefaults },
+};
+const darkTheme = {
+  ...defaultDarkTheme,
+  components: { ...defaultDarkTheme.components, ...bulkDeleteDefaults },
+};
+
 const MyUserMenu = () => (
   <UserMenu>
     <ChangePasswordButton />
@@ -88,6 +111,8 @@ export const App = () => (
   <Admin
     basename="/admin"
     dataProvider={dataProvider}
+    theme={lightTheme}
+    darkTheme={darkTheme}
     authProvider={authProvider}
     layout={MyLayout}
     loginPage={CustomLoginPage}
