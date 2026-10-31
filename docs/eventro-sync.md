@@ -10,6 +10,12 @@ The dashboard's **Review sync and data quality** dialog selects a resource and s
 
 Paginated exports are fetched and validated completely before content import. Duplicate IDs, changing totals, missing lists and truncated pagination fail the fetch. A source fetch failure does not delete data. No sync deletes records that are absent from an export, including other fair-date configurations. When several fair-date configurations exist, the review highlights them; the public dates endpoint continues to use the highest ID. Remove obsolete configurations through the normal authorized CMS workflow when appropriate.
 
+## Category normalization
+
+Exhibitor industries, employment types and fields of study are normalized before field ownership comparison and category persistence using `internal/eventrocategories/mapping.csv`. The CSV is embedded in the backend binary. Matching ignores case and redundant whitespace; aliases that resolve to the same category are deduplicated within their category type. Unknown labels are retained. The `Review` column is retained as mapping metadata and does not change the specified normalized value. Locations are unaffected.
+
+Mapping changes take effect on the next exhibitor sync. Existing field ownership and conflict review still apply: manual CMS corrections and untracked historical differences are preserved. Normalization does not delete existing category records or change unrelated CMS-managed relationships.
+
 ## Package mapping
 
 Package tiers are defined in `Controllers/eventro_product_mapping.go`: `Startup Kit` maps to `Standard`, `Bronze Kit` to `Bronze`, `Silver Kit` to `Silver`, and `Gold Kit` to `Gold`. Matching is exact and case-sensitive on `displayName`, without falling back to `name` or `productId`. Missing, null or unknown display names remain unmapped and appear for review; product IDs are retained for diagnostics. The highest tier wins regardless of product order. An unknown tier preserves an existing CMS tier and leaves a new record unclassified. Exclude add-on products from the API export in Eventro's dashboard. Changes to the package mapping require a code change; the next exhibitor sync refreshes the saved report.
