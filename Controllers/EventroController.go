@@ -264,9 +264,14 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 		cities = &joined
 	}
 
-	// Map related entities
+	// Normalize and classify related entities before sync ownership comparison.
+	categories := eventrocategories.NormalizeCatalogue(eventrocategories.Catalogue{
+		Industries:    e.Catalogue.Industries,
+		Employments:   e.Catalogue.Employments,
+		FieldsOfStudy: e.Catalogue.Educations,
+	})
 	industries := make([]models.Industry, 0, len(e.Catalogue.Industries))
-	for _, i := range eventrocategories.Normalize(eventrocategories.Industry, e.Catalogue.Industries) {
+	for _, i := range categories.Industries {
 		name := strings.TrimSpace(i)
 		if name == "" {
 			continue
@@ -275,7 +280,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	employments := make([]models.Employment, 0, len(e.Catalogue.Employments))
-	for _, emp := range eventrocategories.Normalize(eventrocategories.Employment, e.Catalogue.Employments) {
+	for _, emp := range categories.Employments {
 		name := strings.TrimSpace(emp)
 		if name == "" {
 			continue
@@ -284,7 +289,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	programs := make([]models.Program, 0, len(e.Catalogue.Educations))
-	for _, edu := range eventrocategories.Normalize(eventrocategories.FieldOfStudy, e.Catalogue.Educations) {
+	for _, edu := range categories.FieldsOfStudy {
 		name := strings.TrimSpace(edu)
 		if name == "" {
 			continue

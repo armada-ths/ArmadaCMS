@@ -85,3 +85,31 @@ func Normalize(kind CategoryType, labels []string) []string {
 	sort.Strings(result)
 	return result
 }
+
+// Catalogue contains the three independent exhibitor category lists.
+type Catalogue struct {
+	Industries    []string
+	Employments   []string
+	FieldsOfStudy []string
+}
+
+// NormalizeCatalogue also relocates known employment programmes mistakenly entered as fields of study.
+func NormalizeCatalogue(input Catalogue) Catalogue {
+	employments := append([]string{}, input.Employments...)
+	fields := []string{}
+	for _, label := range input.FieldsOfStudy {
+		switch lookupKey(label) {
+		case "graduate programme", "graduate program":
+			employments = append(employments, "Graduate program")
+		case "summer internship programme", "summer internship program":
+			employments = append(employments, "Summer internship")
+		default:
+			fields = append(fields, label)
+		}
+	}
+	return Catalogue{
+		Industries:    Normalize(Industry, input.Industries),
+		Employments:   Normalize(Employment, employments),
+		FieldsOfStudy: Normalize(FieldOfStudy, fields),
+	}
+}
