@@ -62,3 +62,26 @@ func TestInvalidMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestExportAliasesAndMisplacedProgrammes(t *testing.T) {
+	input := Catalogue{
+		Industries:    []string{"Food & Beverage", "Finance", "Investment", "MEMS"},
+		Employments:   []string{"Full-time", "Thesis project", "Summer Internship positions", "Graduate program", "Permanent positions"},
+		FieldsOfStudy: []string{"Graduate programme", "Summer Internship programme", "Computer Science and Engineering", "Master degree", "Industriell ekonomi", "Kemiteknik", "Applied Mathematics"},
+	}
+	expected := Catalogue{
+		Industries:    []string{"Finance & Investment", "Food & Beverages", "MEMS"},
+		Employments:   []string{"Full-time employment", "Graduate program", "Permanent positions", "Summer internship", "Thesis projects"},
+		FieldsOfStudy: []string{"Applied Mathematics", "Chemical Engineering", "Computer Science", "Industrial Engineering and Management", "Masters"},
+	}
+	got := NormalizeCatalogue(input)
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("got %#v; want %#v", got, expected)
+	}
+	if !reflect.DeepEqual(NormalizeCatalogue(got), got) {
+		t.Fatal("catalogue normalization is not idempotent")
+	}
+	if input.Employments[0] != "Full-time" || input.FieldsOfStudy[0] != "Graduate programme" {
+		t.Fatal("source catalogue modified")
+	}
+}

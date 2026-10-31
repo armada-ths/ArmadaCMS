@@ -10,13 +10,13 @@ func TestEventroCategoryMappingBeforeMerge(t *testing.T) {
 	source := eventroExhibitorResponse{Catalogue: eventroCatalogue{
 		Industries:  []string{"advisory", "consulting"},
 		Employments: []string{"Full Time", "full time", "Masters Thesis"},
-		Educations:  []string{"Computer Engineering", "Computer Science", "electricity"},
+		Educations:  []string{"Computer Engineering", "Computer Science", "electricity", "Graduate programme", "Summer Internship programme"},
 	}}
 	incoming := mapEventroToExhibitor(source)
 	values := exhibitorSyncValues(incoming)
 	for field, expected := range map[string]string{
 		"industries":  `["Consulting & Advisory"]`,
-		"employments": `["Full-time employment","Master's thesis"]`,
+		"employments": `["Full-time employment","Graduate program","Master's thesis","Summer internship"]`,
 		"programs":    `["Computer Science","Electrical Engineering"]`,
 	} {
 		if !sameEventroValue(values[field], []byte(expected)) {

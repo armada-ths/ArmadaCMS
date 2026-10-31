@@ -12,9 +12,9 @@ Paginated exports are fetched and validated completely before content import. Du
 
 ## Category normalization
 
-Exhibitor industries, employment types and fields of study are normalized before field ownership comparison and category persistence using `internal/eventrocategories/mapping.csv`. The CSV is embedded in the backend binary. Matching ignores case and redundant whitespace; aliases that resolve to the same category are deduplicated within their category type. Unknown labels are retained. The `Review` column is retained as mapping metadata and does not change the specified normalized value. Locations are unaffected.
+Exhibitor industries, employment types and fields of study are normalized before field ownership comparison and category persistence using `internal/eventrocategories/mapping.csv`. The CSV is embedded in the backend binary. Matching ignores case and redundant whitespace; aliases that resolve to the same category are deduplicated within their category type. Unknown labels are retained. The `Review` column is retained as mapping metadata and does not change the specified normalized value. Known employment programmes misplaced under fields of study (`Graduate programme` and `Summer Internship programme`, including their `program` spelling) are moved to employment types before deduplication. Locations are unaffected.
 
-Mapping changes take effect on the next exhibitor sync. Existing field ownership and conflict review still apply: manual CMS corrections and untracked historical differences are preserved. Normalization does not delete existing category records or change unrelated CMS-managed relationships.
+Mapping changes take effect on the next exhibitor sync. Existing field ownership and conflict review still apply: manual CMS corrections and untracked historical differences are preserved. Normalization does not delete existing category records or change unrelated CMS-managed relationships. The public website derives its filter choices from the categories referenced by the current exhibitor payload, so historical unused taxonomy rows are not offered as filter options.
 
 ## Package mapping
 
