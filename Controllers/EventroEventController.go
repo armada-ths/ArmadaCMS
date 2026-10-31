@@ -149,19 +149,20 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		locationText = *location
 	}
 	return models.Event{
-		EventroID:        e.ID,
-		Name:             e.Name,
-		Description:      utils.SanitizeEventDescription(e.Description),
-		Location:         locationText,
-		Food:             food,
-		OpenTo:           openTo,
-		MapURL:           mapURL,
-		EventStart:       derefOrNow(parseTime(e.EventStartsAt)),
-		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),
-		RegistrationEnd:  parseTime(e.ClosesForRegistrationAt),
-		ImageURL:         nil,
-		SignupLink:       signupLink,
-		EventMaxCapacity: &e.MaxParticipants,
+		EventroID:            e.ID,
+		Name:                 e.Name,
+		Description:          utils.SanitizeEventDescription(e.Description),
+		Location:             locationText,
+		Food:                 food,
+		OpenTo:               openTo,
+		MapURL:               mapURL,
+		EventStart:           derefOrNow(parseTime(e.EventStartsAt)),
+		EventEnd:             derefOrNow(parseTime(e.EventEndsAt)),
+		RegistrationEnd:      parseTime(e.ClosesForRegistrationAt),
+		ImageURL:             nil,
+		SignupLink:           signupLink,
+		RegistrationRequired: signupLink != nil,
+		EventMaxCapacity:     &e.MaxParticipants,
 	}
 }
 
@@ -201,6 +202,12 @@ func eventroEventLocation(input eventroEventResponse) (*string, bool) {
 func eventroEventSyncFields(e eventroEventResponse) []string {
 	fields := append([]string{}, eventroResourceSpecs["events"].fields...)
 	omitted := map[string]bool{}
+	// A missing signup link must not clear a CMS registration requirement.
+	signupLink := e.URL
+	NormalizeOptionalStringPointers(&signupLink)
+	if signupLink == nil {
+		omitted["registrationRequired"] = true
+	}
 	if e.URL == nil {
 		omitted["signupLink"] = true
 	}

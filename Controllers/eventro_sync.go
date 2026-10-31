@@ -73,7 +73,7 @@ type eventroResourceSpec struct {
 
 var eventroResourceSpecs = map[string]eventroResourceSpec{
 	"exhibitors":         {func() any { return &models.Exhibitor{} }, []string{"name", "tier", "companyWebsite", "about", "logo", "cities", "industries", "employments", "programs"}, []string{"exhibitors", "industries", "employments", "programs"}},
-	"events":             {func() any { return &models.Event{} }, []string{"name", "description", "eventStart", "eventEnd", "registrationEnd", "eventMaxCapacity", "location", "food", "openTo", "mapUrl", "signupLink"}, []string{"events"}},
+	"events":             {func() any { return &models.Event{} }, []string{"name", "description", "eventStart", "eventEnd", "registrationEnd", "eventMaxCapacity", "location", "food", "openTo", "mapUrl", "signupLink", "registrationRequired"}, []string{"events"}},
 	"profiles":           {func() any { return &models.Profile{} }, []string{"name", "rank", "title", "email", "photo"}, []string{"organization"}},
 	"fairdates":          {func() any { return &models.FairDateConfig{} }, []string{"description", "fairDays", "irStart", "irEnd", "irAcceptance", "frStart", "frEnd", "eventsStart"}, []string{"dates"}},
 	"recruitmentperiods": {func() any { return &models.RecruitmentPeriod{} }, []string{"name", "link", "startDate", "endDate"}, []string{"recruitment", "organization"}},

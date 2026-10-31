@@ -74,11 +74,17 @@ func TestEventroEventSignupLink(t *testing.T) {
 			if !stringPointersEqual(got.SignupLink, test.want) {
 				t.Fatalf("signup link = %v, want %v", got.SignupLink, test.want)
 			}
+			if got.RegistrationRequired != (test.want != nil) {
+				t.Fatalf("registration required = %v, want %v", got.RegistrationRequired, test.want != nil)
+			}
 			existing := models.Event{SignupLink: stringPtrForEventroTest("https://example.com/old-signup")}
 			mergeEventroEventForTest(t, &got, existing, input)
 			want := test.want
 			if input.URL == nil {
 				want = existing.SignupLink
+			}
+			if got.RegistrationRequired != (test.want != nil) {
+				t.Fatalf("registration required after sync = %v, want %v", got.RegistrationRequired, test.want != nil)
 			}
 			if !stringPointersEqual(got.SignupLink, want) {
 				t.Fatalf("signup link after preserving omitted fields = %v, want %v", got.SignupLink, want)
@@ -135,4 +141,20 @@ func mergeEventroEventForTest(t *testing.T, incoming *models.Event, existing mod
 		}
 	}
 	*incoming = merged
+}
+
+func TestEventroEventRegistrationRequirementPreservedWithoutLink(t *testing.T) {
+	for _, payload := range []string{`{}`, `{"url":null}`, `{"url":""}`, `{"url":"  "}`} {
+		t.Run(payload, func(t *testing.T) {
+			var input eventroEventResponse
+			if err := json.Unmarshal([]byte(payload), &input); err != nil {
+				t.Fatal(err)
+			}
+			got := mapEventroToEvent(input)
+			mergeEventroEventForTest(t, &got, models.Event{RegistrationRequired: true}, input)
+			if !got.RegistrationRequired {
+				t.Fatal("missing signup link cleared registration requirement")
+			}
+		})
+	}
 }
