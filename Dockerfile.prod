@@ -44,6 +44,7 @@ COPY audit/ ./audit/
 COPY auth/ ./auth/
 COPY db/ ./db/
 COPY docs/ ./docs/
+COPY internal/ ./internal/
 COPY models/ ./models/
 COPY utils/ ./utils/
 
