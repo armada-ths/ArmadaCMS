@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"ArmadaCMS/main/audit"
+	"ArmadaCMS/main/internal/eventrocategories"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -265,7 +266,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 
 	// Map related entities
 	industries := make([]models.Industry, 0, len(e.Catalogue.Industries))
-	for _, i := range normalizedEventroLabels(e.Catalogue.Industries) {
+	for _, i := range eventrocategories.Normalize(eventrocategories.Industry, e.Catalogue.Industries) {
 		name := strings.TrimSpace(i)
 		if name == "" {
 			continue
@@ -274,7 +275,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	employments := make([]models.Employment, 0, len(e.Catalogue.Employments))
-	for _, emp := range normalizedEventroLabels(e.Catalogue.Employments) {
+	for _, emp := range eventrocategories.Normalize(eventrocategories.Employment, e.Catalogue.Employments) {
 		name := strings.TrimSpace(emp)
 		if name == "" {
 			continue
@@ -283,7 +284,7 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 	}
 
 	programs := make([]models.Program, 0, len(e.Catalogue.Educations))
-	for _, edu := range normalizedEventroLabels(e.Catalogue.Educations) {
+	for _, edu := range eventrocategories.Normalize(eventrocategories.FieldOfStudy, e.Catalogue.Educations) {
 		name := strings.TrimSpace(edu)
 		if name == "" {
 			continue
