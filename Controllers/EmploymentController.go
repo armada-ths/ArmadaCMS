@@ -29,7 +29,7 @@ func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	var items []models.Employment
 	query := db.DB.Model(&models.Employment{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -100,8 +100,8 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 	if err := createWithAudit(r, "employments", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, item.ID).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, item.ID).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -147,8 +147,8 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	if err := updateWithAudit(r, "employments", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, id).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, id).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

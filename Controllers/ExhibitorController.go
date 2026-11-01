@@ -57,7 +57,7 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	var exhibitors []models.Exhibitor
 	query := db.DB.Model(&models.Exhibitor{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "type", "tier", "about", "purpose", "cities", "fair_location")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "type", "tier", "about", "purpose", "cities", "fair_location", "about_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {

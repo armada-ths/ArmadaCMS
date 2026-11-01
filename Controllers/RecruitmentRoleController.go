@@ -41,7 +41,7 @@ func GetRecruitmentRoles(w http.ResponseWriter, r *http.Request) {
 	var items []models.RecruitmentRole
 	query := db.DB.Model(&models.RecruitmentRole{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "description")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "description", "name_sv", "description_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
