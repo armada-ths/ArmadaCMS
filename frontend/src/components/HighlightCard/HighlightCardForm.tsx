@@ -10,6 +10,13 @@ export const HighlightCardForm = () => (
     />
 
     <TextInput
+      source="titleSv"
+      label="Title (Swedish)"
+      helperText="Swedish translation of the main heading (optional)"
+      fullWidth
+    />
+
+    <TextInput
       source="subtitle"
       label="Subtitle"
       helperText="Secondary heading text"
@@ -17,9 +24,25 @@ export const HighlightCardForm = () => (
     />
 
     <TextInput
+      source="subtitleSv"
+      label="Subtitle (Swedish)"
+      helperText="Swedish translation of the secondary heading (optional)"
+      fullWidth
+    />
+
+    <TextInput
       source="description"
       label="Description"
       helperText="Main content/body text of the card"
+      multiline
+      rows={4}
+      fullWidth
+    />
+
+    <TextInput
+      source="descriptionSv"
+      label="Description (Swedish)"
+      helperText="Swedish translation of the main body text (optional)"
       multiline
       rows={4}
       fullWidth
@@ -38,6 +61,8 @@ export const HighlightCardForm = () => (
       helperText="Text to display for the link in the subtitle (leave empty for no link)"
       fullWidth
     />
+
+    <TextInput source="linkTextSv" label="Link text (Swedish)" fullWidth />
 
     <TextInput
       source="linkUrl"

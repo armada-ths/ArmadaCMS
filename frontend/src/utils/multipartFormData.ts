@@ -92,6 +92,10 @@ export const createMultipartFormData = (
       formData.append(key, clearRule.emptyValue);
       continue;
     }
+    if (value === null && key.endsWith("Sv")) {
+      formData.append(key, "");
+      continue;
+    }
     if (value === null) continue;
 
     assertValidImageUpload(value);

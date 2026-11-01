@@ -5,6 +5,7 @@ export const TeamCreate = (props: CreateProps) => {
     <Create {...props}>
       <SimpleForm>
         <TextInput label="Team name" source="team_name" />
+        <TextInput label="Team name (Swedish)" source="team_name_sv" />
       </SimpleForm>
     </Create>
   );

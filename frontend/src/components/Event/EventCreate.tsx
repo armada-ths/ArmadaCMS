@@ -30,9 +30,15 @@ export const EventCreate = (props: CreateProps) => {
   return (
     <Create {...props}>
       <SimpleForm>
+        <TextInput source="locationSv" label="location (Swedish)" fullWidth />
+        <TextInput source="openToSv" label="openTo (Swedish)" fullWidth />
+        <TextInput source="foodSv" label="food (Swedish)" fullWidth />
+        <TextInput source="feeSv" label="fee (Swedish)" fullWidth />
         <TextInput source="name" />
+        <TextInput source="nameSv" label="Name (Swedish)" />
         <TextInput source="location" />
         <TextInput source="description" />
+        <TextInput source="descriptionSv" label="Description (Swedish)" />
         <TextInput source="food" />
         <TextInput source="openTo" label="Open to" multiline />
         <TextInput source="mapUrl" label="Map link" />

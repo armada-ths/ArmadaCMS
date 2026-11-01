@@ -164,6 +164,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.FairLocation = r.FormValue("fairLocation")
 	exhibitor.CompanyWebsite = utils.StringPtr(r.FormValue("companyWebsite"))
 	exhibitor.About = utils.StringPtr(r.FormValue("about"))
+	exhibitor.AboutSv = utils.StringPtr(r.FormValue("aboutSv"))
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
@@ -222,6 +223,7 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create
+	readMultipartTranslations(r, &exhibitor)
 	if err = createWithAudit(r, "exhibitors", &exhibitor, func(tx *gorm.DB) error {
 		return tx.Create(&exhibitor).Error
 	}, func(tx *gorm.DB) error {
@@ -279,6 +281,7 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.FairLocation = r.FormValue("fairLocation")
 	exhibitor.CompanyWebsite = utils.StringPtr(r.FormValue("companyWebsite"))
 	exhibitor.About = utils.StringPtr(r.FormValue("about"))
+	readMultipartTranslations(r, &exhibitor)
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")

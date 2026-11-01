@@ -11,4 +11,5 @@ type Profile struct {
 	Photo      string  `gorm:"column:photo" json:"photo"`
 	Rank       string  `gorm:"column:rank" json:"rank"`
 	Title      string  `gorm:"column:title" json:"title"`
+	TitleSv    *string `gorm:"column:title_sv" json:"titleSv,omitempty"`
 }
