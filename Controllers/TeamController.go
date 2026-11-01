@@ -29,7 +29,7 @@ func GetTeams(w http.ResponseWriter, r *http.Request) {
 	var teams []models.Team
 	query := db.DB.Model(&models.Team{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "team_name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "team_name", "team_name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -101,7 +101,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	NormalizeOptionalStringPointers(&team.TeamNameSv)
 	if err := createWithAudit(r, "teams", &team, func(tx *gorm.DB) error {
 		return tx.Create(&team).Error
-	}, nil, "organization"); err != nil {
+	}, nil, "organization", "recruitment"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -149,7 +149,7 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&team).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&team, id).Error
-	}, "organization"); err != nil {
+	}, "organization", "recruitment"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

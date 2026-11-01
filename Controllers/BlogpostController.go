@@ -61,7 +61,7 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("published = ?", true)
 	}
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author", "title_sv", "text_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -282,8 +282,8 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 		updateMap["image_urls"] = string(encodedImages)
 	}
 
-	mergeMultipartTranslations(r, &item, updateMap)
 	before := item
+	mergeMultipartTranslations(r, &item, updateMap)
 	if err := updateWithAudit(r, "blogposts", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {

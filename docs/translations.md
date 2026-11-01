@@ -25,3 +25,5 @@ Photo-event translations and language-specific link/QR generation are maintained
 ## Verification
 
 The backend tests cover normalization, omitted/null/blank JSON updates and multipart clearing across public content models. Highlight tests inspect generated SQL for explicit NULL writes; recruitment response tests protect stable grouping and translated labels. Run the backend tests with the repository's documented libvips setup, and run the admin type/lint/format checks after form or serializer changes.
+
+Admin free-text search includes Swedish text, and exact column filters expose Swedish fields next to their originals. Team changes invalidate both organization and recruitment; category-label changes invalidate both the category endpoint and exhibitors. Eventro review and synchronization compare original values only and preserve editorial Swedish fields.

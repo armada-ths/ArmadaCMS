@@ -32,7 +32,7 @@ func GetEvents(w http.ResponseWriter, r *http.Request) {
 	query := db.DB.Model(&models.Event{})
 
 	// Apply dynamic filters from React Admin
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "description", "location", "open_to", "food")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "description", "location", "open_to", "food", "name_sv", "description_sv", "location_sv", "open_to_sv", "food_sv", "fee", "fee_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
