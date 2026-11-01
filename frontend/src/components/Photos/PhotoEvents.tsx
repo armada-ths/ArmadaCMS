@@ -21,8 +21,6 @@ import {
 import { useState } from "react";
 import {
   Box,
-  FormControl,
-  InputLabel,
   Select,
   MenuItem,
   Button,
@@ -146,20 +144,22 @@ function EventActions() {
         py: 1,
       }}
     >
-      <FormControl size="small" sx={{ minWidth: 110 }}>
-        <InputLabel id={"photo-link-language-" + record.id}>
-          Link language
-        </InputLabel>
-        <Select
-          labelId={"photo-link-language-" + record.id}
-          label="Link language"
-          value={linkLocale}
-          onChange={(event) => setLinkLocale(event.target.value)}
-        >
-          <MenuItem value="en">English</MenuItem>
-          <MenuItem value="sv">Swedish</MenuItem>
-        </Select>
-      </FormControl>
+      <Select
+        size="small"
+        value={linkLocale}
+        onChange={(event) => setLinkLocale(event.target.value)}
+        inputProps={{ "aria-label": "Link language" }}
+        title="Link language"
+        sx={{
+          minWidth: 96,
+          height: 30,
+          fontSize: "0.8125rem",
+          "& .MuiSelect-select": { py: 0.5 },
+        }}
+      >
+        <MenuItem value="en">English</MenuItem>
+        <MenuItem value="sv">Swedish</MenuItem>
+      </Select>
       <Button
         size="small"
         variant="outlined"
