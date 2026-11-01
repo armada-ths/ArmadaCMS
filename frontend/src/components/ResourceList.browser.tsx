@@ -210,3 +210,22 @@ test("Swedish column filters keep their original field separate", async () => {
     }),
   );
 });
+
+test("photo event filters expose both Swedish fields", async () => {
+  const getList = mountList("photoevents");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Name (Swedish)");
+  await page
+    .getByLabelText("Name (Swedish)", { exact: true })
+    .fill("Banketten");
+  await addFilter("Description (Swedish)");
+  await page
+    .getByLabelText("Description (Swedish)", { exact: true })
+    .fill("Bilder fr�n kv�llen");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      name_sv: "Banketten",
+      description_sv: "Bilder fr�n kv�llen",
+    }),
+  );
+});

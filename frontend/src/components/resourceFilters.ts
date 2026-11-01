@@ -205,7 +205,9 @@ export const RESOURCE_FILTERS: Record<ResourceName, ResourceFilter[]> = {
   photoevents: [
     id,
     name,
+    text("name_sv", "Name (Swedish)"),
     description,
+    text("description_sv", "Description (Swedish)"),
     datetime("uploads_open_at", "Uploads open"),
     datetime("uploads_close_at", "Uploads close"),
     datetime("gallery_close_at", "Gallery closes"),

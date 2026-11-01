@@ -21,6 +21,9 @@ CI runs the test inside the existing backend container; it does not require Go o
 The Go workflow runs database tests in a separate PostgreSQL 17 service, and the existing `go-checks` check requires them to pass whenever Go changes. No hosted credentials are used; GitHub Actions removes the service and its data after the job.
 
 - `TestDeleteUserWithRefreshTokens`: deletes a user and their tokens, preserves other users, and verifies audit entries and rollback when deletion fails.
+- `TestPhotoTranslationIntegration`: exercises photo-event create/update/access, shared translation clearing and omission rules, locale-specific links and token rotation against the local `eventro_sync_test` database (EVENTRO_SYNC_TEST_DSN).
+- `TestPublicTranslationIntegration`, `TestEventroTranslationPreservation` and `TestEventroReviewDatabaseFlow`: cover translated search/filters, audit snapshots, cache dependencies and Eventro source ownership in the same disposable database.
+- `TestPhotoTranslationPersistence`: applies the same SQL NULL/preservation checks to photo-event translations in a rolled-back transaction.
 - `TestPublicTranslationPersistence`: verifies every public content translation can be preserved, cleared to SQL NULL and normalized without changing original text, in an isolated local `translation_test` database (TRANSLATION_TEST_DSN). Schema and data are rolled back after the test.
 - `TestPhotoGuestQuotaLifetimeAndConcurrentUploads`: verifies that deleted/rejected photos still consume quota and concurrent uploads cannot exceed it.
 
@@ -28,7 +31,7 @@ The Go workflow runs database tests in a separate PostgreSQL 17 service, and the
 
 These tests are opt-in locally: ordinary `go test` runs skip them unless their DSNs are set. They create their own limited schema with GORM and do not test the full Supabase migration history.
 
-For a local run, use a disposable PostgreSQL 17 instance with two **fresh, empty** databases named `user_delete_test` and `photo_quota_test`. For example, start a dedicated container (port 55432 avoids the local Supabase ports):
+For a local run, use a disposable PostgreSQL 17 instance with four **fresh, empty** databases named `user_delete_test`, `photo_quota_test`, `translation_test` and `eventro_sync_test`. For example, start a dedicated container (port 55432 avoids the local Supabase ports):
 
 ```bash
 docker run --detach --rm --name armadacms-database-tests --publish 127.0.0.1:55432:5432 --env POSTGRES_PASSWORD=postgres postgres:17-alpine
@@ -39,9 +42,13 @@ Once `docker exec armadacms-database-tests pg_isready -U postgres -d postgres` r
 ```bash
 docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE user_delete_test'
 docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE photo_quota_test'
+docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE translation_test'
+docker exec armadacms-database-tests psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE eventro_sync_test'
 USER_DELETE_TEST_DSN='postgresql://postgres:postgres@localhost:55432/user_delete_test?sslmode=disable' \
 PHOTO_QUOTA_TEST_DSN='postgresql://postgres:postgres@localhost:55432/photo_quota_test?sslmode=disable' \
-go test -race -count=1 -timeout=5m -v ./Controllers -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads)$'
+TRANSLATION_TEST_DSN='postgresql://postgres:postgres@localhost:55432/translation_test?sslmode=disable' \
+EVENTRO_SYNC_TEST_DSN='postgresql://postgres:postgres@localhost:55432/eventro_sync_test?sslmode=disable' \
+go test -race -count=1 -timeout=5m -v ./Controllers -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence|TestPhotoTranslationIntegration|TestEventroReviewDatabaseFlow|TestPublicTranslationIntegration|TestEventroTranslationPreservation)$'
 ```
 
 Always remove this dedicated container afterward with `docker rm --force armadacms-database-tests`, including after a failed test. Recreate it for another run; the quota test leaves data in its disposable database. Never point these tests at a shared development, staging or production database.

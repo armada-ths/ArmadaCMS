@@ -32,6 +32,7 @@ func TestPublicTranslationIntegration(t *testing.T) {
 		model any
 		list  http.HandlerFunc
 	}{
+		{"photoevents", &models.PhotoEvent{Name: "English photo event"}, ListPhotoEvents},
 		{"highlightcards", &models.HighlightCard{Title: "English highlight"}, GetHighlightCards},
 		{"blogposts", &models.Blogpost{Title: "English blog", Published: true}, GetBlogposts},
 		{"events", &models.Event{Name: "English event", Show: true}, GetEvents},
