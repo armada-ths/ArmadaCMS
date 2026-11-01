@@ -32,7 +32,7 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.Profile
 	query := db.DB.Model(&models.Profile{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank", "title_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -289,8 +289,8 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updateMap["photo"] = updates.Photo
 	}
 
-	mergeMultipartTranslations(r, &profile, updateMap)
 	before := profile
+	mergeMultipartTranslations(r, &profile, updateMap)
 	if err := updateWithAudit(r, "profiles", id, before, &profile, func(tx *gorm.DB) error {
 		return tx.Model(&profile).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {

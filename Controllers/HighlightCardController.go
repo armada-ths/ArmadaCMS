@@ -30,7 +30,7 @@ func GetHighlightCards(w http.ResponseWriter, r *http.Request) {
 	var items []models.HighlightCard
 	query := db.DB.Model(&models.HighlightCard{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "subtitle", "description", "brand", "link_text")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "subtitle", "description", "brand", "link_text", "title_sv", "subtitle_sv", "description_sv", "link_text_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {

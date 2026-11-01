@@ -17,7 +17,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestEventroReviewDatabaseFlow(t *testing.T) {
+func eventroSyncTestDatabase(t *testing.T) *gorm.DB {
+	t.Helper()
 	dsn := os.Getenv("EVENTRO_SYNC_TEST_DSN")
 	if dsn == "" {
 		t.Skip("set EVENTRO_SYNC_TEST_DSN to a disposable local eventro_sync_test database")
@@ -32,7 +33,7 @@ func TestEventroReviewDatabaseFlow(t *testing.T) {
 	}
 	sqlDB, _ := database.DB()
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := database.AutoMigrate(&models.User{}, &models.Role{}, &models.Profile{}, &models.Event{}, &models.Exhibitor{}, &models.FairDateConfig{}, &models.RecruitmentPeriod{}, &models.RecruitmentRole{}, &models.AuditLog{}, &models.EventroSyncState{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.Role{}, &models.Profile{}, &models.Event{}, &models.Exhibitor{}, &models.FairDateConfig{}, &models.RecruitmentPeriod{}, &models.RecruitmentRole{}, &models.AuditLog{}, &models.EventroSyncState{}, &models.Blogpost{}, &models.HighlightCard{}, &models.Industry{}, &models.Employment{}, &models.Program{}, &models.Team{}, &models.TimelineEra{}, &models.TimelineEntry{}); err != nil {
 		t.Fatal(err)
 	}
 	tx := database.Begin()
@@ -41,13 +42,19 @@ func TestEventroReviewDatabaseFlow(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = tx.Rollback().Error })
 	database = tx
-	if err := database.Exec("TRUNCATE eventro_sync_states, profiles, events, exhibitors, fair_date_configs, recruitment_periods, recruitment_roles, audit_logs RESTART IDENTITY CASCADE").Error; err != nil {
+	if err := database.Exec("TRUNCATE eventro_sync_states, profiles, events, exhibitors, fair_date_configs, recruitment_periods, recruitment_roles, audit_logs, blogposts, highlight_cards, industries, employments, programs, teams, timeline_eras, timeline_entries RESTART IDENTITY CASCADE").Error; err != nil {
 		t.Fatal(err)
 	}
 	previous := db.DB
 	db.DB = database
 	t.Cleanup(func() { db.DB = previous })
 	t.Setenv("jwtsecret_laganda", "local-eventro-test-secret")
+	t.Setenv("REVALIDATION_URL", "")
+	return database
+}
+
+func TestEventroReviewDatabaseFlow(t *testing.T) {
+	database := eventroSyncTestDatabase(t)
 	r := httptest.NewRequest(http.MethodGet, "/eventromembers", nil)
 	key := "test-person"
 	for _, name := range []string{"Original", "Eventro correction"} {

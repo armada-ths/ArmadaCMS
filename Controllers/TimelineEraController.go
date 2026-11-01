@@ -51,7 +51,7 @@ func GetTimelineEras(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "title")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "title_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {

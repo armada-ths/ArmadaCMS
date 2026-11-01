@@ -29,7 +29,7 @@ func GetIndustries(w http.ResponseWriter, r *http.Request) {
 	var items []models.Industry
 	query := db.DB.Model(&models.Industry{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -99,7 +99,7 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "industries", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil, "industries"); err != nil {
+	}, nil, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -145,7 +145,7 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}, "industries"); err != nil {
+	}, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

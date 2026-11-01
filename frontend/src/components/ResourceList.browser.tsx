@@ -193,3 +193,20 @@ test("predefined choices send their stored column value", async () => {
     expect(getList.mock.lastCall?.[1].filter).toEqual({ tier: "Gold" }),
   );
 });
+
+test("Swedish column filters keep their original field separate", async () => {
+  const getList = mountList("teams");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Team name");
+  await page.getByLabelText("Team name", { exact: true }).fill("Operations");
+  await addFilter("Team name (Swedish)");
+  await page
+    .getByLabelText("Team name (Swedish)", { exact: true })
+    .fill("Organisation");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      team_name: "Operations",
+      team_name_sv: "Organisation",
+    }),
+  );
+});

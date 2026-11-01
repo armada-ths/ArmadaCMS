@@ -42,7 +42,7 @@ func GetRecruitmentPeriods(w http.ResponseWriter, r *http.Request) {
 	var items []models.RecruitmentPeriod
 	query := db.DB.Model(&models.RecruitmentPeriod{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
