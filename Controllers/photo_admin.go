@@ -56,7 +56,7 @@ func photoAdminJSON(w http.ResponseWriter, value any) {
 func ListPhotoEvents(w http.ResponseWriter, r *http.Request) {
 	var events []models.PhotoEvent
 	params, _ := utils.ParseListParams(r.URL.Query())
-	query := utils.ApplySearch(db.DB.Model(&models.PhotoEvent{}), params.Filter["q"], "id", "name", "description")
+	query := utils.ApplySearch(db.DB.Model(&models.PhotoEvent{}), params.Filter["q"], "id", "name", "description", "name_sv", "description_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {

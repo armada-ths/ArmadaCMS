@@ -287,13 +287,13 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
       fullWidth
     />
     <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
+    <TextInput source="description" label="Description" multiline fullWidth />
     <TextInput
       source="descriptionSv"
       label="Description (Swedish)"
       multiline
       fullWidth
     />
-    <TextInput source="description" label="Description" multiline fullWidth />
     <DateTimeInput
       source="uploads_open_at"
       label="Uploads open"

@@ -61,9 +61,9 @@ func TestPhotoEventLinkUsesConfiguredTokenSecret(t *testing.T) {
 	}
 }
 
-func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
+func TestPhotoEventLinkUsesConfiguredBasePath(t *testing.T) {
 	t.Setenv("PHOTO_TOKEN_SECRET", strings.Repeat("s", 48))
-	t.Setenv("PHOTO_APP_BASE_URL", "https://staging.armada.nu/photos/")
+	t.Setenv("PHOTO_APP_BASE_URL", "https://preview.example.test/photos/")
 	w := httptest.NewRecorder()
 	photoEventLink(w, models.PhotoEvent{ID: 3, TokenVersion: 2}, "en")
 	if w.Code != http.StatusOK {
@@ -75,9 +75,9 @@ func TestPhotoEventLinkUsesStagingBaseURL(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	const prefix = "https://staging.armada.nu/photos/en/e/"
+	const prefix = "https://preview.example.test/photos/en/e/"
 	if !strings.HasPrefix(body.URL, prefix) {
-		t.Fatalf("unexpected staging URL: %q", body.URL)
+		t.Fatalf("unexpected configured URL: %q", body.URL)
 	}
 	id, version, err := utils.ParsePhotoEventToken(strings.TrimPrefix(body.URL, prefix))
 	if err != nil || id != 3 || version != 2 {
