@@ -606,3 +606,92 @@ func TestTranslationRegenerationKeepsPublishedContent(t *testing.T) {
 		t.Fatal("outdated publication missing from review queue", err)
 	}
 }
+
+func TestTranslationDispatchQueueCheck(t *testing.T) {
+	database := translationReviewDatabase(t)
+	service := translations.New(database)
+	ctx := context.Background()
+	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
+	service.Now = func() time.Time { return now }
+	resource, _ := translations.Find("blogposts")
+	past, future := now.Add(-time.Minute), now.Add(time.Minute)
+	slot0, slot1 := 0, 1
+	add := func(status string, due time.Time, lease *time.Time, slot *int) {
+		post := blogFixture(t, database, "Dispatcher original")
+		jobs, err := service.Generate(ctx, resource, []uint64{uint64(post.ID)}, 1, false)
+		if err != nil || len(jobs) != 1 {
+			t.Fatal("create dispatch fixture", err)
+		}
+		if err = database.Model(&jobs[0]).Updates(map[string]any{"status": status, "not_before": due, "lease_until": lease, "slot": slot}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, sample := range []struct {
+		name    string
+		prepare func()
+		want    bool
+	}{
+		{"empty", func() {}, false},
+		{"queued but not due", func() { add("queued", future, nil, nil) }, false},
+		{"budget waiting tomorrow", func() { add("budget_wait", future, nil, nil) }, false},
+		{"terminal jobs", func() {
+			for _, status := range []string{"completed", "failed", "cancelled", "stale"} {
+				add(status, past, nil, nil)
+			}
+		}, false},
+		{"queued ready", func() { add("queued", past, nil, nil) }, true},
+		{"budget ready", func() { add("budget_wait", past, nil, nil) }, true},
+		{"active leases only", func() { add("running", past, &future, &slot0) }, false},
+		{"both slots busy", func() {
+			add("running", past, &future, &slot0)
+			add("running", past, &future, &slot1)
+			add("queued", past, nil, nil)
+		}, false},
+		{"one free slot", func() { add("running", past, &future, &slot0); add("queued", past, nil, nil) }, true},
+		{"expired lease without queued jobs", func() { add("running", past, &past, &slot0) }, true},
+	} {
+		t.Run(sample.name, func(t *testing.T) {
+			if err := database.Exec("TRUNCATE translation_jobs CASCADE").Error; err != nil {
+				t.Fatal(err)
+			}
+			sample.prepare()
+			calls := 0
+			response := httptest.NewRecorder()
+			dispatchTranslationJobs(response, httptest.NewRequest(http.MethodPost, "/internal/translations/dispatch", nil), service, func(context.Context) error { calls++; return nil })
+			wantCode := http.StatusNoContent
+			if sample.want {
+				wantCode = http.StatusAccepted
+			}
+			if response.Code != wantCode || calls != map[bool]int{false: 0, true: 1}[sample.want] {
+				t.Fatalf("code=%d, starts=%d", response.Code, calls)
+			}
+		})
+	}
+	// A failed start must return an error and leave work ready for the next retry.
+	database.Exec("TRUNCATE translation_jobs CASCADE")
+	add("queued", past, nil, nil)
+	response := httptest.NewRecorder()
+	dispatchTranslationJobs(response, httptest.NewRequest(http.MethodPost, "/", nil), service, func(context.Context) error { return errors.New("start unavailable") })
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatal("failed start acknowledged")
+	}
+	var queued int64
+	database.Model(&translations.Job{}).Where("status='queued' AND not_before <= ?", now).Count(&queued)
+	if queued != 1 {
+		t.Fatal("failed dispatch mutated queue")
+	}
+	// Disabled generation and DB failure never launch a worker.
+	service.Config.Enabled = false
+	started, err := service.Dispatch(ctx, func(context.Context) error { t.Fatal("disabled dispatcher started worker"); return nil })
+	if started || err != nil {
+		t.Fatal("disabled dispatch", err)
+	}
+	service.Config.Enabled = true
+	// Use a cancelled query to test storage failure without touching remote data.
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	started, err = service.Dispatch(cancelled, func(context.Context) error { t.Fatal("failed query started worker"); return nil })
+	if started || err == nil {
+		t.Fatal("query failure did not fail closed")
+	}
+}

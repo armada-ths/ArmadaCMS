@@ -2744,6 +2744,30 @@ paths:
       summary: Update industry
       tags:
       - industries
+  /internal/translations/dispatch:
+    post:
+      responses:
+        "202":
+          description: Worker start requested
+        "204":
+          description: No runnable work or generation disabled
+        "401":
+          description: Google ID token required
+          schema:
+            type: string
+        "403":
+          description: Unexpected service account
+          schema:
+            type: string
+        "503":
+          description: Dispatcher unavailable
+          schema:
+            type: string
+      security:
+      - SchedulerOIDC: []
+      summary: Dispatch runnable translation work
+      tags:
+      - translations
   /login:
     post:
       consumes:
@@ -4228,6 +4252,12 @@ securityDefinitions:
   BearerAuth:
     description: 'Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer
       <token>"'
+    in: header
+    name: Authorization
+    type: apiKey
+  SchedulerOIDC:
+    description: Google-signed OIDC bearer token for the configured scheduler service
+      account and dispatch audience.
     in: header
     name: Authorization
     type: apiKey

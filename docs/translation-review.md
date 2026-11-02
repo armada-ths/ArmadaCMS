@@ -20,6 +20,14 @@ Cloud Run obtains access tokens from its runtime service account through the met
 
 The worker claims only explicitly requested jobs. Database leases, two unique running slots and an advisory lock enforce concurrency across executions. Each attempt reserves a conservative UTF-8 byte upper bound for request tokens plus protocol headroom and the entire output allowance. Provider-reported total usage settles that reservation, including thinking. Unknown usage and expired leases charge the complete reservation. Retryable failures have at most three attempts; retries reserve budget separately. Budget wait resumes at the next Stockholm midnight. The recovery schedule creates no new requests.
 
+## Worker dispatch
+
+The five-minute recovery schedule calls the existing CMS API at `POST /api/v1/internal/translations/dispatch` with a Google-signed OIDC token. The API validates the signature, expiration, exact configured audience, Google issuer and verified service-account email. CMS user JWTs cannot invoke this machine endpoint.
+
+Both immediate requests and scheduled recovery perform the same lightweight, read-only queue check before calling Cloud Run. Empty queues, future budget/backoff waits and queues with both processing slots occupied do not start a worker. Due jobs and expired leases do, including expired leases that must settle reservations with no queued work left. The worker retains authoritative claim/lease/budget checks; another worker can consume work between this snapshot and startup. Failed starts leave the queue unchanged for later recovery.
+
+`TRANSLATION_DISPATCH_AUDIENCE` must equal `translation_dispatch_url` exactly, and `TRANSLATION_DISPATCH_SERVICE_ACCOUNT` names the Scheduler's service account. Terraform sets both identifiers. The schedule remains paused while AI is disabled. Empty checks use ordinary API request billing and avoid the Cloud Run Job minimum charge.
+
 ## Rules and drafts
 
 Edit `internal/translations/prompt.md` and `glossary.json` through normal code review. They are embedded in the binary. New jobs store immutable text snapshots and content hashes, and queued jobs use their saved instructions even after a deployment. The initial glossary and examples were reviewed against the public site's English and Swedish catalogs; no runtime dependency on that repository exists. Terminology warnings assist the reviewer; they never perform string replacements.

@@ -193,7 +193,7 @@ func GenerateTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(jobs) > 0 {
-		_ = utils.LaunchTranslationWorker(r.Context())
+		_, _ = service.Dispatch(r.Context(), utils.LaunchTranslationWorker)
 	}
 	writeJSONResponse(w, http.StatusAccepted, jobs)
 }

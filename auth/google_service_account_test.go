@@ -29,7 +29,7 @@ func TestGoogleServiceAccountAuthentication(t *testing.T) {
 	}
 	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public,max-age=3600")
-		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []any{map[string]string{"alg": "RS256", "kty": "RSA", "use": "sig", "kid": "test-key", "n": base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes()), "e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes())}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []any{map[string]string{"alg": "RS256", "kty": "RSA", "use": "sig", "kid": "test-key", "n": base64.RawURLEncoding.EncodeToString(key.N.Bytes()), "e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes())}}})
 	}))
 	defer jwks.Close()
 	validator, err := idtoken.NewValidator(&idtoken.ValidatorOptions{Client: jwks.Client(), RS256CertsURL: jwks.URL})

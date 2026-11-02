@@ -12,6 +12,11 @@
 // @in header
 // @name Authorization
 // @description Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer <token>"
+//
+// @securityDefinitions.apikey SchedulerOIDC
+// @in header
+// @name Authorization
+// @description Google-signed OIDC bearer token for the configured scheduler service account and dispatch audience.
 package main
 
 import (
@@ -30,6 +35,7 @@ import (
 	"ArmadaCMS/main/internal/translations"
 	"ArmadaCMS/main/utils"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -224,6 +230,10 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	mux.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	//refactor in future this is quity messy. // WD
 	publicAPI := mux.PathPrefix("/api/v1").Subrouter()
+	publicAPI.Handle("/internal/translations/dispatch", auth.RequireGoogleServiceAccount(
+		os.Getenv("TRANSLATION_DISPATCH_AUDIENCE"), os.Getenv("TRANSLATION_DISPATCH_SERVICE_ACCOUNT"), idtoken.Validate,
+		http.HandlerFunc(controllers.DispatchTranslationJobs),
+	)).Methods(http.MethodPost)
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
 	protectedAPI.HandleFunc("/translations", controllers.GetTranslationsOverview).Methods("GET")

@@ -1,3 +1,7 @@
+locals {
+  translation_worker_identity = var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)
+}
+
 resource "google_cloud_run_v2_job" "translation_worker" {
   count               = var.deploy_cloud_run_service && var.enable_translation_worker ? 1 : 0
   project             = var.project_id
@@ -96,15 +100,16 @@ resource "google_cloud_scheduler_job" "translation_worker_retry" {
   project     = var.project_id
   region      = var.scheduler_region
   name        = "${var.service_name}-translation-worker-retry"
-  description = "Recover only already-requested translation jobs"
+  description = "Check for runnable requested translations before starting the worker"
   schedule    = "*/5 * * * *"
   paused      = !var.translation_ai_enabled
   time_zone   = "Europe/Stockholm"
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/v2/${google_cloud_run_v2_job.translation_worker[0].id}:run"
-    oauth_token {
-      service_account_email = var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)
+    uri         = var.translation_dispatch_url
+    oidc_token {
+      service_account_email = local.translation_worker_identity
+      audience              = var.translation_dispatch_url
     }
   }
   depends_on = [google_cloud_run_v2_job_iam_member.translation_worker_invoker, google_project_service.enabled]

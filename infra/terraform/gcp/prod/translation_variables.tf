@@ -31,3 +31,13 @@ check "translation_worker_before_activation" {
     error_message = "Provision the translation worker before enabling generation."
   }
 }
+
+variable "translation_dispatch_url" {
+  type        = string
+  default     = "https://cms.armada.nu/api/v1/internal/translations/dispatch"
+  description = "Public CMS dispatcher URL, also used as the exact OIDC audience."
+  validation {
+    condition     = can(regex("^https://[^/?#]+/api/v1/internal/translations/dispatch$", var.translation_dispatch_url))
+    error_message = "Use the HTTPS CMS dispatch endpoint without query parameters."
+  }
+}

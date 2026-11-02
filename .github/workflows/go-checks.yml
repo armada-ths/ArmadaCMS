@@ -164,7 +164,7 @@ jobs:
           EVENTRO_SYNC_TEST_DSN: postgresql://postgres:postgres@localhost:5432/eventro_sync_test?sslmode=disable
         run: >-
           go test -race -count=1 -timeout=5m -v ./Controllers
-          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence|TestPhotoTranslationIntegration|TestEventroReviewDatabaseFlow|TestPublicTranslationIntegration|TestEventroTranslationPreservation|TestTranslationReviewDatabaseFlow|TestTranslationWorkerBudgetAndConcurrency|TestTranslationExclusionsAndAtomicFailure|TestTranslationPolicyVersionsAndRejection|TestTranslationStaleQueueAndCancellation|TestTranslationRetryUsageAndLeaseRecovery|TestTranslationManualPublicationIsPreserved|TestTranslationRegenerationKeepsPublishedContent)$'
+          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence|TestPhotoTranslationIntegration|TestEventroReviewDatabaseFlow|TestPublicTranslationIntegration|TestEventroTranslationPreservation|TestTranslationReviewDatabaseFlow|TestTranslationWorkerBudgetAndConcurrency|TestTranslationExclusionsAndAtomicFailure|TestTranslationPolicyVersionsAndRejection|TestTranslationStaleQueueAndCancellation|TestTranslationRetryUsageAndLeaseRecovery|TestTranslationManualPublicationIsPreserved|TestTranslationRegenerationKeepsPublishedContent|TestTranslationDispatchQueueCheck)$'
 
   go-checks:
     runs-on: ubuntu-24.04
