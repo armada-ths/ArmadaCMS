@@ -112,6 +112,7 @@ beforeEach(() => {
         };
         return current;
       }
+      if (path.includes("/selection")) return { ids: [7], batchSize: 50 };
       if (path.includes("/generate")) return [{ id: 1 }];
       return { records: [current], total: 1 };
     },
@@ -478,4 +479,242 @@ test("leaves translations without prompting when no edits are pending", async ()
   await page.getByRole("link", { name: "Leave translations" }).click();
   await expect.element(page.getByText("Other CMS page")).toBeVisible();
   expect(window.confirm).not.toHaveBeenCalled();
+});
+
+test("selects an entire resource across pages and keeps local edits during bulk generation", async () => {
+  const original = mocks.request.getMockImplementation()!;
+  mocks.request.mockImplementation(async (path: string, ...args: unknown[]) => {
+    if (path === "/highlightcards/selection")
+      return {
+        ids: Array.from({ length: 53 }, (_, i) => i + 1),
+        batchSize: 50,
+      };
+    return original(path, ...args);
+  });
+  render();
+  await page
+    .getByRole("textbox", { name: "Title (Swedish)" })
+    .fill("Local draft stays");
+  await page
+    .getByRole("textbox", { name: "Search translations" })
+    .fill("Narrow filter");
+  await page
+    .getByRole("checkbox", {
+      name: "Entire resource: Highlight cards",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Generate for selected resources (1)",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByText("Checked 53 records;", { exact: false }))
+    .toBeVisible();
+  const calls = mocks.request.mock.calls.filter(([path]) =>
+    String(path).includes("/generate"),
+  );
+  expect(calls).toHaveLength(2);
+  expect(calls[0][1]).toEqual({
+    ids: Array.from({ length: 50 }, (_, i) => i + 1),
+    regenerate: false,
+  });
+  expect(calls[1][1]).toEqual({ ids: [51, 52, 53], regenerate: false });
+  await expect
+    .element(page.getByRole("textbox", { name: "Title (Swedish)" }))
+    .toHaveValue("Local draft stays");
+  expect(
+    mocks.request.mock.calls.some(([path]) => String(path).includes("/review")),
+  ).toBe(false);
+});
+
+test("selects all eligible resources while excluding exhibitor-owned descriptions", async () => {
+  const original = mocks.request.getMockImplementation()!;
+  mocks.request.mockImplementation(async (path: string, ...args: unknown[]) => {
+    const result = await original(path, ...args);
+    if (path === "")
+      return {
+        ...result,
+        resources: [
+          ...resources,
+          {
+            id: "teams",
+            label: "Teams",
+            aiAllowed: true,
+            canEdit: true,
+            missingRecords: 1,
+          },
+          {
+            id: "profiles",
+            label: "Profiles",
+            aiAllowed: true,
+            canEdit: false,
+            missingRecords: 1,
+          },
+        ],
+      };
+    if (path === "/teams/selection") return { ids: [99], batchSize: 50 };
+    return result;
+  });
+  render();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Teams",
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await page
+    .getByRole("checkbox", {
+      name: "Select all eligible resources",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Highlight cards",
+        exact: true,
+      }),
+    )
+    .toBeChecked();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Teams",
+        exact: true,
+      }),
+    )
+    .toBeChecked();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Exhibitors",
+        exact: true,
+      }),
+    )
+    .toBeDisabled();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Profiles",
+        exact: true,
+      }),
+    )
+    .toBeDisabled();
+  await page
+    .getByRole("button", {
+      name: "Generate for selected resources (2)",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByText("Checked 2 records;", { exact: false }))
+    .toBeVisible();
+  expect(
+    mocks.request.mock.calls
+      .filter(([path]) => String(path).includes("/generate"))
+      .map(([path]) => path),
+  ).toEqual(["/highlightcards/generate", "/teams/generate"]);
+});
+
+test("reports partial bulk failure and retains the selection for retry", async () => {
+  const original = mocks.request.getMockImplementation()!;
+  let writes = 0;
+  mocks.request.mockImplementation(async (path: string, ...args: unknown[]) => {
+    if (path === "/highlightcards/selection")
+      return { ids: Array.from({ length: 3 }, (_, i) => i + 1), batchSize: 2 };
+    if (path === "/highlightcards/generate" && ++writes === 2)
+      throw new Error("Temporary network failure");
+    return original(path, ...args);
+  });
+  render();
+  await page
+    .getByRole("checkbox", {
+      name: "Entire resource: Highlight cards",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Generate for selected resources (1)",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(
+      page.getByText("Temporary network failure Queueing stopped;", {
+        exact: false,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole("checkbox", {
+        name: "Entire resource: Highlight cards",
+        exact: true,
+      }),
+    )
+    .toBeChecked();
+  await expect
+    .element(
+      page.getByRole("button", {
+        name: "Generate for selected resources (1)",
+        exact: true,
+      }),
+    )
+    .toBeEnabled();
+});
+
+test("stops further resource queueing on request without cancelling accepted jobs", async () => {
+  const original = mocks.request.getMockImplementation()!;
+  mocks.request.mockImplementation(async (path: string, ...args: unknown[]) => {
+    if (path === "/highlightcards/selection")
+      return { ids: [1, 2, 3], batchSize: 1 };
+    if (path === "/highlightcards/generate") {
+      const signal = args[2] as AbortSignal;
+      return new Promise((_, reject) =>
+        signal.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        ),
+      );
+    }
+    return original(path, ...args);
+  });
+  render();
+  await page
+    .getByRole("checkbox", {
+      name: "Entire resource: Highlight cards",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Generate for selected resources (1)",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Stop queueing", exact: true })
+    .click();
+  await expect
+    .element(
+      page.getByText(
+        "Queueing stopped. Requests already accepted remain queued.",
+      ),
+    )
+    .toBeVisible();
+  expect(
+    mocks.request.mock.calls.filter(([path]) =>
+      String(path).includes("/generate"),
+    ),
+  ).toHaveLength(1);
+  expect(
+    mocks.request.mock.calls.some(([path]) => String(path).includes("/jobs")),
+  ).toBe(false);
 });

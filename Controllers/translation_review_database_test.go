@@ -695,3 +695,166 @@ func TestTranslationDispatchQueueCheck(t *testing.T) {
 		t.Fatal("query failure did not fail closed")
 	}
 }
+
+func TestTranslationResourceSelection(t *testing.T) {
+	database := translationReviewDatabase(t)
+	if err := database.Exec("TRUNCATE blogposts CASCADE").Error; err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TRANSLATION_MAX_RECORDS", "7")
+	posts := make([]models.Blogpost, 53)
+	for i := range posts {
+		posts[i] = models.Blogpost{Title: fmt.Sprintf("Selection %d", i), Text: "Body", Published: i%2 == 0}
+	}
+	if err := database.Create(&posts).Error; err != nil {
+		t.Fatal(err)
+	}
+	request := func(resource string, permissions []string) *httptest.ResponseRecorder {
+		token, err := utils.GenerateAccessToken(1, nil, permissions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/translations/selection?q=not-found&page=99", nil)
+		req = mux.SetURLVars(req, map[string]string{"resource": resource})
+		req.Header.Set("Authorization", "Bearer "+token)
+		response := httptest.NewRecorder()
+		auth.Middleware(http.HandlerFunc(GetTranslationSelection)).ServeHTTP(response, req)
+		return response
+	}
+	response := request("blogposts", []string{"blogposts.view", "blogposts.edit"})
+	var result TranslationSelectionResponse
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &result) != nil || len(result.IDs) != 53 || result.BatchSize != 7 || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("selection: %d %s", response.Code, response.Body)
+	}
+	for i, id := range result.IDs {
+		if id != uint64(posts[i].ID) {
+			t.Fatal("selection omitted or reordered a record")
+		}
+	}
+	for _, permissions := range [][]string{{"blogposts.view"}, {"blogposts.edit"}, nil} {
+		if response = request("blogposts", permissions); response.Code != http.StatusForbidden {
+			t.Fatalf("unauthorized selection: %d", response.Code)
+		}
+	}
+	for _, resource := range translations.Resources {
+		response = request(resource.ID, []string{"*"})
+		expected := http.StatusOK
+		if !resource.AI {
+			expected = http.StatusBadRequest
+		}
+		if response.Code != expected {
+			t.Fatalf("resource %s: %d %s", resource.ID, response.Code, response.Body)
+		}
+	}
+	if response = request("unknown", []string{"*"}); response.Code != http.StatusNotFound {
+		t.Fatal("unknown resource accepted")
+	}
+	var count int64
+	if err := database.Model(&translations.Job{}).Count(&count).Error; err != nil || count != 0 {
+		t.Fatal("selection created jobs", err)
+	}
+}
+
+func TestTranslationFormattingSurvivesGenerationAndApproval(t *testing.T) {
+	database := translationReviewDatabase(t)
+	service := translations.New(database)
+	resource, _ := translations.Find("blogposts")
+	original := "## Welcome\n\n**Meet** our hosts.\n\n- Register\n- Attend"
+	translated := "## Valkommen\n\n**Mot** vara vardar.\n\n- Registrera\n- Delta"
+	for _, broken := range []bool{false, true} {
+		post := blogFixture(t, database, "Formatting original")
+		if err := database.Model(&post).Update("text", original).Error; err != nil {
+			t.Fatal(err)
+		}
+		jobs, err := service.Generate(context.Background(), resource, []uint64{uint64(post.ID)}, 1, false)
+		if err != nil || len(jobs) != 1 {
+			t.Fatal("queue formatting fixture", err)
+		}
+		value := translated
+		if broken {
+			value = strings.ReplaceAll(value, "**", "")
+		}
+		err = service.Run(context.Background(), translationGenerator(func(context.Context, translations.Job, translations.Source, []string, int) (translations.Result, error) {
+			return translations.Result{Fields: map[string]string{"Title": "Svensk rubrik", "Text": value}, Tokens: 123}, nil
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var job translations.Job
+		if err = database.First(&job, jobs[0].ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		if broken {
+			var count int64
+			database.Model(&translations.Suggestion{}).Where("job_id = ?", job.ID).Count(&count)
+			if job.Status != "failed" || count != 0 {
+				t.Fatal("damaged formatting saved as a proposal")
+			}
+			continue
+		}
+		record, err := service.Record(context.Background(), resource, uint64(post.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := httpTranslationReview(t, "blogposts", uint64(post.ID), reviewRequest(t, record, "approve", "Title", "Text"))
+		if response.Code != http.StatusOK {
+			t.Fatalf("approve formatting: %s", response.Body)
+		}
+		if err = database.First(&post, post.ID).Error; err != nil || post.TextSv == nil || *post.TextSv != translated || post.Text != original {
+			t.Fatal("published formatting changed", err)
+		}
+		// A manual edit that removes formatting is also rejected at approval time.
+		record, err = service.Record(context.Background(), resource, uint64(post.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		manual := translations.Review{Action: "approve", Fingerprint: record.Fingerprint, Fields: []translations.ReviewField{{FieldID: "Text", Text: strings.ReplaceAll(translated, "**", ""), TargetBefore: post.TextSv}}}
+		if response = httpTranslationReview(t, "blogposts", uint64(post.ID), manual); response.Code != http.StatusBadRequest {
+			t.Fatalf("damaged manual edit accepted: %d", response.Code)
+		}
+	}
+}
+
+func TestTranslationHTMLFormattingSurvivesGenerationAndApproval(t *testing.T) {
+	database := translationReviewDatabase(t)
+	service := translations.New(database)
+	resource, _ := translations.Find("events")
+	original, translated := "<p>Welcome <strong>hosts</strong></p>", "<p>Valkommen <strong>vardar</strong></p>"
+	event := models.Event{EventroID: "translation-html-formatting", Name: "Formatting event", Description: &original, EventStart: time.Now(), EventEnd: time.Now().Add(time.Hour)}
+	// Tests share only the disposable DB; clear a prior fixture with this key.
+	if err := database.Where("eventro_id = ?", event.EventroID).Delete(&models.Event{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&event).Error; err != nil {
+		t.Fatal(err)
+	}
+	jobs, err := service.Generate(context.Background(), resource, []uint64{uint64(event.ID)}, 1, false)
+	if err != nil || len(jobs) != 1 {
+		t.Fatal("queue HTML fixture", err)
+	}
+	err = service.Run(context.Background(), translationGenerator(func(context.Context, translations.Job, translations.Source, []string, int) (translations.Result, error) {
+		return translations.Result{Fields: map[string]string{"Name": "Evenemang", "Description": translated}, Tokens: 123}, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := service.Record(context.Background(), resource, uint64(event.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httpTranslationReview(t, "events", uint64(event.ID), reviewRequest(t, record, "approve", "Name", "Description"))
+	if response.Code != http.StatusOK {
+		t.Fatalf("approve HTML formatting: %s", response.Body)
+	}
+	if err = database.First(&event, event.ID).Error; err != nil || event.DescriptionSv == nil || *event.DescriptionSv != translated || event.Description == nil || *event.Description != original {
+		t.Fatal("published HTML formatting changed", err)
+	}
+	record, err = service.Record(context.Background(), resource, uint64(event.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manual := translations.Review{Action: "approve", Fingerprint: record.Fingerprint, Fields: []translations.ReviewField{{FieldID: "Description", Text: "<p>Valkommen vardar</p>", TargetBefore: event.DescriptionSv}}}
+	if response = httpTranslationReview(t, "events", uint64(event.ID), manual); response.Code != http.StatusBadRequest {
+		t.Fatalf("damaged HTML approved: %d", response.Code)
+	}
+}

@@ -34,9 +34,9 @@ func markdownShape(value string) []string {
 		case *ast.List:
 			marker += fmt.Sprint(n.Marker, n.Start, n.IsTight)
 		case *ast.Link:
-			marker += string(n.Destination)
+			marker += string(n.Destination) + fmt.Sprint(len(n.Title) > 0, n.FirstChild() != nil)
 		case *ast.Image:
-			marker += string(n.Destination)
+			marker += string(n.Destination) + fmt.Sprint(len(n.Title) > 0, n.FirstChild() != nil)
 		case *ast.AutoLink:
 			marker += string(n.URL(source))
 		case *extast.TaskCheckBox:

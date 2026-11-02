@@ -55,12 +55,15 @@ func htmlShape(s string) ([]string, error) {
 			t := z.Token()
 			attrs := []string{}
 			for _, a := range t.Attr {
-				if a.Key != "title" && a.Key != "alt" {
+				if a.Key == "title" || a.Key == "alt" {
+					// These values are translatable, but the attributes must remain present.
+					attrs = append(attrs, a.Key+fmt.Sprint(strings.TrimSpace(a.Val) != ""))
+				} else {
 					attrs = append(attrs, a.Key+"="+a.Val)
 				}
 			}
 			slices.Sort(attrs)
-			tokens = append(tokens, "<"+t.Data+strings.Join(attrs, " ")+">")
+			tokens = append(tokens, "<"+t.Data+encode(attrs)+">")
 		case html.EndTagToken:
 			tokens = append(tokens, "</"+z.Token().Data+">")
 		}

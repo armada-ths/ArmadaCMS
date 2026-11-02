@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Title, useBasename, useBlocker } from "react-admin";
 import { Link } from "react-router-dom";
@@ -17,6 +17,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { generateResources, type BulkProgress } from "./bulk";
 import { MarkdownEditor } from "../shared/MarkdownInput";
 import {
   translationRequest,
@@ -57,19 +58,24 @@ export function Translations() {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
+  const [selectedResources, setSelectedResources] = useState<string[]>([]);
+  const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
+  const [bulkResult, setBulkResult] = useState("");
+  const bulkAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => bulkAbort.current?.abort(), []);
   const [error, setError] = useState("");
   const dirty = Object.values(drafts).some(
     (d) => Object.keys(d.texts).length > 0,
   );
   const blocker = useBlocker(
     ({ nextLocation }) =>
-      dirty && !nextLocation.pathname.includes("/translations"),
+      (dirty || busy) && !nextLocation.pathname.includes("/translations"),
   );
   useEffect(() => {
     if (blocker.state !== "blocked") return;
     if (
       window.confirm(
-        "You have unsaved translation edits. Leave this page? Your edits remain available while the CMS stays open.",
+        "Leave translations? Unsaved edits remain available while the CMS stays open. Requests already queued will continue; further queueing will stop.",
       )
     ) {
       blocker.proceed?.();
@@ -83,6 +89,10 @@ export function Translations() {
       translationRequest<Overview>("", undefined, "GET", signal),
   });
   const resources = overview.data?.resources ?? [];
+  const eligibleResources = resources.filter((r) => r.canEdit && r.aiAllowed);
+  const bulkResources = eligibleResources.filter((r) =>
+    selectedResources.includes(r.id),
+  );
   const resource = resources.find((r) => r.id === choice) ?? resources[0];
   const records = useQuery({
     queryKey: ["translations", "records", resource?.id, search, status, page],
@@ -125,6 +135,42 @@ export function Translations() {
       setBusy(false);
     }
   }
+  async function generateBulk() {
+    if (
+      !bulkResources.length ||
+      !window.confirm(
+        `Generate suggestions across all pages of ${bulkResources.length} selected resource(s)? Search/status filters below do not apply. Existing manual translations and local edits are preserved. This does not approve any content.`,
+      )
+    )
+      return;
+    const controller = new AbortController();
+    bulkAbort.current = controller;
+    setBusy(true);
+    setError("");
+    setBulkResult("");
+    try {
+      const result = await generateResources(
+        bulkResources,
+        setBulkProgress,
+        controller.signal,
+      );
+      setBulkResult(
+        `Checked ${result.checked} records; ${result.jobs} jobs queued or already scheduled. Records without eligible fields were skipped.`,
+      );
+      setSelectedResources([]);
+    } catch (e) {
+      setError(
+        controller.signal.aborted
+          ? "Queueing stopped. Requests already accepted remain queued."
+          : `${message(e)} Queueing stopped; accepted requests remain queued. You can retry the selection safely.`,
+      );
+    } finally {
+      bulkAbort.current = null;
+      setBulkProgress(null);
+      setBusy(false);
+      await refresh();
+    }
+  }
   return (
     <Box sx={{ p: 2, maxWidth: 1500 }}>
       <Title title="Translations" />
@@ -152,6 +198,76 @@ export function Translations() {
           {overview.data.usage.day}, Europe/Stockholm).
         </Alert>
       )}
+      <Paper component="fieldset" variant="outlined" sx={{ p: 2, my: 2 }}>
+        <Typography component="legend">Select entire resources</Typography>
+        <Typography variant="body2">
+          Includes all records across all pages, independent of the search and
+          status filters below. Only eligible missing or outdated translations
+          generate suggestions. Manual translations and local edits are
+          preserved. Unchanged drafts and rejected suggestions require explicit
+          regeneration.
+        </Typography>
+        <FormControlLabel
+          label="Select all eligible resources"
+          control={
+            <Checkbox
+              disabled={busy || !eligibleResources.length}
+              checked={
+                eligibleResources.length > 0 &&
+                bulkResources.length === eligibleResources.length
+              }
+              indeterminate={
+                bulkResources.length > 0 &&
+                bulkResources.length < eligibleResources.length
+              }
+              onChange={(e) =>
+                setSelectedResources(
+                  e.target.checked ? eligibleResources.map((r) => r.id) : [],
+                )
+              }
+            />
+          }
+        />
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          {resources.map((r) => (
+            <FormControlLabel
+              key={r.id}
+              label={`Entire resource: ${r.label}`}
+              control={
+                <Checkbox
+                  checked={selectedResources.includes(r.id)}
+                  disabled={busy || !r.canEdit || !r.aiAllowed}
+                  onChange={(e) =>
+                    setSelectedResources((old) =>
+                      e.target.checked
+                        ? [...old, r.id]
+                        : old.filter((id) => id !== r.id),
+                    )
+                  }
+                />
+              }
+            />
+          ))}
+        </Box>
+        <Button
+          disabled={busy || !overview.data?.aiEnabled || !bulkResources.length}
+          onClick={generateBulk}
+        >
+          Generate for selected resources ({bulkResources.length})
+        </Button>
+        {bulkProgress && (
+          <>
+            <Typography role="status">
+              Queueing {bulkProgress.resource}: {bulkProgress.checked} records
+              checked; {bulkProgress.jobs} jobs queued or already scheduled.
+            </Typography>
+            <Button onClick={() => bulkAbort.current?.abort()}>
+              Stop queueing
+            </Button>
+          </>
+        )}
+        {bulkResult && <Alert severity="info">{bulkResult}</Alert>}
+      </Paper>
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ my: 2 }}>
         <TextField
           select

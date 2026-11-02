@@ -238,6 +238,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.Use(auth.Middleware)
 	protectedAPI.HandleFunc("/translations", controllers.GetTranslationsOverview).Methods("GET")
 	protectedAPI.HandleFunc("/translations/{resource}", controllers.GetTranslationRecords).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}/selection", controllers.GetTranslationSelection).Methods("GET")
 	protectedAPI.HandleFunc("/translations/{resource}/generate", controllers.GenerateTranslations).Methods("POST")
 	protectedAPI.HandleFunc("/translations/{resource}/{id}/review", controllers.ReviewTranslations).Methods("POST")
 	protectedAPI.HandleFunc("/translations/{resource}/{id}/jobs", controllers.CancelTranslationJobs).Methods("DELETE")

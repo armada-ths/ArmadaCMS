@@ -27,7 +27,7 @@ func testGemini(t *testing.T, transport http.RoundTripper) *Gemini {
 	t.Helper()
 	g := NewGemini(Config{Project: "test-project", Region: "eu", RequestTimeout: time.Second})
 	g.newClient = func(ctx context.Context, config *genai.ClientConfig) (*genai.Client, error) {
-		if config.Backend != genai.BackendVertexAI || config.Location != "eu" || config.Project != "test-project" || config.APIKey != "" || config.HTTPOptions.APIVersion != "v1" || config.HTTPOptions.BaseURL != "https://eu-aiplatform.googleapis.com/" || config.HTTPOptions.Timeout == nil || *config.HTTPOptions.Timeout != time.Second || config.HTTPOptions.RetryOptions == nil || config.HTTPOptions.RetryOptions.Attempts == nil || *config.HTTPOptions.RetryOptions.Attempts != 1 {
+		if config.Backend != genai.BackendVertexAI || config.Location != g.Config.Region || config.Project != "test-project" || config.APIKey != "" || config.HTTPOptions.APIVersion != "v1" || config.HTTPOptions.BaseURL != "" || config.HTTPOptions.Timeout == nil || *config.HTTPOptions.Timeout != time.Second || config.HTTPOptions.RetryOptions == nil || config.HTTPOptions.RetryOptions.Attempts == nil || *config.HTTPOptions.RetryOptions.Attempts != 1 {
 			t.Fatal("unexpected SDK configuration")
 		}
 		var err error
@@ -161,5 +161,43 @@ func TestGeminiRejectsInvalidOutputLimitBeforeModelCall(t *testing.T) {
 		if !errors.As(err, &failure) || failure.Category != "invalid_provider_configuration" || failure.Retry || result.Tokens != 0 {
 			t.Fatalf("limit=%d result=%+v error=%v", limit, result, err)
 		}
+	}
+}
+
+func TestGeminiSDKUsesDocumentedEndpointHosts(t *testing.T) {
+	for _, sample := range []struct{ region, host string }{
+		{"eu", "aiplatform.eu.rep.googleapis.com"},
+		{"us", "aiplatform.us.rep.googleapis.com"},
+		{"global", "aiplatform.googleapis.com"},
+		{"europe-north1", "europe-north1-aiplatform.googleapis.com"},
+	} {
+		t.Run(sample.region, func(t *testing.T) {
+			g := testGemini(t, roundTripper(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Host != sample.host || !strings.Contains(r.URL.Path, "/locations/"+sample.region+"/") {
+					t.Fatalf("incorrect model endpoint: %s", r.URL)
+				}
+				response := httptest.NewRecorder()
+				response.Body.WriteString(`{"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"{\"Title\":\"Svenska\"}"}]}}]}`)
+				return response.Result(), nil
+			}))
+			g.Config.Region = sample.region
+			if _, err := generateFixture(g); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestGeminiInvalidHostnameHasSafeActionableCategory(t *testing.T) {
+	g := testGemini(t, roundTripper(func(*http.Request) (*http.Response, error) {
+		response := httptest.NewRecorder()
+		response.WriteHeader(http.StatusBadRequest)
+		response.Body.WriteString(`{"error":{"code":400,"message":"Invalid hostname: private-host.example","status":"INVALID_ARGUMENT"}}`)
+		return response.Result(), nil
+	}))
+	_, err := generateFixture(g)
+	var failure *ProviderError
+	if !errors.As(err, &failure) || failure.Category != "provider_invalid_endpoint" || failure.Retry || strings.Contains(err.Error(), "private-host") {
+		t.Fatal(err)
 	}
 }

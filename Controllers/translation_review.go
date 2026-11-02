@@ -31,6 +31,11 @@ type TranslationOverviewResponse struct {
 	PromptVersion   string                       `json:"promptVersion"`
 	GlossaryVersion string                       `json:"glossaryVersion"`
 }
+type TranslationSelectionResponse struct {
+	IDs       []uint64 `json:"ids"`
+	BatchSize int      `json:"batchSize"`
+}
+
 type TranslationGenerationRequest struct {
 	IDs        []uint64 `json:"ids"`
 	Regenerate bool     `json:"regenerate"`
@@ -160,6 +165,32 @@ func GetTranslationRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, result)
+}
+
+// GetTranslationSelection returns a snapshot of IDs across the entire resource.
+// @Summary Select all records for bulk translation generation
+// @Tags translations
+// @Security BearerAuth
+// @Produce json
+// @Param resource path string true "Resource identifier"
+// @Success 200 {object} TranslationSelectionResponse
+// @Router /translations/{resource}/selection [get]
+func GetTranslationSelection(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	resource, ok := translationResource(w, r, true)
+	if !ok {
+		return
+	}
+	if !resource.AI {
+		http.Error(w, "Exhibitor-owned descriptions are excluded from AI generation", http.StatusBadRequest)
+		return
+	}
+	response := TranslationSelectionResponse{IDs: []uint64{}, BatchSize: translations.ConfigFromEnv().MaxRecords}
+	if err := db.DB.WithContext(r.Context()).Model(resource.Model()).Order("id ASC").Pluck("id", &response.IDs).Error; err != nil {
+		translationError(w, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // GenerateTranslations queues at most 50 explicitly selected records.
