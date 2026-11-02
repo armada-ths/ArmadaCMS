@@ -108,7 +108,7 @@ locals {
   artifact_registry_host = "${var.region}-docker.pkg.dev"
   container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${var.prod_artifact_registry_host}/${var.project_id}/${var.prod_artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"
 
-  # â”€â”€ Derived resource names â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Derived resource names
   nat_router_name    = "${var.name_prefix}-router"
   nat_name           = "${var.name_prefix}-nat"
   nat_ip_name        = "${var.name_prefix}-nat-ip"
