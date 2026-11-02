@@ -5,7 +5,6 @@ import (
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -99,24 +98,5 @@ func startPhotoWorkerExecution(ctx context.Context) error {
 	if name == "" {
 		return fmt.Errorf("PHOTO_WORKER_JOB_NAME missing")
 	}
-	access, err := utils.GoogleAccessToken(ctx)
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://run.googleapis.com/v2/"+name+":run", bytes.NewReader([]byte("{}")))
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Authorization", "Bearer "+access)
-	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("worker launch: status %d", response.StatusCode)
-	}
-	return nil
+	return utils.StartCloudRunJob(ctx, name)
 }
