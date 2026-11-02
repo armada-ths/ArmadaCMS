@@ -93,6 +93,8 @@ resource "google_cloud_run_v2_service" "armadacms" {
   }
 
   lifecycle {
+    # Do not ignore template.revision: updates must omit the previous immutable
+    # revision name so Cloud Run can generate a new one after a CI deployment.
     ignore_changes = [
       labels,
       client,
@@ -100,7 +102,6 @@ resource "google_cloud_run_v2_service" "armadacms" {
       scaling,
       template[0].labels,
       template[0].containers[0].image,
-      template[0].revision,
       traffic,
     ]
   }
