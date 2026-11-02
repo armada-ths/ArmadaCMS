@@ -145,18 +145,19 @@ func decodeFields(text string, expected []string) (map[string]string, error) {
 	}
 	return out, nil
 }
+
 func (g *Gemini) Generate(ctx context.Context, job Job, source Source, fields []string, maxOutput int) (Result, error) {
 	if maxOutput <= 0 || maxOutput > 65536 || g.Config.Project == "" || g.Config.Region == "" || strings.ContainsAny(g.Config.Project+g.Config.Region+job.Model, "/\\?#") {
 		return Result{}, &ProviderError{"invalid_provider_configuration", false}
 	}
-	// Explicit backend, endpoint and version preserve the deployed Vertex API.
+	// Explicit backend, location and version keep calls on the configured Vertex API.
+	// Let the SDK resolve the correct multi-region host for eu/us.
 	// ADC uses the Cloud Run runtime identity. No API key is configured.
 	client, err := g.newClient(ctx, &genai.ClientConfig{
 		Backend:  genai.BackendVertexAI,
 		Project:  g.Config.Project,
 		Location: g.Config.Region,
 		HTTPOptions: genai.HTTPOptions{
-			BaseURL:    "https://" + g.Config.Region + "-aiplatform.googleapis.com/",
 			APIVersion: "v1",
 			Timeout:    &g.Config.RequestTimeout,
 			// Each worker attempt has its own budget reservation. Never retry inside it.
@@ -171,7 +172,11 @@ func (g *Gemini) Generate(ctx context.Context, job Job, source Source, fields []
 	if err != nil {
 		var apiErr genai.APIError
 		if errors.As(err, &apiErr) {
-			return Result{}, &ProviderError{fmt.Sprintf("provider_http_%d", apiErr.Code), apiErr.Code == 429 || apiErr.Code >= 500}
+			category := fmt.Sprintf("provider_http_%d", apiErr.Code)
+			if apiErr.Code == 400 && strings.HasPrefix(apiErr.Message, "Invalid hostname:") {
+				category = "provider_invalid_endpoint"
+			}
+			return Result{}, &ProviderError{category, apiErr.Code == 429 || apiErr.Code >= 500}
 		}
 		var networkErr *url.Error
 		if errors.As(err, &networkErr) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {

@@ -5248,6 +5248,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/translations/{resource}/selection": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Select all records for bulk translation generation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TranslationSelectionResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/translations/{resource}/{id}/jobs": {
             "delete": {
                 "security": [
@@ -5466,6 +5499,20 @@ const docTemplate = `{
                 },
                 "missingRecords": {
                     "type": "integer"
+                }
+            }
+        },
+        "controllers.TranslationSelectionResponse": {
+            "type": "object",
+            "properties": {
+                "batchSize": {
+                    "type": "integer"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },

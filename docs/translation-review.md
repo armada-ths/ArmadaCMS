@@ -16,11 +16,27 @@ Generation is disabled unless `TRANSLATION_AI_ENABLED=true`. Manual drafting, re
 | `TRANSLATION_MAX_RECORDS`        | `50`                    | Maximum records per request, hard upper limit 50        |
 | `TRANSLATION_MAX_OUTPUT_TOKENS`  | `8192`                  | Per-call output limit, including thinking               |
 
-The provider uses the Google Gen AI Go SDK with an explicit Vertex backend, API version `v1`, and the configured regional endpoint (`https://eu-aiplatform.googleapis.com/` by default). SDK retries are disabled (`Attempts=1`); every retry is owned by the durable worker and receives its own token reservation. Requests retain the configured timeout and responses are limited to 2 MiB.
+The provider uses the Google Gen AI Go SDK with an explicit Vertex backend, API version `v1`, and the configured location (`eu` by default). The SDK resolves the endpoint (`https://aiplatform.eu.rep.googleapis.com/` for `eu`); the application does not override its base URL. SDK retries are disabled (`Attempts=1`); every retry is owned by the durable worker and receives its own token reservation. Requests retain the configured timeout and responses are limited to 2 MiB.
 
 Cloud Run uses Application Default Credentials from its runtime service account. Local developers can use their own ADC configuration; no credential file or API key should be committed. No browser AI credentials or model tools are used. The optional Terraform worker is controlled by `enable_translation_worker`; `translation_ai_enabled` defaults to false and its recovery schedule remains paused. The worker and API use the same image; release preflight, image updates and rollback include the optional translation job when its full resource name is configured on the API. Terraform does not manage subsequent release image changes.
 
 The worker claims only explicitly requested jobs. Database leases, two unique running slots and an advisory lock enforce concurrency across executions. Each attempt reserves a conservative UTF-8 byte upper bound for request tokens plus protocol headroom and the entire output allowance. Provider-reported total usage settles that reservation, including thinking. Unknown usage and expired leases charge the complete reservation. Retryable failures have at most three attempts; retries reserve budget separately. Budget wait resumes at the next Stockholm midnight. The recovery schedule creates no new requests.
+
+## Selecting entire resources
+
+The resource checkboxes select all records across all pages, independently of the review search/status filters. Select all includes only editable, AI-allowed resources; exhibitor-owned descriptions remain excluded. This selection is for generation, not mass approval.
+
+`GET /translations/{resource}/selection` returns a read-only ID snapshot and the configured batch size. The client submits batches sequentially through the existing generation endpoint, at most 50 records of one resource per request. Current eligibility, deduplication, permissions, daily token budget and worker concurrency still apply. Manual translations/local edits remain intact. Existing unchanged drafts or rejections are skipped unless regeneration is explicitly requested.
+
+The UI reports progress and stops on a failed request. Retrying is safe because normal generation deduplicates active work and skips existing drafts. Stop queueing or leaving the page aborts further client queueing; it does not cancel previously accepted jobs. The existing per-record cancellation controls manage those jobs.
+
+## Formatting preservation
+
+Fields keep their registered format: blog/history bodies are Markdown, event descriptions are HTML, and labels are plain text. Saved job instructions request preservation of markup. The worker validates the response before storing proposals, and approval validates it again before publishing.
+
+Markdown checks compare the Goldmark/GFM syntax tree and structural markers: headings, emphasis, list nesting, tables/alignment, task states, hard breaks, links/images and code payloads. HTML checks compare tag order and attributes, including embedded HTML in Markdown. Human-readable alt/title values may be translated while their presence/non-empty state is preserved; other attribute values and URLs remain unchanged. HTML event descriptions must also pass the existing sanitizer without modification. Invalid generated formatting fails the record instead of silently stripping markup or publishing it.
+
+These checks protect structure, not translation meaning, exact whitespace or pixel-identical layout. Editors must still review the text/preview before approval. Unsupported or already-unsafe source markup may require correcting the original before a proposal can pass validation.
 
 ## Worker dispatch
 

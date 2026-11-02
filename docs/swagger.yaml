@@ -84,6 +84,15 @@ definitions:
       missingRecords:
         type: integer
     type: object
+  controllers.TranslationSelectionResponse:
+    properties:
+      batchSize:
+        type: integer
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
   controllers.changePasswordBody:
     properties:
       newPassword:
@@ -4270,6 +4279,26 @@ paths:
       security:
       - BearerAuth: []
       summary: Generate Swedish translation suggestions
+      tags:
+      - translations
+  /translations/{resource}/selection:
+    get:
+      parameters:
+      - description: Resource identifier
+        in: path
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.TranslationSelectionResponse'
+      security:
+      - BearerAuth: []
+      summary: Select all records for bulk translation generation
       tags:
       - translations
 securityDefinitions:

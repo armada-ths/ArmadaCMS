@@ -65,6 +65,25 @@ func TestTranslationPolicyPreservesMeaningAndMarkup(t *testing.T) {
 		{"code preserved", "markdown", "Welcome\n\n```js\nhello()\n```", "Valkommen\n\n```js\nhello()\n```", true},
 		{"task changed", "markdown", "- [ ] Register", "- [x] Registrera", false},
 
+		{"table preserved", "markdown", "| Name | Role |\n| :--- | ---: |\n| Person | Host |", "| Namn | Roll |\n| :--- | ---: |\n| Person | Vard |", true},
+		{"table alignment changed", "markdown", "| Name | Role |\n| :--- | ---: |\n| Person | Host |", "| Namn | Roll |\n| ---: | :--- |\n| Person | Vard |", false},
+		{"hard break removed", "markdown", "Welcome  \nFriends", "Valkommen\nVanner", false},
+		{"inline HTML preserved", "markdown", "A <span class=\"note\" title=\"Welcome\">welcome</span>", "En <span class=\"note\" title=\"Valkommen\">halsning</span>", true},
+		{"HTML title removed", "markdown", "<span title=\"Welcome\">Welcome</span>", "<span>Valkommen</span>", false},
+		{"HTML alt removed", "markdown", "<img src=\"/photo.jpg\" alt=\"A host\">", "<img src=\"/photo.jpg\">", false},
+		{"HTML alt translated", "markdown", "<img src=\"/photo.jpg\" alt=\"A host\">", "<img src=\"/photo.jpg\" alt=\"En vard\">", true},
+		{"markdown link title removed", "markdown", "[Apply](/join \"Apply now\")", "[Ansok](/join)", false},
+		{"markdown link title translated", "markdown", "[Apply](/join \"Apply now\")", "[Ansok](/join \"Ansok nu\")", true},
+		{"markdown image title removed", "markdown", "![A host](/photo.jpg \"Our host\")", "![En vard](/photo.jpg)", false},
+		{"image URL preserved", "markdown", "![A host](/photo.jpg)", "![En vard](/photo.jpg)", true},
+		{"image URL changed", "markdown", "![A host](/photo.jpg)", "![En vard](/wrong.jpg)", false},
+
+		{"HTML alt emptied", "markdown", "<img src=\"/photo.jpg\" alt=\"A host\">", "<img src=\"/photo.jpg\" alt=\"\">", false},
+		{"markdown alt removed", "markdown", "![A host](/photo.jpg)", "![](/photo.jpg)", false},
+		{"markdown link label removed", "markdown", "[Apply](/join)", "[](/join)", false},
+
+		{"HTML attributes split", "markdown", "<span class=\"a data-x=b\">Welcome</span>", "<span class=\"a\" data-x=\"b\">Valkommen</span>", false},
+
 		{"unsafe HTML", "html", "<p>Welcome</p>", "<p onclick=\"alert(1)\">V\u00e4lkommen</p>", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -103,7 +122,7 @@ func TestGeminiUsesSavedPolicyAndNoTools(t *testing.T) {
 		if json.Unmarshal(body, &request) != nil {
 			t.Fatal("bad request")
 		}
-		if request["tools"] != nil || strings.Contains(string(body), "Private unsaved draft") || !strings.Contains(string(body), "saved instructions") || r.Header.Get("Authorization") != "Bearer test-token" || r.Header.Get("X-Goog-Api-Key") != "" || r.URL.Host != "eu-aiplatform.googleapis.com" {
+		if request["tools"] != nil || strings.Contains(string(body), "Private unsaved draft") || !strings.Contains(string(body), "saved instructions") || r.Header.Get("Authorization") != "Bearer test-token" || r.Header.Get("X-Goog-Api-Key") != "" || r.URL.Host != "aiplatform.eu.rep.googleapis.com" {
 			t.Fatal("unsafe or wrong request")
 		}
 		config := request["generationConfig"].(map[string]any)
