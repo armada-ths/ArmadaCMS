@@ -2,7 +2,12 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import {
+  createMemoryRouter,
+  Link,
+  Outlet,
+  RouterProvider,
+} from "react-router-dom";
 import { Translations } from "./Translations";
 import { TranslationDraftProvider } from "./drafts";
 import type { TranslationRecord } from "./api";
@@ -13,9 +18,9 @@ vi.mock("react-admin", async (importOriginal) => ({
   Title: () => null,
   useInput: vi.fn(),
   useBasename: () => "/admin",
-  useBlocker: () => ({ state: "unblocked" }),
 }));
 let root: Root, container: HTMLDivElement, client: QueryClient;
+let router: ReturnType<typeof createMemoryRouter> | undefined;
 let current: TranslationRecord;
 let enabled: boolean;
 let conflict: boolean;
@@ -119,20 +124,34 @@ beforeEach(() => {
 });
 afterEach(() => {
   root.unmount();
+  router?.dispose();
+  router = undefined;
   container.remove();
   client.clear();
   vi.restoreAllMocks();
 });
 function render() {
-  root.render(
-    <MemoryRouter>
-      <QueryClientProvider client={client}>
-        <TranslationDraftProvider>
-          <Translations />
-        </TranslationDraftProvider>
-      </QueryClientProvider>
-    </MemoryRouter>,
+  router = createMemoryRouter(
+    [
+      {
+        element: (
+          <QueryClientProvider client={client}>
+            <TranslationDraftProvider>
+              <Link to="/admin/other">Leave translations</Link>
+              <Link to="/admin/translations">Return to translations</Link>
+              <Outlet />
+            </TranslationDraftProvider>
+          </QueryClientProvider>
+        ),
+        children: [
+          { path: "/admin/translations", element: <Translations /> },
+          { path: "/admin/other", element: <p>Other CMS page</p> },
+        ],
+      },
+    ],
+    { initialEntries: ["/admin/translations"] },
   );
+  root.render(<RouterProvider router={router} />);
 }
 async function selectFields() {
   await page
@@ -426,4 +445,37 @@ test("allows rejecting an outdated proposal by its original suggestion version",
       }),
     ),
   );
+});
+
+test("blocks leaving unsaved translations and preserves drafts after confirmed navigation", async () => {
+  render();
+  await page
+    .getByRole("textbox", { name: "Title (Swedish)" })
+    .fill("Unsaved navigation edit");
+  const confirm = vi.mocked(window.confirm);
+  confirm.mockReturnValue(false);
+  await page.getByRole("link", { name: "Leave translations" }).click();
+  await vi.waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+  await expect
+    .element(page.getByRole("textbox", { name: "Title (Swedish)" }))
+    .toHaveValue("Unsaved navigation edit");
+  expect(router?.state.location.pathname).toBe("/admin/translations");
+  confirm.mockReturnValue(true);
+  await page.getByRole("link", { name: "Leave translations" }).click();
+  await expect.element(page.getByText("Other CMS page")).toBeVisible();
+  expect(confirm).toHaveBeenCalledTimes(2);
+  await page.getByRole("link", { name: "Return to translations" }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Title (Swedish)" }))
+    .toHaveValue("Unsaved navigation edit");
+});
+
+test("leaves translations without prompting when no edits are pending", async () => {
+  render();
+  await expect
+    .element(page.getByText("Welcome to Armada", { exact: true }))
+    .toBeVisible();
+  await page.getByRole("link", { name: "Leave translations" }).click();
+  await expect.element(page.getByText("Other CMS page")).toBeVisible();
+  expect(window.confirm).not.toHaveBeenCalled();
 });
