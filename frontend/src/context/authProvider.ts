@@ -1,22 +1,15 @@
 import { AuthProvider } from "react-admin";
 import { loginApi } from "./authMethods";
-import { refreshTokens } from "./axiosInstance";
+import {
+  clearSession,
+  decodeJwtPayload,
+  getAccessToken,
+  SessionExpiredError,
+  storeTokens,
+} from "./session";
+import { authenticatedFetchJson } from "./authenticatedHttpClient";
 import globalApi from "./globalApi";
 import { hasPerm } from "../utils/permissions";
-
-/**
- * Decode a JWT payload without verification (browser-side).
- * We only need this to read claims; the server validates the signature.
- */
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  try {
-    const base64 = token.split(".")[1];
-    const json = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}
 
 function getPermissionsFromToken(): string[] {
   const token = localStorage.getItem("accessToken");
@@ -30,8 +23,7 @@ export const authProvider: AuthProvider = {
     try {
       const tokens = await loginApi({ username, password });
 
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
+      storeTokens(tokens);
 
       return Promise.resolve();
     } catch (error) {
@@ -40,55 +32,33 @@ export const authProvider: AuthProvider = {
   },
 
   async checkError(error) {
-    const status = error.status;
-    if (status === 401) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      throw new Error("Session expired");
+    // The HTTP clients exhaust renewal before reporting an expired session.
+    // Credentials are cleared there, guarded against late failures from old requests.
+    if (
+      error instanceof SessionExpiredError &&
+      !localStorage.getItem("refreshToken")
+    ) {
+      throw error;
     }
-    return Promise.resolve();
   },
 
   async checkAuth() {
-    const access = localStorage.getItem("accessToken");
-    const refresh = localStorage.getItem("refreshToken");
-    if (!access || !refresh) {
-      throw new Error("Not authenticated");
+    try {
+      await getAccessToken();
+    } catch (error) {
+      if (error instanceof SessionExpiredError) throw error;
+      // React-Admin treats a rejected checkAuth as logout. A transient refresh
+      // failure should instead leave the session available for the next attempt.
     }
-
-    const claims = decodeJwtPayload(access);
-    const exp = claims.exp as number | undefined;
-    if (exp && exp * 1000 < Date.now()) {
-      // Access token expired — attempt silent refresh before forcing logout
-      const tokens = await refreshTokens();
-      if (!tokens) {
-        throw new Error("Session expired");
-      }
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
-    }
-
-    return Promise.resolve();
   },
 
   async logout() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    return Promise.resolve();
+    clearSession();
   },
 
   async getIdentity() {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      throw new Error("No identity found");
-    }
-    const response = await fetch(`${globalApi()}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      throw new Error("Failed to fetch identity");
-    }
-    const user = await response.json();
+    const { json } = await authenticatedFetchJson(`${globalApi()}/me`);
+    const user = json as { id: number; name?: string; username?: string };
     const firstName = (user.name as string)?.trim().split(/\s+/)[0];
     const displayName = firstName || (user.username as string) || "User";
     return {

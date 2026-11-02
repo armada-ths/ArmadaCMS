@@ -11,6 +11,7 @@ import {
   TextField,
   Stack,
 } from "@mui/material";
+import { authenticatedFetch } from "../../context/authenticatedHttpClient";
 import globalApi from "../../context/globalApi";
 
 const endpoint = globalApi();
@@ -160,14 +161,12 @@ export const MarkdownEditor = ({
 
   const uploadImage = useCallback(
     async (file: File): Promise<string | null> => {
-      const token = localStorage.getItem("accessToken") || "";
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const res = await fetch(`${endpoint}/blogposts/upload`, {
+        const res = await authenticatedFetch(`${endpoint}/blogposts/upload`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
 
