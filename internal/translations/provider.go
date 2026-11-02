@@ -1,12 +1,11 @@
 package translations
 
 import (
-	"ArmadaCMS/main/utils"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"google.golang.org/genai"
 	"io"
 	"net/http"
 	"net/url"
@@ -29,18 +28,51 @@ func (e *ProviderError) Error() string { return e.Category }
 func retryable(err error) bool         { var e *ProviderError; return errors.As(err, &e) && e.Retry }
 
 type Gemini struct {
-	Config Config
-	Client *http.Client
-	Token  func(context.Context) (string, error)
+	Config    Config
+	newClient func(context.Context, *genai.ClientConfig) (*genai.Client, error)
 }
 
 func NewGemini(config Config) *Gemini {
-	return &Gemini{config, &http.Client{Timeout: config.RequestTimeout}, utils.GoogleAccessToken}
+	return &Gemini{Config: config, newClient: newGeminiClient}
 }
-func generationRequest(job Job, source Source, fields []string, maxOutput int) map[string]any {
-	properties := map[string]any{}
+
+// Keep the existing response-size bound while the SDK owns response decoding.
+type providerResponseTransport struct{ base http.RoundTripper }
+type providerResponseBody struct {
+	io.Reader
+	io.Closer
+}
+
+func (t providerResponseTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response, err := t.base.RoundTrip(r)
+	if response != nil && response.Body != nil {
+		response.Body = providerResponseBody{io.LimitReader(response.Body, 2<<20), response.Body}
+	}
+	return response, err
+}
+func newGeminiClient(ctx context.Context, config *genai.ClientConfig) (*genai.Client, error) {
+	client, err := genai.NewClient(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	httpClient := client.ClientConfig().HTTPClient
+	base := httpClient.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	httpClient.Transport = providerResponseTransport{base: base}
+	return client, nil
+}
+
+type generationPayload struct {
+	Contents []*genai.Content             `json:"contents"`
+	Config   *genai.GenerateContentConfig `json:"config"`
+}
+
+func generationRequest(job Job, source Source, fields []string, maxOutput int) generationPayload {
+	properties := map[string]*genai.Schema{}
 	for _, f := range fields {
-		properties[f] = map[string]any{"type": "STRING"}
+		properties[f] = &genai.Schema{Type: genai.TypeString}
 	}
 	text := encode(struct {
 		Resource, Context string
@@ -48,7 +80,16 @@ func generationRequest(job Job, source Source, fields []string, maxOutput int) m
 		Formats           map[string]string
 		RequestedFields   []string
 	}{source.Resource, source.Label, source.Fields, source.Formats, fields})
-	return map[string]any{"systemInstruction": map[string]any{"parts": []any{map[string]string{"text": job.Prompt + "\nArmada glossary and reviewed examples:\n" + job.Glossary}}}, "contents": []any{map[string]any{"role": "user", "parts": []any{map[string]string{"text": text}}}}, "generationConfig": map[string]any{"maxOutputTokens": maxOutput, "responseMimeType": "application/json", "responseSchema": map[string]any{"type": "OBJECT", "properties": properties, "required": fields, "propertyOrdering": fields}, "thinkingConfig": map[string]any{"thinkingLevel": "MINIMAL"}}}
+	return generationPayload{
+		Contents: genai.Text(text),
+		Config: &genai.GenerateContentConfig{
+			SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(job.Prompt + "\nArmada glossary and reviewed examples:\n" + job.Glossary)}},
+			MaxOutputTokens:   int32(maxOutput),
+			ResponseMIMEType:  "application/json",
+			ResponseSchema:    &genai.Schema{Type: genai.TypeObject, Properties: properties, Required: fields, PropertyOrdering: fields},
+			ThinkingConfig:    &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelMinimal},
+		},
+	}
 }
 
 // Text-only tokenization cannot use more tokens than UTF-8 bytes. Reserve that
@@ -99,53 +140,53 @@ func decodeFields(text string, expected []string) (map[string]string, error) {
 	return out, nil
 }
 func (g *Gemini) Generate(ctx context.Context, job Job, source Source, fields []string, maxOutput int) (Result, error) {
-	access, err := g.Token(ctx)
-	if err != nil {
-		return Result{}, &ProviderError{"authentication_unavailable", true}
-	}
 	if g.Config.Project == "" || g.Config.Region == "" || strings.ContainsAny(g.Config.Project+g.Config.Region+job.Model, "/\\?#") {
 		return Result{}, &ProviderError{"invalid_provider_configuration", false}
 	}
-	endpoint := "https://" + g.Config.Region + "-aiplatform.googleapis.com/v1/projects/" + url.PathEscape(g.Config.Project) + "/locations/" + url.PathEscape(g.Config.Region) + "/publishers/google/models/" + url.PathEscape(job.Model) + ":generateContent"
-	body, _ := json.Marshal(generationRequest(job, source, fields, maxOutput))
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	// Explicit backend, endpoint and version preserve the deployed Vertex API.
+	// ADC uses the Cloud Run runtime identity. No API key is configured.
+	client, err := g.newClient(ctx, &genai.ClientConfig{
+		Backend:  genai.BackendVertexAI,
+		Project:  g.Config.Project,
+		Location: g.Config.Region,
+		HTTPOptions: genai.HTTPOptions{
+			BaseURL:    "https://" + g.Config.Region + "-aiplatform.googleapis.com/",
+			APIVersion: "v1",
+			Timeout:    &g.Config.RequestTimeout,
+			// Each worker attempt has its own budget reservation. Never retry inside it.
+			RetryOptions: &genai.HTTPRetryOptions{Attempts: genai.Ptr(int32(1))},
+		},
+	})
 	if err != nil {
-		return Result{}, &ProviderError{"invalid_provider_request", false}
+		return Result{}, &ProviderError{"authentication_unavailable", true}
 	}
-	request.Header.Set("Authorization", "Bearer "+access)
-	request.Header.Set("Content-Type", "application/json")
-	response, err := g.Client.Do(request)
+	request := generationRequest(job, source, fields, maxOutput)
+	output, err := client.Models.GenerateContent(ctx, job.Model, request.Contents, request.Config)
 	if err != nil {
-		return Result{}, &ProviderError{"provider_network_error", true}
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return Result{}, &ProviderError{fmt.Sprintf("provider_http_%d", response.StatusCode), response.StatusCode == 429 || response.StatusCode >= 500}
-	}
-	var output struct {
-		Candidates []struct {
-			FinishReason string `json:"finishReason"`
-			Content      struct {
-				Parts []struct {
-					Text    string `json:"text"`
-					Thought bool   `json:"thought"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-		Usage struct {
-			Total int64 `json:"totalTokenCount"`
-		} `json:"usageMetadata"`
-	}
-	if json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&output) != nil {
+		var apiErr genai.APIError
+		if errors.As(err, &apiErr) {
+			return Result{}, &ProviderError{fmt.Sprintf("provider_http_%d", apiErr.Code), apiErr.Code == 429 || apiErr.Code >= 500}
+		}
+		var networkErr *url.Error
+		if errors.As(err, &networkErr) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return Result{}, &ProviderError{"provider_network_error", true}
+		}
+		// SDK errors can include response text. Expose only a fixed category.
 		return Result{}, &ProviderError{"invalid_provider_response", false}
 	}
-	result := Result{Tokens: output.Usage.Total}
-	if len(output.Candidates) != 1 || output.Candidates[0].FinishReason != "STOP" {
+	if output == nil {
+		return Result{}, &ProviderError{"invalid_provider_response", false}
+	}
+	result := Result{}
+	if output.UsageMetadata != nil {
+		result.Tokens = int64(output.UsageMetadata.TotalTokenCount)
+	}
+	if len(output.Candidates) != 1 || output.Candidates[0] == nil || output.Candidates[0].FinishReason != genai.FinishReasonStop || output.Candidates[0].Content == nil {
 		return result, &ProviderError{"incomplete_or_blocked_response", false}
 	}
 	var text strings.Builder
 	for _, part := range output.Candidates[0].Content.Parts {
-		if !part.Thought {
+		if part != nil && !part.Thought {
 			text.WriteString(part.Text)
 		}
 	}
