@@ -32,9 +32,10 @@ beforeEach(() => {
 });
 
 describe("dashboard resource navigation", () => {
-  it("shows all 19 resources including empty lists, with Guest photos first", () => {
+  it("shows all 19 resources and translation review, with Guest photos first", () => {
     const html = render();
-    expect(html.match(/href="\/admin\//g)).toHaveLength(19);
+    expect(html.match(/href="\/admin\//g)).toHaveLength(20);
+    expect(html).toContain('href="/admin/translations"');
     expect(html.indexOf('href="/admin/photoevents"')).toBeLessThan(
       html.indexOf('href="/admin/exhibitors"'),
     );
@@ -60,7 +61,8 @@ describe("dashboard resource navigation", () => {
     expect(html).toContain('href="/admin/photoevents"');
     expect(html).toContain('href="/admin/events"');
     expect(html).toContain("7 entries");
-    expect(html.match(/href="\/admin\//g)).toHaveLength(19);
+    expect(html.match(/href="\/admin\//g)).toHaveLength(20);
+    expect(html).toContain('href="/admin/translations"');
   });
 
   it("shows an accessible child and its groups without the parent link", () => {

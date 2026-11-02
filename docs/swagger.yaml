@@ -45,6 +45,45 @@ definitions:
           $ref: '#/definitions/models.EventroOrderedProduct'
         type: array
     type: object
+  controllers.TranslationGenerationRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+      regenerate:
+        type: boolean
+    type: object
+  controllers.TranslationOverviewResponse:
+    properties:
+      aiEnabled:
+        type: boolean
+      dailyBudget:
+        type: integer
+      glossaryVersion:
+        type: string
+      promptVersion:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/controllers.TranslationResourceSummary'
+        type: array
+      usage:
+        $ref: '#/definitions/translations.Usage'
+    type: object
+  controllers.TranslationResourceSummary:
+    properties:
+      aiAllowed:
+        type: boolean
+      canEdit:
+        type: boolean
+      id:
+        type: string
+      label:
+        type: string
+      missingRecords:
+        type: integer
+    type: object
   controllers.changePasswordBody:
     properties:
       newPassword:
@@ -671,6 +710,162 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  translations.FieldView:
+    properties:
+      format:
+        type: string
+      id:
+        type: string
+      olderPolicy:
+        type: boolean
+      published:
+        type: string
+      publishedOutdated:
+        type: boolean
+      source:
+        type: string
+      status:
+        type: string
+      suggestion:
+        $ref: '#/definitions/translations.Suggestion'
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  translations.Job:
+    properties:
+      attempts:
+        type: integer
+      createdAt:
+        type: string
+      error:
+        type: string
+      fingerprint:
+        type: string
+      finishedAt:
+        type: string
+      glossaryVersion:
+        type: string
+      id:
+        type: integer
+      model:
+        type: string
+      notBefore:
+        type: string
+      outdated:
+        type: boolean
+      promptVersion:
+        type: string
+      recordId:
+        type: integer
+      requestedBy:
+        type: integer
+      resource:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  translations.Page:
+    properties:
+      records:
+        items:
+          $ref: '#/definitions/translations.Record'
+        type: array
+      total:
+        type: integer
+    type: object
+  translations.Record:
+    properties:
+      fields:
+        items:
+          $ref: '#/definitions/translations.FieldView'
+        type: array
+      fingerprint:
+        type: string
+      id:
+        type: integer
+      job:
+        $ref: '#/definitions/translations.Job'
+      label:
+        type: string
+    type: object
+  translations.Review:
+    properties:
+      action:
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/translations.ReviewField'
+        type: array
+      fingerprint:
+        type: string
+    type: object
+  translations.ReviewField:
+    properties:
+      fieldId:
+        type: string
+      suggestionId:
+        type: integer
+      targetBefore:
+        type: string
+      text:
+        type: string
+      version:
+        type: integer
+    type: object
+  translations.Suggestion:
+    properties:
+      createdAt:
+        type: string
+      draft:
+        type: string
+      fieldId:
+        type: string
+      generated:
+        type: string
+      glossaryVersion:
+        type: string
+      id:
+        type: integer
+      jobId:
+        type: integer
+      model:
+        type: string
+      promptVersion:
+        type: string
+      publishedText:
+        type: string
+      recordId:
+        type: integer
+      resource:
+        type: string
+      reviewedAt:
+        type: string
+      reviewedBy:
+        type: integer
+      sourceFingerprint:
+        type: string
+      status:
+        type: string
+      targetBefore:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  translations.Usage:
+    properties:
+      day:
+        type: string
+      reserved:
+        type: integer
+      used:
+        type: integer
     type: object
 info:
   contact:
@@ -2573,6 +2768,30 @@ paths:
       summary: Dispatch runnable photo work
       tags:
       - photos
+  /internal/translations/dispatch:
+    post:
+      responses:
+        "202":
+          description: Worker start requested
+        "204":
+          description: No runnable work or generation disabled
+        "401":
+          description: Google ID token required
+          schema:
+            type: string
+        "403":
+          description: Unexpected service account
+          schema:
+            type: string
+        "503":
+          description: Dispatcher unavailable
+          schema:
+            type: string
+      security:
+      - SchedulerOIDC: []
+      summary: Dispatch runnable translation work
+      tags:
+      - translations
   /login:
     post:
       consumes:
@@ -3915,6 +4134,144 @@ paths:
       summary: Update timeline era
       tags:
       - timeline-eras
+  /translations:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.TranslationOverviewResponse'
+      security:
+      - BearerAuth: []
+      summary: Translation review overview
+      tags:
+      - translations
+  /translations/{resource}:
+    get:
+      parameters:
+      - description: Resource identifier
+        in: path
+        name: resource
+        required: true
+        type: string
+      - description: Zero-based page
+        in: query
+        name: page
+        type: integer
+      - description: Page size (maximum 50)
+        in: query
+        name: size
+        type: integer
+      - description: Search
+        in: query
+        name: q
+        type: string
+      - description: Review status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/translations.Page'
+      security:
+      - BearerAuth: []
+      summary: List translation review records
+      tags:
+      - translations
+  /translations/{resource}/{id}/jobs:
+    delete:
+      parameters:
+      - description: Resource identifier
+        in: path
+        name: resource
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Cancel pending translation generation
+      tags:
+      - translations
+  /translations/{resource}/{id}/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Resource identifier
+        in: path
+        name: resource
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Versioned field review
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/translations.Review'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/translations.Record'
+        "409":
+          description: Source, published value or draft changed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Review Swedish translation fields
+      tags:
+      - translations
+  /translations/{resource}/generate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Resource identifier
+        in: path
+        name: resource
+        required: true
+        type: string
+      - description: Selected records
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TranslationGenerationRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/translations.Job'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Generate Swedish translation suggestions
+      tags:
+      - translations
 securityDefinitions:
   BearerAuth:
     description: 'Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer

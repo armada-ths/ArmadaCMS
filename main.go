@@ -32,6 +32,7 @@ import (
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	_ "ArmadaCMS/main/docs"
+	"ArmadaCMS/main/internal/translations"
 	"ArmadaCMS/main/utils"
 
 	"cloud.google.com/go/auth/credentials/idtoken"
@@ -60,6 +61,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"timeline-entries":   {},
 	"timeline-eras":      {},
 	"login":              {},
+	"translations":       {},
 }
 
 var buildCommit = "unknown"
@@ -76,6 +78,13 @@ func main() {
 
 	db.ConnectDB()
 
+	if os.Getenv("TRANSLATION_WORKER_MODE") == "1" {
+		service := translations.New(db.DB)
+		if err := service.Run(context.Background(), translations.NewGemini(service.Config)); err != nil {
+			log.Fatal("translation worker failed")
+		}
+		return
+	}
 	if os.Getenv("PHOTO_WORKER_MODE") == "1" {
 		if err := runPhotoWorker(context.Background()); err != nil {
 			log.Fatal("photo worker failed: ", err)
@@ -221,8 +230,18 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	mux.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	//refactor in future this is quity messy. // WD
 	publicAPI := mux.PathPrefix("/api/v1").Subrouter()
+	publicAPI.Handle("/internal/translations/dispatch", auth.RequireGoogleServiceAccount(
+		os.Getenv("TRANSLATION_DISPATCH_AUDIENCE"), os.Getenv("TRANSLATION_DISPATCH_SERVICE_ACCOUNT"), idtoken.Validate,
+		http.HandlerFunc(controllers.DispatchTranslationJobs),
+	)).Methods(http.MethodPost)
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
+	protectedAPI.HandleFunc("/translations", controllers.GetTranslationsOverview).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}", controllers.GetTranslationRecords).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}/generate", controllers.GenerateTranslations).Methods("POST")
+	protectedAPI.HandleFunc("/translations/{resource}/{id}/review", controllers.ReviewTranslations).Methods("POST")
+	protectedAPI.HandleFunc("/translations/{resource}/{id}/jobs", controllers.CancelTranslationJobs).Methods("DELETE")
+
 	publicAPI.HandleFunc("/login", controllers.Login)
 	publicAPI.HandleFunc("/photo-events/access/{token}", controllers.PhotoEventAccess).Methods("GET")
 	publicAPI.HandleFunc("/photo-events/access/{token}/photos", controllers.PhotoEventUpload).Methods("POST")

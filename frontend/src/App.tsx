@@ -1,5 +1,8 @@
+import { Translations } from "./components/Translations/Translations";
+import { TranslationDraftProvider } from "./components/Translations/drafts";
 import {
   Admin,
+  CustomRoutes,
   AppBar,
   Logout,
   Resource,
@@ -102,9 +105,11 @@ const MyUserMenu = () => (
 const MyAppBar = () => <AppBar userMenu={<MyUserMenu />} />;
 
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
-  <Layout menu={MyMenu} appBar={MyAppBar}>
-    {children}
-  </Layout>
+  <TranslationDraftProvider>
+    <Layout menu={MyMenu} appBar={MyAppBar}>
+      {children}
+    </Layout>
+  </TranslationDraftProvider>
 );
 
 export const App = () => (
@@ -118,6 +123,9 @@ export const App = () => (
     loginPage={CustomLoginPage}
     dashboard={Dashboard}
   >
+    <CustomRoutes>
+      <Route path="/translations" element={<Translations />} />
+    </CustomRoutes>
     <Resource
       name="photoevents"
       options={{ label: RESOURCE_LABELS["photoevents"] }}

@@ -186,6 +186,15 @@ class Cloud:
         self._token_deadline = 0.0
         self.parent = f"projects/{config.project}/locations/{config.region}"
 
+    def translation_worker(self, name: str) -> "Cloud":
+        expected = self.config.service + "-translation-worker"
+        if name != expected:
+            raise ReleaseError("Unexpected translation worker destination")
+        config = copy.copy(self.config)
+        config.worker = name
+        return Cloud(config, run=self.run, api=self.api, clock=self.clock,
+                     sleep=self.sleep, wall_clock=self.wall_clock)
+
     def access_token(self, *, force_refresh=False):
         if not force_refresh and self._token and self.clock() < self._token_deadline:
             return self._token
@@ -416,6 +425,29 @@ class Release:
         self.config, self.github, self.cloud = config, github, cloud
         self.check, self.tls, self.save = check, tls, save
 
+    def extra_workers(self, snapshot):
+        for item in snapshot.get("additional_workers", []):
+            yield item, self.cloud.translation_worker(item["name"])
+
+    def prepare_translation_worker(self, service):
+        env = service["template"]["containers"][0].get("env", [])
+        name = next((entry.get("value", "") for entry in env
+                     if entry.get("name") == "TRANSLATION_WORKER_JOB_NAME"), "")
+        if not name:
+            return []
+        expected = f"{self.cloud.parent}/jobs/{self.config.service}-translation-worker"
+        if name != expected:
+            raise ReleaseError("Unexpected translation worker resource")
+        cloud = self.cloud.translation_worker(name.rsplit("/", 1)[1])
+        worker = cloud.stable("jobs")
+        if len(worker["template"]["template"]["containers"]) != 1:
+            raise ReleaseError("Translation worker must have one container")
+        cloud.permissions(service, worker)
+        return [{"name": cloud.config.worker, "etag": worker["etag"],
+                 "image": cloud.resolve_image(cloud.worker_image(worker)),
+                 "reference": cloud.worker_image(worker),
+                 "config_hash": cloud.config_hash(worker, "jobs")}]
+
     def prepare(self, image: str) -> JsonObject:
         self.config.image(image)
         self.github.current()
@@ -439,7 +471,8 @@ class Release:
                     "previous_template_revision": service["template"].get("revision"),
                     "service_etag": service["etag"], "worker_etag": worker["etag"],
                     "service_config_hash": self.cloud.config_hash(service, "services"),
-                    "worker_config_hash": self.cloud.config_hash(worker, "jobs")}
+                    "worker_config_hash": self.cloud.config_hash(worker, "jobs"),
+                    "additional_workers": self.prepare_translation_worker(service)}
         return snapshot
 
     def verify_snapshot(self, snapshot: JsonObject) -> tuple[JsonObject, JsonObject]:
@@ -450,7 +483,54 @@ class Release:
         if (service["etag"] != snapshot["service_etag"] or worker["etag"] != snapshot["worker_etag"]
                 or self.cloud.resolve_image(self.cloud.worker_image(worker)) != snapshot["previous_worker_image"]):
             raise ReleaseError("Prepared resources were changed by another actor")
+        for item, cloud in self.extra_workers(snapshot):
+            extra = cloud.stable("jobs")
+            if (extra["etag"] != item["etag"]
+                    or cloud.resolve_image(cloud.worker_image(extra)) != item["image"]):
+                raise ReleaseError("Prepared translation worker changed")
+        if self.prepare_translation_worker(service) != snapshot.get("additional_workers", []):
+            raise ReleaseError("Translation worker configuration changed")
         return service, worker
+
+    def update_translation_workers(self, snapshot):
+        extras = []
+        for item, cloud in self.extra_workers(snapshot):
+            extra = cloud.stable("jobs")
+            if extra["etag"] != item["etag"]:
+                raise ConflictError("translation_jobs")
+            try:
+                extra = cloud.set_worker(snapshot["image"], extra)
+            except ConflictError:
+                raise ConflictError("translation_jobs") from None
+            extras.append((cloud, extra))
+        return extras
+
+    def verify_translation_workers(self, workers, image):
+        for cloud, previous in workers:
+            current = cloud.stable("jobs")
+            if current["etag"] != previous["etag"] or cloud.worker_image(current) != image:
+                raise ConflictError("translation_jobs")
+
+    def restore_translation_workers(self, snapshot, blocked):
+        errors = []
+        for item, cloud in self.extra_workers(snapshot):
+            try:
+                if "translation_jobs" in blocked:
+                    raise ConflictError("translation_jobs")
+                extra = cloud.stable("jobs")
+                image = cloud.worker_image(extra)
+                if (cloud.config_hash(extra, "jobs") != item["config_hash"]
+                        or image not in (item["reference"], item["image"], snapshot["image"])):
+                    raise ConflictError("translation_jobs")
+                if cloud.resolve_image(image) != item["image"]:
+                    cloud.set_worker(item["image"], extra)
+                final = cloud.stable("jobs")
+                if cloud.resolve_image(cloud.worker_image(final)) != item["image"]:
+                    raise ReleaseError("Translation worker recovery did not converge")
+            except Exception:  # pylint: disable=broad-exception-caught
+                # Recovery reports unexpected client failures without exposing payloads.
+                errors.append("translation_worker_restore_failed_or_external_change")
+        return errors
 
     def recover(self, snapshot, *, worker_attempted, traffic_attempted, blocked=()):
         errors = []
@@ -491,6 +571,7 @@ class Release:
                     self.cloud.set_worker(snapshot["previous_worker_image"], worker)
             except Exception:
                 errors.append("worker_restore_failed_or_external_change")
+            errors.extend(self.restore_translation_workers(snapshot, blocked))
         if not errors:
             try:
                 service, worker = self.cloud.stable("services"), self.cloud.stable("jobs")
@@ -533,6 +614,7 @@ class Release:
             record("updating_worker")
             worker_attempted = True
             worker = self.cloud.set_worker(snapshot["image"], worker)
+            extras = self.update_translation_workers(snapshot)
             self.github.current()
             record("promoting")
             traffic_attempted = True
@@ -546,6 +628,7 @@ class Release:
                 conflicts.append("services")
             if final_worker["etag"] != worker["etag"]:
                 conflicts.append("jobs")
+            self.verify_translation_workers(extras, snapshot["image"])
             if conflicts:
                 raise ConflictError(*conflicts)
             self.cloud.verify_routes(final_service, {self.config.revision: 100}, self.cloud.tags(service))

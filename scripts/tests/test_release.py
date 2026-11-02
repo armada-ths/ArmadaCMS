@@ -125,6 +125,75 @@ class API:
         return {"done": True}
 
 
+class TranslationAPI(API):  # pylint: disable=too-few-public-methods
+    # This fake intentionally implements only the API callable contract.
+    """Keep the optional worker independent from the photo worker."""
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        name = cfg.service + "-translation-worker"
+        self.extra = copy.deepcopy(self.worker)
+        self.extra["name"] = self.extra["name"].rsplit("/", 1)[0] + "/" + name
+        self.extra["etag"] = "translation-0"
+        self.service["template"]["containers"][0]["env"].append({
+            "name": "TRANSLATION_WORKER_JOB_NAME", "value": self.extra["name"]})
+
+    def __call__(self, method, url, token, data=None):
+        if "-translation-worker" not in url:
+            return super().__call__(method, url, token, data)
+        primary = self.worker
+        self.worker = self.extra
+        try:
+            return super().__call__(method, url, token, data)
+        finally:
+            self.worker = primary
+
+
+class TranslationReleaseTests(unittest.TestCase):
+    def flow(self):
+        cfg = config()
+        api = TranslationAPI(cfg)
+        clock = Clock()
+        cloud = Cloud(cfg, api=api, run=registry_command, clock=clock, sleep=clock.sleep)
+        check = Mock()
+        release = Release(cfg, Mock(), cloud, check=check, tls=Mock())
+        return release, release.prepare(NEW), api, check
+
+    def test_updates_both_workers_before_promoting(self):
+        release, snapshot, api, _ = self.flow()
+        release.execute(snapshot)
+        self.assertEqual(Cloud.worker_image(api.extra), NEW)
+        self.assertEqual(Cloud.worker_image(api.worker), NEW)
+        self.assertLess(api.events.index("worker-new"), api.events.index("traffic-new"))
+        self.assertEqual(api.events.count("worker-new"), 2)
+
+    def test_failed_live_check_restores_both_workers(self):
+        release, snapshot, api, check = self.flow()
+        def fail_live(url, *args, **_kwargs):
+            if url == release.config.live_url and args:
+                raise SmokeError("failed live check")
+        check.side_effect = fail_live
+        with self.assertRaises(ReleaseError):
+            release.execute(snapshot)
+        self.assertEqual(Cloud.worker_image(api.extra), OLD)
+        self.assertEqual(Cloud.worker_image(api.worker), OLD)
+        self.assertEqual(Cloud.traffic(api.service), {"old": 100})
+
+    def test_external_worker_edit_is_never_overwritten(self):
+        release, snapshot, api, _ = self.flow()
+        api.extra["etag"] = "external"
+        api.extra["template"]["template"]["containers"][0]["image"] = REPO + "@sha256:" + "3" * 64
+        with self.assertRaises(ReleaseError):
+            release.execute(snapshot)
+        self.assertEqual(api.extra["etag"], "external")
+        self.assertFalse(api.events)
+
+    def test_rejects_unexpected_worker_target(self):
+        release, _, api, _ = self.flow()
+        api.service["template"]["containers"][0]["env"][-1]["value"] = "projects/other/locations/eu/jobs/arbitrary"
+        with self.assertRaises(ReleaseError):
+            release.prepare(NEW)
+
+
 class ReleaseTests(unittest.TestCase):
     def flow(self, branch="main"):
         cfg = config(branch)
