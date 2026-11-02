@@ -1,3 +1,7 @@
+locals {
+  photo_worker_identity = var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)
+}
+
 resource "google_cloud_run_v2_job" "photo_worker" {
   count               = var.deploy_cloud_run_service ? 1 : 0
   project             = var.project_id
@@ -96,14 +100,15 @@ resource "google_cloud_scheduler_job" "photo_worker_retry" {
   project     = var.project_id
   region      = var.scheduler_region
   name        = "${var.service_name}-photo-worker-retry"
-  description = "Retry queued photo exports and enforce retention"
-  schedule    = "0 * * * *"
+  description = "Check photo exports, retention and thumbnails before starting the worker"
+  schedule    = "*/5 * * * *"
   time_zone   = "Europe/Stockholm"
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/v2/${google_cloud_run_v2_job.photo_worker[0].id}:run"
-    oauth_token {
-      service_account_email = var.manage_runtime_service_account ? google_service_account.runtime[0].email : (trimspace(var.cloud_run_service_account_email) != "" ? var.cloud_run_service_account_email : local.default_compute_service_account_email)
+    uri         = var.photo_dispatch_url
+    oidc_token {
+      service_account_email = local.photo_worker_identity
+      audience              = var.photo_dispatch_url
     }
   }
   depends_on = [google_cloud_run_v2_job_iam_member.photo_worker_invoker, google_project_service.enabled]

@@ -2936,6 +2936,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/internal/photos/dispatch": {
+            "post": {
+                "security": [
+                    {
+                        "SchedulerOIDC": []
+                    }
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Dispatch runnable photo work",
+                "responses": {
+                    "202": {
+                        "description": "Worker start requested"
+                    },
+                    "204": {
+                        "description": "No runnable work"
+                    },
+                    "401": {
+                        "description": "Google ID token required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Unexpected service account",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Dispatcher unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/internal/translations/dispatch": {
             "post": {
                 "security": [

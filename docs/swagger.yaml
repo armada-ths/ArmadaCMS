@@ -2744,6 +2744,30 @@ paths:
       summary: Update industry
       tags:
       - industries
+  /internal/photos/dispatch:
+    post:
+      responses:
+        "202":
+          description: Worker start requested
+        "204":
+          description: No runnable work
+        "401":
+          description: Google ID token required
+          schema:
+            type: string
+        "403":
+          description: Unexpected service account
+          schema:
+            type: string
+        "503":
+          description: Dispatcher unavailable
+          schema:
+            type: string
+      security:
+      - SchedulerOIDC: []
+      summary: Dispatch runnable photo work
+      tags:
+      - photos
   /internal/translations/dispatch:
     post:
       responses:
