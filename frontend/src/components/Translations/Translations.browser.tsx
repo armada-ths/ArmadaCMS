@@ -8,7 +8,8 @@ import { TranslationDraftProvider } from "./drafts";
 import type { TranslationRecord } from "./api";
 const mocks = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("./api", () => ({ translationRequest: mocks.request }));
-vi.mock("react-admin", () => ({
+vi.mock("react-admin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-admin")>()),
   Title: () => null,
   useInput: vi.fn(),
   useBasename: () => "/admin",
