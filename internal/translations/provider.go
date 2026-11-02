@@ -70,6 +70,12 @@ type generationPayload struct {
 }
 
 func generationRequest(job Job, source Source, fields []string, maxOutput int) generationPayload {
+	// The SDK uses int32; keep the bound next to the conversion as well as at
+	// the provider boundary. Invalid requests never reach the model.
+	var outputLimit int32
+	if maxOutput > 0 && maxOutput <= 65536 {
+		outputLimit = int32(maxOutput)
+	}
 	properties := map[string]*genai.Schema{}
 	for _, f := range fields {
 		properties[f] = &genai.Schema{Type: genai.TypeString}
@@ -84,7 +90,7 @@ func generationRequest(job Job, source Source, fields []string, maxOutput int) g
 		Contents: genai.Text(text),
 		Config: &genai.GenerateContentConfig{
 			SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(job.Prompt + "\nArmada glossary and reviewed examples:\n" + job.Glossary)}},
-			MaxOutputTokens:   int32(maxOutput),
+			MaxOutputTokens:   outputLimit,
 			ResponseMIMEType:  "application/json",
 			ResponseSchema:    &genai.Schema{Type: genai.TypeObject, Properties: properties, Required: fields, PropertyOrdering: fields},
 			ThinkingConfig:    &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelMinimal},
@@ -140,7 +146,7 @@ func decodeFields(text string, expected []string) (map[string]string, error) {
 	return out, nil
 }
 func (g *Gemini) Generate(ctx context.Context, job Job, source Source, fields []string, maxOutput int) (Result, error) {
-	if g.Config.Project == "" || g.Config.Region == "" || strings.ContainsAny(g.Config.Project+g.Config.Region+job.Model, "/\\?#") {
+	if maxOutput <= 0 || maxOutput > 65536 || g.Config.Project == "" || g.Config.Region == "" || strings.ContainsAny(g.Config.Project+g.Config.Region+job.Model, "/\\?#") {
 		return Result{}, &ProviderError{"invalid_provider_configuration", false}
 	}
 	// Explicit backend, endpoint and version preserve the deployed Vertex API.

@@ -148,3 +148,18 @@ func TestGeminiSDKInitializationAndConfigurationFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGeminiRejectsInvalidOutputLimitBeforeModelCall(t *testing.T) {
+	g := NewGemini(Config{Project: "test-project", Region: "eu"})
+	g.newClient = func(context.Context, *genai.ClientConfig) (*genai.Client, error) {
+		t.Fatal("invalid output limit must not initialize the SDK or request credentials")
+		return nil, nil
+	}
+	for _, limit := range []int{-1, 0, 65537, 2147483647} {
+		result, err := g.Generate(context.Background(), Job{Model: "gemini-3.5-flash-lite"}, Source{}, nil, limit)
+		var failure *ProviderError
+		if !errors.As(err, &failure) || failure.Category != "invalid_provider_configuration" || failure.Retry || result.Tokens != 0 {
+			t.Fatalf("limit=%d result=%+v error=%v", limit, result, err)
+		}
+	}
+}
