@@ -3,17 +3,12 @@ import {
   isMultipartResource,
 } from "./utils/multipartFormData";
 import simpleRestDataProvider from "ra-data-simple-rest";
-import {
-  DataProvider,
-  fetchUtils,
-  HttpError,
-  type Identifier,
-} from "react-admin";
+import { DataProvider, HttpError, type Identifier } from "react-admin";
 import globalApi from "./context/globalApi";
 
-const endpoint = globalApi();
+import { authenticatedFetchJson } from "./context/authenticatedHttpClient";
 
-const getAccessToken = (): string | null => localStorage.getItem("accessToken");
+const endpoint = globalApi();
 
 export type FetchJsonResponse = {
   status: number;
@@ -22,23 +17,8 @@ export type FetchJsonResponse = {
   json: unknown;
 };
 
-/** Fetch wrapper with Authorization header */
-export const httpClient: (
-  url: string,
-  options?: fetchUtils.Options,
-) => Promise<FetchJsonResponse> = (url, options = {}) => {
-  const token = getAccessToken();
-
-  const headers = new Headers(
-    options.headers || { Accept: "application/json" },
-  );
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  options.headers = headers;
-
-  return fetchUtils.fetchJson(url, options);
-};
+/** Shared session-aware client for all React-Admin data requests. */
+export const httpClient = authenticatedFetchJson;
 
 const baseDataProvider = simpleRestDataProvider(endpoint, httpClient);
 
@@ -60,17 +40,11 @@ const uploadFormData = (
   method: "POST" | "PUT",
   formData: FormData,
 ) => {
-  const token = getAccessToken() || "";
-  return fetchUtils
-    .fetchJson(url, {
-      method,
-      body: formData,
-      credentials: "include",
-      headers: new Headers({
-        Authorization: `Bearer ${token}`, // ✅ only auth header — no content-type override
-      }),
-    })
-    .then(({ json }) => ({ data: json }));
+  return httpClient(url, {
+    method,
+    body: formData,
+    credentials: "include",
+  }).then(({ json }) => ({ data: json }));
 };
 
 const buildMultipartFormDataOrHttpError = (
