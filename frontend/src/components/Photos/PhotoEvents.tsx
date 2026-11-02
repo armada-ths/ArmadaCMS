@@ -33,6 +33,7 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { httpClient } from "../../dataProvider";
+import { authenticatedFetch } from "../../context/authenticatedHttpClient";
 import globalApi from "../../context/globalApi";
 import { toLocalInputValue, toUTCISOString } from "../../utils/dateTimeHelpers";
 
@@ -94,13 +95,8 @@ function EventActions() {
   };
 
   const downloadQR = async (format: "svg" | "png") => {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${globalApi()}/photoevents/${record.id}/qr?format=${format}&locale=${linkLocale}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken") ?? ""}`,
-        },
-      },
     );
     if (!response.ok) {
       notify("Could not download the QR code", { type: "error" });
