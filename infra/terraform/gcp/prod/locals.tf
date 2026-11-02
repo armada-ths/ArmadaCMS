@@ -102,7 +102,7 @@ locals {
   artifact_registry_host = "${var.region}-docker.pkg.dev"
   container_image        = trimspace(var.bootstrap_image) != "" ? var.bootstrap_image : "${local.artifact_registry_host}/${var.project_id}/${var.artifact_registry_repository_id}/${var.container_image_path}:${var.bootstrap_image_tag}"
 
-  # â”€â”€ Derived resource names â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # Derived resource names
   # All names are derived from var.name_prefix so a single rename propagates
   # everywhere. Matches the resources already deployed in production.
 
