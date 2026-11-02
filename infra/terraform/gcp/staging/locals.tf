@@ -60,7 +60,7 @@ locals {
   # DB values come from the Supabase workspace via tfe_outputs. Storage uses
   # the same generic S3 env vars in local and hosted environments. Photo bucket
   # fallbacks allow PR plans before the Supabase outputs are applied.
-  plain_env_vars = {
+  plain_env_vars = merge({
     DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
     DB_PORT                       = "5432"
     DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])
@@ -84,7 +84,10 @@ locals {
     DB_CONN_MAX_IDLE_TIME_MINUTES = "10"
     AUDIT_LOG_RETENTION_DAYS      = "7"
     REVALIDATION_URL              = var.revalidation_url
-  }
+    }, {
+    PHOTO_DISPATCH_AUDIENCE        = var.photo_dispatch_url
+    PHOTO_DISPATCH_SERVICE_ACCOUNT = local.photo_worker_identity
+  })
 
   deploy_service_account_email          = var.manage_deploy_service_account ? google_service_account.deploy[0].email : var.deploy_service_account_email
   default_compute_service_account_email = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"

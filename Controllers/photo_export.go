@@ -90,6 +90,11 @@ func ListPhotoExports(w http.ResponseWriter, r *http.Request) {
 }
 
 func launchPhotoWorker(ctx context.Context) error {
+	_, err := dispatchPhotoWorker(ctx, db.DB, time.Now().UTC(), startPhotoWorkerExecution)
+	return err
+}
+
+func startPhotoWorkerExecution(ctx context.Context) error {
 	name := strings.TrimSpace(os.Getenv("PHOTO_WORKER_JOB_NAME"))
 	if name == "" {
 		return fmt.Errorf("PHOTO_WORKER_JOB_NAME missing")

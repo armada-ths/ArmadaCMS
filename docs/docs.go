@@ -2936,6 +2936,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/internal/photos/dispatch": {
+            "post": {
+                "security": [
+                    {
+                        "SchedulerOIDC": []
+                    }
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Dispatch runnable photo work",
+                "responses": {
+                    "202": {
+                        "description": "Worker start requested"
+                    },
+                    "204": {
+                        "description": "No runnable work"
+                    },
+                    "401": {
+                        "description": "Google ID token required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Unexpected service account",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Dispatcher unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "consumes": [
@@ -6059,6 +6098,12 @@ const docTemplate = `{
     "securityDefinitions": {
         "BearerAuth": {
             "description": "Bearer JWT token obtained from POST /api/v1/login. Format: \"Bearer \u003ctoken\u003e\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "SchedulerOIDC": {
+            "description": "Google-signed OIDC bearer token for the configured scheduler service account and dispatch audience.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
