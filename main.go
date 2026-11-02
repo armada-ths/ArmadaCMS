@@ -12,6 +12,11 @@
 // @in header
 // @name Authorization
 // @description Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer <token>"
+//
+// @securityDefinitions.apikey SchedulerOIDC
+// @in header
+// @name Authorization
+// @description Google-signed OIDC bearer token for the configured scheduler service account and dispatch audience.
 package main
 
 import (
@@ -29,6 +34,7 @@ import (
 	_ "ArmadaCMS/main/docs"
 	"ArmadaCMS/main/utils"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -222,6 +228,10 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	publicAPI.HandleFunc("/photo-events/access/{token}/photos", controllers.PhotoEventUpload).Methods("POST")
 	publicAPI.HandleFunc("/photo-events/access/{token}/gallery", controllers.PhotoEventGallery).Methods("GET")
 	publicAPI.HandleFunc("/photo-events/access/{token}/gallery/refresh", controllers.PhotoEventRefreshURLs).Methods("POST")
+	publicAPI.Handle("/internal/photos/dispatch", auth.RequireGoogleServiceAccount(
+		os.Getenv("PHOTO_DISPATCH_AUDIENCE"), os.Getenv("PHOTO_DISPATCH_SERVICE_ACCOUNT"), idtoken.Validate,
+		http.HandlerFunc(controllers.DispatchPhotoJobs),
+	)).Methods(http.MethodPost)
 	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.view", controllers.ListPhotoEvents)).Methods("GET")
 	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.create", controllers.CreatePhotoEvent)).Methods("POST")
 	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.view", controllers.GetPhotoEvent)).Methods("GET")
