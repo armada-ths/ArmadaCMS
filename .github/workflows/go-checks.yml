@@ -31,6 +31,8 @@ jobs:
           filters: |
             go:
               - '**/*.go'
+              - 'internal/translations/**'
+              - 'supabase/migrations/*_ai_translation_review.sql'
               - 'go.mod'
               - 'go.sum'
               - '.golangci.yml'
@@ -151,16 +153,18 @@ jobs:
           docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE photo_quota_test'
           docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE translation_test'
           docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE eventro_sync_test'
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE translation_review_test'
 
       - name: Run database behavior tests
         env:
           USER_DELETE_TEST_DSN: postgresql://postgres:postgres@localhost:5432/user_delete_test?sslmode=disable
           PHOTO_QUOTA_TEST_DSN: postgresql://postgres:postgres@localhost:5432/photo_quota_test?sslmode=disable
           TRANSLATION_TEST_DSN: postgresql://postgres:postgres@localhost:5432/translation_test?sslmode=disable
+          TRANSLATION_REVIEW_TEST_DSN: postgresql://postgres:postgres@localhost:5432/translation_review_test?sslmode=disable
           EVENTRO_SYNC_TEST_DSN: postgresql://postgres:postgres@localhost:5432/eventro_sync_test?sslmode=disable
         run: >-
           go test -race -count=1 -timeout=5m -v ./Controllers
-          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence|TestPhotoTranslationIntegration|TestEventroReviewDatabaseFlow|TestPublicTranslationIntegration|TestEventroTranslationPreservation)$'
+          -run '^(TestDeleteUserWithRefreshTokens|TestPhotoGuestQuotaLifetimeAndConcurrentUploads|TestPublicTranslationPersistence|TestPhotoTranslationPersistence|TestPhotoTranslationIntegration|TestEventroReviewDatabaseFlow|TestPublicTranslationIntegration|TestEventroTranslationPreservation|TestTranslationReviewDatabaseFlow|TestTranslationWorkerBudgetAndConcurrency|TestTranslationExclusionsAndAtomicFailure|TestTranslationPolicyVersionsAndRejection|TestTranslationStaleQueueAndCancellation|TestTranslationRetryUsageAndLeaseRecovery|TestTranslationManualPublicationIsPreserved)$'
 
   go-checks:
     runs-on: ubuntu-24.04

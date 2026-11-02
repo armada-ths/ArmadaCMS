@@ -27,6 +27,7 @@ locals {
       "serviceusage.googleapis.com",
       "vision.googleapis.com",
     ],
+    var.enable_translation_worker ? ["aiplatform.googleapis.com"] : [],
     var.enable_recaptcha ? [
       "recaptchaenterprise.googleapis.com",
     ] : [],
@@ -57,20 +58,27 @@ locals {
 
   # Photo bucket fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = {
-    DB_HOST                       = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
-    DB_PORT                       = "5432"
-    DB_USER                       = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])
-    DB_NAME                       = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["db_name"])
-    DB_SSLMODE                    = "require"
-    S3_ENDPOINT                   = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
-    S3_PUBLIC_URL                 = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"
-    S3_BUCKET                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
-    PHOTO_S3_BUCKET               = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_storage_bucket"]), "event-photos")
-    PHOTO_EXPORT_S3_BUCKET        = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_export_bucket"]), "event-photo-exports")
-    PHOTO_APP_BASE_URL            = "https://photos.armada.nu"
-    PHOTO_RECAPTCHA_SITE_KEY      = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : ""
-    RECAPTCHA_PROJECT_ID          = var.project_id
-    PHOTO_WORKER_JOB_NAME         = "projects/${var.project_id}/locations/${var.region}/jobs/${var.service_name}-photo-worker"
+    DB_HOST                        = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
+    DB_PORT                        = "5432"
+    DB_USER                        = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])
+    DB_NAME                        = trimspace(var.db_name) != "" ? var.db_name : nonsensitive(data.tfe_outputs.supabase_prod.values["db_name"])
+    DB_SSLMODE                     = "require"
+    S3_ENDPOINT                    = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_s3_endpoint"])
+    S3_PUBLIC_URL                  = "${nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_url"])}/storage/v1/object/public"
+    S3_BUCKET                      = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_bucket"])
+    PHOTO_S3_BUCKET                = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_storage_bucket"]), "event-photos")
+    PHOTO_EXPORT_S3_BUCKET         = try(nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_photo_export_bucket"]), "event-photo-exports")
+    PHOTO_APP_BASE_URL             = "https://photos.armada.nu"
+    PHOTO_RECAPTCHA_SITE_KEY       = var.enable_recaptcha ? reverse(split("/", google_recaptcha_enterprise_key.website[0].name))[0] : ""
+    RECAPTCHA_PROJECT_ID           = var.project_id
+    PHOTO_WORKER_JOB_NAME          = "projects/${var.project_id}/locations/${var.region}/jobs/${var.service_name}-photo-worker"
+    GOOGLE_CLOUD_PROJECT           = var.project_id
+    TRANSLATION_AI_ENABLED         = tostring(var.translation_ai_enabled)
+    TRANSLATION_MODEL              = var.translation_model
+    TRANSLATION_REGION             = var.translation_region
+    TRANSLATION_DAILY_TOKEN_BUDGET = tostring(var.translation_daily_token_budget)
+    TRANSLATION_WORKER_JOB_NAME    = var.enable_translation_worker ? "projects/${var.project_id}/locations/${var.region}/jobs/${var.service_name}-translation-worker" : ""
+
     S3_REGION                     = nonsensitive(data.tfe_outputs.supabase_prod.values["supabase_storage_region"])
     DB_MAX_OPEN_CONNS             = "10"
     DB_MAX_IDLE_CONNS             = "5"

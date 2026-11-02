@@ -1,6 +1,6 @@
 import { useInput, InputProps } from "react-admin";
 import MDEditor, { commands, type RefMDEditor } from "@uiw/react-md-editor";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ComponentProps } from "react";
 import { useTheme } from "@mui/material/styles";
 import {
   Dialog,
@@ -97,6 +97,27 @@ export const MarkdownInput = ({
     field: { value, onChange },
   } = useInput(props);
 
+  return (
+    <MarkdownEditor
+      label={label}
+      enableImageFeatures={enableImageFeatures}
+      value={value}
+      onChange={onChange}
+    />
+  );
+};
+
+export const MarkdownEditor = ({
+  label,
+  enableImageFeatures = true,
+  value,
+  onChange,
+}: {
+  label?: string;
+  enableImageFeatures?: boolean;
+  value?: string;
+  onChange: (value: string | undefined) => void;
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RefMDEditor | null>(null);
 
@@ -248,13 +269,14 @@ export const MarkdownInput = ({
       <MDEditor
         ref={editorRef}
         value={value || ""}
+        textareaProps={{ "aria-label": label ?? "Markdown" }}
         onChange={(val) => onChange(val || "")}
         height={400}
         previewOptions={
           enableImageFeatures
             ? {
                 components: {
-                  img: (props) => {
+                  img: (props: ComponentProps<"img">) => {
                     const src = typeof props.src === "string" ? props.src : "";
                     const { alt, width, height } = parseImgAlt(props.alt ?? "");
                     return (

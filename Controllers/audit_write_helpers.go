@@ -60,18 +60,7 @@ func createWithAudit[T any](r *http.Request, resourceType string, entity *T, per
 
 func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := mutate(tx); err != nil {
-			return err
-		}
-		if reload != nil {
-			if err := reload(tx); err != nil {
-				return err
-			}
-		}
-		if err := acknowledgeEventroCMSEdits(tx, r, resourceType, before, after); err != nil {
-			return err
-		}
-		return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
+		return updateWithAuditInTransaction(tx, r, resourceType, resourceID, before, after, mutate, reload)
 	})
 	if err == nil {
 		for _, tag := range revalidateTags {
@@ -79,6 +68,23 @@ func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any
 		}
 	}
 	return err
+}
+
+// updateWithAuditInTransaction lets multi-step review flows publish content and
+// review state in one transaction through the same audit/Eventro path.
+func updateWithAuditInTransaction(tx *gorm.DB, r *http.Request, resourceType string, resourceID any, before, after any, mutate func(*gorm.DB) error, reload func(*gorm.DB) error) error {
+	if err := mutate(tx); err != nil {
+		return err
+	}
+	if reload != nil {
+		if err := reload(tx); err != nil {
+			return err
+		}
+	}
+	if err := acknowledgeEventroCMSEdits(tx, r, resourceType, before, after); err != nil {
+		return err
+	}
+	return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
 }
 
 // updateWithGroupedAudit records one parent update while retaining detailed
