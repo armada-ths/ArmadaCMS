@@ -21,6 +21,7 @@ export interface TranslationField {
   suggestion?: Suggestion;
   warnings: string[];
   olderPolicy: boolean;
+  publishedOutdated?: boolean;
 }
 export interface TranslationRecord {
   id: number;

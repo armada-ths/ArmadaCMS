@@ -21,6 +21,16 @@ func positive(name string, fallback int64) int64 {
 	}
 	return v
 }
+func boundedPositive(name string, fallback, ceiling int) int {
+	value, err := strconv.Atoi(os.Getenv(name))
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	if value > ceiling {
+		return ceiling
+	}
+	return value
+}
 func ConfigFromEnv() Config {
 	model := os.Getenv("TRANSLATION_MODEL")
 	if model == "" {
@@ -30,6 +40,15 @@ func ConfigFromEnv() Config {
 	if region == "" {
 		region = "eu"
 	}
-	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	return Config{os.Getenv("TRANSLATION_AI_ENABLED") == "true", model, project, region, os.Getenv("TRANSLATION_WORKER_JOB_NAME"), positive("TRANSLATION_DAILY_TOKEN_BUDGET", 1000000), int(min(positive("TRANSLATION_MAX_RECORDS", 50), 50)), int(min(positive("TRANSLATION_MAX_OUTPUT_TOKENS", 8192), 65536)), 120 * time.Second}
+	return Config{
+		Enabled:        os.Getenv("TRANSLATION_AI_ENABLED") == "true",
+		Model:          model,
+		Project:        os.Getenv("GOOGLE_CLOUD_PROJECT"),
+		Region:         region,
+		JobName:        os.Getenv("TRANSLATION_WORKER_JOB_NAME"),
+		DailyBudget:    positive("TRANSLATION_DAILY_TOKEN_BUDGET", 1000000),
+		MaxRecords:     boundedPositive("TRANSLATION_MAX_RECORDS", 50, 50),
+		MaxOutput:      boundedPositive("TRANSLATION_MAX_OUTPUT_TOKENS", 8192, 65536),
+		RequestTimeout: 120 * time.Second,
+	}
 }

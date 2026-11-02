@@ -6351,6 +6351,9 @@ const docTemplate = `{
                 "published": {
                     "type": "string"
                 },
+                "publishedOutdated": {
+                    "type": "boolean"
+                },
                 "source": {
                     "type": "string"
                 },

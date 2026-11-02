@@ -198,6 +198,22 @@ func TestTranslationReviewDatabaseFlow(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("expected one audit update, got %d", count)
 	}
+	// Explicit regeneration may propose a replacement for approved AI text;
+	// it must not change the published value before another review.
+	regenerated, err := service.Generate(ctx, resource, []uint64{id}, 1, true)
+	if err != nil || len(regenerated) != 1 {
+		t.Fatal("cannot explicitly regenerate approved AI text", err)
+	}
+	var stillPublished models.Blogpost
+	if err = database.First(&stillPublished, id).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stillPublished.TitleSv == nil || *stillPublished.TitleSv != *updated.TitleSv {
+		t.Fatal("regeneration changed published text")
+	}
+	if err = service.Cancel(ctx, resource, id); err != nil {
+		t.Fatal(err)
+	}
 	// Original edits mark the published AI text as needing an update; never remove it.
 	database.Model(&post).Update("title", "Changed English")
 	record, _ = service.Record(ctx, resource, id)
@@ -523,5 +539,70 @@ func TestTranslationManualPublicationIsPreserved(t *testing.T) {
 	jobs, err := service.Generate(ctx, resource, []uint64{id}, 1, true)
 	if err != nil || len(jobs) != 0 {
 		t.Fatal("manual translations became AI eligible", err)
+	}
+}
+
+func TestTranslationRegenerationKeepsPublishedContent(t *testing.T) {
+	database := translationReviewDatabase(t)
+	service := translations.New(database)
+	resource, _ := translations.Find("blogposts")
+	ctx := context.Background()
+	post := blogFixture(t, database, "Regeneration original")
+	id := uint64(post.ID)
+	if _, err := service.Generate(ctx, resource, []uint64{id}, 1, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Run(ctx, translationGenerator(goodTranslation)); err != nil {
+		t.Fatal(err)
+	}
+	record, _ := service.Record(ctx, resource, id)
+	if response := httpTranslationReview(t, resource.ID, id, reviewRequest(t, record, "approve", "Title", "Text")); response.Code != 200 {
+		t.Fatal(response.Body.String())
+	}
+	var original models.Blogpost
+	if err := database.First(&original, id).Error; err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		jobs, err := service.Generate(ctx, resource, []uint64{id}, 1, true)
+		if err != nil || len(jobs) != 1 {
+			t.Fatal("explicit replacement generation", err)
+		}
+		if err = service.Run(ctx, translationGenerator(goodTranslation)); err != nil {
+			t.Fatal(err)
+		}
+		var current models.Blogpost
+		if err = database.First(&current, id).Error; err != nil {
+			t.Fatal(err)
+		}
+		if !translations.Equal(original.TitleSv, current.TitleSv) || !translations.Equal(original.TextSv, current.TextSv) {
+			t.Fatal("regeneration published without review")
+		}
+	}
+	var retained int64
+	database.Model(&translations.Suggestion{}).Where("resource = ? AND record_id = ? AND status = 'superseded'", resource.ID, id).Count(&retained)
+	if retained != 2 {
+		t.Fatal("prior replacement drafts not retained")
+	}
+	// New proposals and rejections must not hide outdated published AI text.
+	database.Model(&post).Update("title", "Changed after replacement draft")
+	record, _ = service.Record(ctx, resource, id)
+	if !record.Fields[0].PublishedOutdated || record.Fields[0].Status != "stale" {
+		t.Fatal("published provenance hidden by replacement draft")
+	}
+	if response := httpTranslationReview(t, resource.ID, id, reviewRequest(t, record, "approve", "Title", "Text")); response.Code != 409 {
+		t.Fatal("stale proposal approved", response.Body.String())
+	}
+	rejected := reviewRequest(t, record, "reject", "Title", "Text")
+	if response := httpTranslationReview(t, resource.ID, id, rejected); response.Code != 200 {
+		t.Fatal("cannot reject stale proposal", response.Body.String())
+	}
+	record, _ = service.Record(ctx, resource, id)
+	if !record.Fields[0].PublishedOutdated || record.Fields[0].Status != "rejected" {
+		t.Fatal("rejection lost publication provenance")
+	}
+	page, err := service.List(ctx, resource, "", "needs_update", 0, 10)
+	if err != nil || page.Total != 1 {
+		t.Fatal("outdated publication missing from review queue", err)
 	}
 }

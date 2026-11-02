@@ -391,3 +391,38 @@ test("prevents edits from being lost while the selected fields are saved", async
     .element(page.getByRole("textbox", { name: "Title (Swedish)" }))
     .toBeEnabled();
 });
+
+test("allows rejecting an outdated proposal by its original suggestion version", async () => {
+  current.fields[0].status = "stale";
+  current.fields[0].publishedOutdated = true;
+  render();
+  await expect
+    .element(
+      page.getByText(
+        "Published Swedish is based on an older English original.",
+        { exact: false },
+      ),
+    )
+    .toBeVisible();
+  await page
+    .getByRole("checkbox", { name: "Title (stale)", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Reject selected", exact: true })
+    .click();
+  await vi.waitFor(() =>
+    expect(mocks.request).toHaveBeenCalledWith(
+      "/highlightcards/7/review",
+      expect.objectContaining({
+        action: "reject",
+        fields: [
+          expect.objectContaining({
+            fieldId: "Title",
+            suggestionId: 10,
+            version: 2,
+          }),
+        ],
+      }),
+    ),
+  );
+});

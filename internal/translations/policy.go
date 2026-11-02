@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -65,6 +66,36 @@ func htmlShape(s string) ([]string, error) {
 		}
 	}
 }
+
+// Names must be words rather than substrings (THS is not the end of MONTHS).
+// Swedish genitive -s keeps the proper name intact.
+func protectedOccurrences(value, name string) int {
+	count, offset := 0, 0
+	word := func(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) || r == '_' }
+	for offset < len(value) {
+		index := strings.Index(value[offset:], name)
+		if index < 0 {
+			break
+		}
+		index += offset
+		offset = index + len(name)
+		if index > 0 {
+			before, _ := utf8.DecodeLastRuneInString(value[:index])
+			if word(before) {
+				continue
+			}
+		}
+		suffix := strings.TrimPrefix(value[offset:], "s")
+		if len(suffix) > 0 {
+			after, _ := utf8.DecodeRuneInString(suffix)
+			if word(after) {
+				continue
+			}
+		}
+		count++
+	}
+	return count
+}
 func ValidateText(source Source, f Field, value, glossary string) ([]string, error) {
 	original := source.Fields[f.ID]
 	nordic := regexp.MustCompile(`(?i)\bnordic\b`).MatchString(original)
@@ -89,7 +120,7 @@ func ValidateText(source Source, f Field, value, glossary string) ([]string, err
 		policy.Protected = append(policy.Protected, source.Label)
 	}
 	for _, name := range policy.Protected {
-		if name != "" && strings.Count(original, name) != strings.Count(value, name) {
+		if name != "" && protectedOccurrences(original, name) != protectedOccurrences(value, name) {
 			return nil, fmt.Errorf("protected name changed")
 		}
 	}

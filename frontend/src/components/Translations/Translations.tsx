@@ -37,7 +37,7 @@ const fieldValue = (field: TranslationField) =>
     ? field.suggestion.draft
     : (field.published ?? "");
 const statuses = [
-  ["missing", "Missing translations"],
+  ["missing", "Missing or outdated translations"],
   ["review", "Ready for review"],
   ["needs_update", "Published translations need updating"],
   ["stale", "Outdated suggestions"],
@@ -311,7 +311,7 @@ function TranslationRecordCard({
           fields: selectedFields.map((id) => {
             const field = base.fields.find((f) => f.id === id)!;
             const suggestion =
-              field.suggestion?.status === "draft" && field.status === "review"
+              field.suggestion?.status === "draft"
                 ? field.suggestion
                 : undefined;
             return {
@@ -429,7 +429,12 @@ function TranslationRecordCard({
               control={
                 <Checkbox
                   checked={selectedFields.includes(field.id)}
-                  disabled={!resource.canEdit || !field.source.trim()}
+                  disabled={
+                    !resource.canEdit ||
+                    (!field.source.trim() &&
+                      !field.published?.trim() &&
+                      !field.suggestion)
+                  }
                   onChange={(e) =>
                     change((current) => ({
                       ...current,
@@ -503,6 +508,18 @@ function TranslationRecordCard({
                 </Typography>
               </Box>
             </Box>
+            {field.status === "stale" && (
+              <Alert severity="warning">
+                This proposal uses an older original or published value. Reject
+                it before starting a new manual draft, or request regeneration.
+              </Alert>
+            )}
+            {field.publishedOutdated && (
+              <Alert severity="warning">
+                Published Swedish is based on an older English original. It
+                stays published until a replacement is approved.
+              </Alert>
+            )}
             {field.warnings?.map((warning) => (
               <Alert severity="warning" key={warning}>
                 {warning}

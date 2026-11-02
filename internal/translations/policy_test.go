@@ -47,6 +47,8 @@ func TestTranslationPolicyPreservesMeaningAndMarkup(t *testing.T) {
 		{"Scandinavia preserved", "text", "The largest Scandinavian career fair", "Skandinaviens st\u00f6rsta arbetsmarknadsm\u00e4ssa", true},
 		{"natural Swedish", "text", "Meet the Hosts at KTH on 17 November", "M\u00f6t v\u00e4rdarna p\u00e5 KTH den 17 november", true},
 		{"number changed", "text", "Meet 17 employers", "M\u00f6t 18 arbetsgivare", false},
+		{"brand genitive", "text", "Armada career fair", "Armadas arbetsmarknadsmassa", true},
+		{"brand substring", "text", "MONTHS LEFT", "MANADER KVAR", true},
 		{"brand changed", "text", "Meet Armada", "M\u00f6t Flottan", false},
 		{"URL preserved", "markdown", "[Apply](https://armada.nu/join)", "[Ans\u00f6k](https://armada.nu/join)", true},
 		{"URL changed", "markdown", "[Apply](https://armada.nu/join)", "[Ans\u00f6k](https://evil.example/join)", false},
@@ -124,5 +126,16 @@ func TestBudgetDayUsesStockholm(t *testing.T) {
 		if day != sample.day || next.UTC().Format(time.RFC3339) != sample.next {
 			t.Fatalf("%s %s", day, next)
 		}
+	}
+}
+
+func TestGeminiTimeoutIsRetryableWithoutExposingProviderText(t *testing.T) {
+	provider := NewGemini(Config{Project: "test-project", Region: "eu"})
+	provider.Token = func(context.Context) (string, error) { return "test-token", nil }
+	provider.Client = &http.Client{Transport: roundTripper(func(*http.Request) (*http.Response, error) { return nil, context.DeadlineExceeded })}
+	result, err := provider.Generate(context.Background(), Job{Model: "gemini-3.5-flash-lite", Prompt: Prompt, Glossary: Glossary}, Source{Resource: "blogposts", Fields: map[string]string{"Title": "Original"}}, []string{"Title"}, 100)
+	failure, ok := err.(*ProviderError)
+	if !ok || !failure.Retry || failure.Category != "provider_network_error" || result.Tokens != 0 {
+		t.Fatalf("timeout result: %+v %v", result, err)
 	}
 }

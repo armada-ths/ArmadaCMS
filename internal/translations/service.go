@@ -29,14 +29,15 @@ func New(database *gorm.DB) *Service {
 func encode(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 type FieldView struct {
-	ID          string      `json:"id"`
-	Format      string      `json:"format"`
-	Source      string      `json:"source"`
-	Published   *string     `json:"published"`
-	Status      string      `json:"status"`
-	Suggestion  *Suggestion `json:"suggestion,omitempty"`
-	Warnings    []string    `json:"warnings"`
-	OlderPolicy bool        `json:"olderPolicy"`
+	ID                string      `json:"id"`
+	Format            string      `json:"format"`
+	Source            string      `json:"source"`
+	Published         *string     `json:"published"`
+	Status            string      `json:"status"`
+	Suggestion        *Suggestion `json:"suggestion,omitempty"`
+	Warnings          []string    `json:"warnings"`
+	OlderPolicy       bool        `json:"olderPolicy"`
+	PublishedOutdated bool        `json:"publishedOutdated"`
 }
 type Record struct {
 	ID          uint64      `json:"id"`
@@ -51,20 +52,29 @@ type Page struct {
 }
 
 func latestSuggestions(tx *gorm.DB, resource string, id uint64) (map[string]Suggestion, error) {
-	var items []Suggestion
-	q := tx.Where("resource = ?", resource)
-	if id > 0 {
-		q = q.Where("record_id = ?", id)
-	}
-	err := q.Select("DISTINCT ON (record_id, field_id) *").Order("record_id, field_id, id DESC").Find(&items).Error
 	latest := map[string]Suggestion{}
-	for _, item := range items {
-		key := fmt.Sprintf("%d/%s", item.RecordID, item.FieldID)
-		if _, ok := latest[key]; !ok {
+	// Keep publication provenance independent of the newest draft/rejection.
+	for _, approved := range []bool{false, true} {
+		var items []Suggestion
+		q := tx.Where("resource = ?", resource)
+		if id > 0 {
+			q = q.Where("record_id = ?", id)
+		}
+		if approved {
+			q = q.Where("status = 'approved'")
+		}
+		if err := q.Select("DISTINCT ON (record_id, field_id) *").Order("record_id, field_id, id DESC").Find(&items).Error; err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			key := fmt.Sprintf("%d/%s", item.RecordID, item.FieldID)
+			if approved {
+				key = "published/" + key
+			}
 			latest[key] = item
 		}
 	}
-	return latest, err
+	return latest, nil
 }
 func buildRecord(r Resource, m any, id uint64, latest map[string]Suggestion, jobs map[uint64]Job) Record {
 	source := r.Snapshot(m, id)
@@ -83,6 +93,10 @@ func buildRecord(r Resource, m any, id uint64, latest map[string]Suggestion, job
 		if strings.TrimSpace(view.Source) == "" {
 			view.Status = "empty_source"
 		}
+		if published, ok := latest[fmt.Sprintf("published/%d/%s", id, field.ID)]; ok && !Blank(view.Published) && published.JobID != nil && Equal(published.PublishedText, view.Published) && published.SourceFingerprint != record.Fingerprint {
+			view.PublishedOutdated = true
+			view.Status = "needs_update"
+		}
 		if suggestion, ok := latest[fmt.Sprintf("%d/%s", id, field.ID)]; ok {
 			view.Suggestion = &suggestion
 			view.OlderPolicy = suggestion.PromptVersion != "" && (suggestion.PromptVersion != PromptVersion || suggestion.GlossaryVersion != GlossaryVersion)
@@ -94,13 +108,7 @@ func buildRecord(r Resource, m any, id uint64, latest map[string]Suggestion, job
 					view.Status = "stale"
 				}
 			case "rejected":
-				if Blank(view.Published) {
-					view.Status = "rejected"
-				}
-			case "approved":
-				if Equal(suggestion.PublishedText, view.Published) && suggestion.SourceFingerprint != record.Fingerprint {
-					view.Status = "needs_update"
-				}
+				view.Status = "rejected"
 			}
 		}
 		record.Fields = append(record.Fields, view)
@@ -148,7 +156,7 @@ func (s *Service) List(ctx context.Context, r Resource, search, status string, p
 			if f.Published != nil {
 				searchable += " " + *f.Published
 			}
-			if status == f.Status || (status == "missing" && ((Blank(f.Published) && strings.TrimSpace(f.Source) != "") || f.Status == "stale" || f.Status == "needs_update")) {
+			if status == f.Status || (status == "needs_update" && f.PublishedOutdated) || (status == "missing" && ((Blank(f.Published) && strings.TrimSpace(f.Source) != "") || f.Status == "stale" || f.PublishedOutdated)) {
 				found = true
 			}
 		}
@@ -221,7 +229,8 @@ func (s *Service) Generate(ctx context.Context, r Resource, ids []uint64, user i
 				}
 				previous, exists := latest[fmt.Sprintf("%d/%s", id, f.ID)]
 				missing := Blank(source.Targets[f.ID])
-				outdated := exists && previous.JobID != nil && previous.Status == "approved" && Equal(previous.PublishedText, source.Targets[f.ID]) && previous.SourceFingerprint != source.Fingerprint()
+				published, hasPublication := latest[fmt.Sprintf("published/%d/%s", id, f.ID)]
+				outdated := hasPublication && published.JobID != nil && Equal(published.PublishedText, source.Targets[f.ID]) && (published.SourceFingerprint != source.Fingerprint() || force)
 				if !missing && !outdated {
 					continue
 				}
@@ -285,7 +294,7 @@ func (s *Service) Review(ctx context.Context, r Resource, id uint64, input Revie
 			return err
 		}
 		source := r.Snapshot(before, id)
-		if input.Fingerprint != source.Fingerprint() {
+		if input.Action != "reject" && input.Fingerprint != source.Fingerprint() {
 			return ErrConflict
 		}
 		values := map[string]string{}
@@ -297,7 +306,7 @@ func (s *Service) Review(ctx context.Context, r Resource, id uint64, input Revie
 				return fmt.Errorf("invalid or duplicate field")
 			}
 			seen[f.ID] = true
-			if !Equal(selection.TargetBefore, source.Targets[f.ID]) {
+			if input.Action != "reject" && !Equal(selection.TargetBefore, source.Targets[f.ID]) {
 				return ErrConflict
 			}
 			var suggestion Suggestion
@@ -305,7 +314,7 @@ func (s *Service) Review(ctx context.Context, r Resource, id uint64, input Revie
 				if err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND resource = ? AND record_id = ? AND field_id = ?", selection.SuggestionID, r.ID, id, f.ID).First(&suggestion).Error; err != nil {
 					return ErrConflict
 				}
-				if suggestion.Version != selection.Version || suggestion.Status != "draft" || suggestion.SourceFingerprint != source.Fingerprint() || !Equal(suggestion.TargetBefore, source.Targets[f.ID]) {
+				if suggestion.Version != selection.Version || suggestion.Status != "draft" || (input.Action != "reject" && (suggestion.SourceFingerprint != source.Fingerprint() || !Equal(suggestion.TargetBefore, source.Targets[f.ID]))) {
 					return ErrConflict
 				}
 			} else {
