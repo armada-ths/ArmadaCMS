@@ -5,7 +5,7 @@ project_region = "eu-north-1"
 database_name = "postgres"
 database_user = "postgres"
 
-api_db_schema            = ""
+api_db_schema            = "pg_pgrst_no_exposed_schemas"
 api_db_extra_search_path = "public,extensions"
 api_max_rows             = 1000
 
@@ -23,3 +23,7 @@ supabase_url                 = "https://rsdjnixgxqauonaofrwr.supabase.co"
 supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co/storage/v1/s3"
 supabase_storage_bucket      = "armadacms-files"
 supabase_storage_region      = "eu-north-1"
+
+# Existing persistent staging branch and hosted Storage limit.
+staging_project_ref     = "dqeikqjiztvmifmnbzbf"
+storage_file_size_limit = 5368709120
