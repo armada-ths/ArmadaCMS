@@ -40,9 +40,9 @@ variable "database_user" {
 }
 
 variable "api_db_schema" {
-  description = "Comma-separated list of schemas exposed through the Supabase Data API / PostgREST configuration. Leave empty to keep the existing project setting unmanaged."
+  description = "PostgREST schemas for both environments. Preserve the hosted no-exposed-schemas sentinel unless intentionally enabling Data API access."
   type        = string
-  default     = ""
+  default     = "pg_pgrst_no_exposed_schemas"
 }
 
 variable "api_db_extra_search_path" {
@@ -109,4 +109,21 @@ variable "supabase_storage_region" {
   description = "AWS-style region name reported to the S3-compatible client (e.g. eu-north-1). Exported to GCP workspaces via tfe_outputs."
   type        = string
   default     = "eu-north-1"
+}
+
+variable "staging_project_ref" {
+  description = "Project reference of the existing persistent Supabase staging branch."
+  type        = string
+  default     = "dqeikqjiztvmifmnbzbf"
+}
+
+variable "storage_file_size_limit" {
+  description = "Hosted Storage upload size limit in bytes; 5 GiB matches the existing production and staging settings."
+  type        = number
+  default     = 5368709120
+
+  validation {
+    condition     = var.storage_file_size_limit > 0 && floor(var.storage_file_size_limit) == var.storage_file_size_limit
+    error_message = "Storage file size limit must be a positive whole number of bytes."
+  }
 }
