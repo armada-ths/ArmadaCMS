@@ -40,15 +40,7 @@ func auditGroupStatus(successful, failed int) string {
 
 func createWithAudit[T any](r *http.Request, resourceType string, entity *T, persist func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := persist(tx); err != nil {
-			return err
-		}
-		if reload != nil {
-			if err := reload(tx); err != nil {
-				return err
-			}
-		}
-		return audit.LogCreate(tx, r, resourceType, getResourceID(entity), entity)
+		return createWithAuditInTransaction(tx, r, resourceType, entity, persist, reload)
 	})
 	if err == nil {
 		for _, tag := range revalidateTags {
@@ -56,6 +48,25 @@ func createWithAudit[T any](r *http.Request, resourceType string, entity *T, per
 		}
 	}
 	return err
+}
+
+func createWithAuditInTransaction[T any](tx *gorm.DB, r *http.Request, resourceType string, entity *T, persist func(tx *gorm.DB) error, reload func(tx *gorm.DB) error) error {
+	if err := persist(tx); err != nil {
+		return err
+	}
+	if reload != nil {
+		if err := reload(tx); err != nil {
+			return err
+		}
+	}
+	return audit.LogCreate(tx, r, resourceType, getResourceID(entity), entity)
+}
+
+func updateWithAuditInTransaction[T any](tx *gorm.DB, r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error) error {
+	if err := mutate(tx); err != nil {
+		return err
+	}
+	return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
 }
 
 func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
