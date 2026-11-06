@@ -47,6 +47,72 @@ definitions:
         example: admin
         type: string
     type: object
+  controllers.loungeCatalogue:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.LoungeCategory'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/models.LoungeItem'
+        type: array
+      revision:
+        type: integer
+    type: object
+  controllers.loungeCategoryMutation:
+    properties:
+      name:
+        type: string
+      nameSv:
+        type: string
+    type: object
+  controllers.loungeDeliveryReport:
+    properties:
+      claimToken:
+        type: string
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+  controllers.loungeOrderStatus:
+    properties:
+      status:
+        type: string
+    type: object
+  controllers.loungeReorder:
+    properties:
+      categories:
+        items:
+          properties:
+            id:
+              type: integer
+            itemIds:
+              items:
+                type: integer
+              type: array
+          type: object
+        type: array
+      revision:
+        type: integer
+    type: object
+  controllers.loungeSubmission:
+    properties:
+      exhibitorId:
+        type: integer
+      idempotencyKey:
+        type: string
+      items:
+        items:
+          properties:
+            id:
+              type: string
+            quantity:
+              type: integer
+          type: object
+        type: array
+    type: object
   controllers.photoPreviewRefreshRequest:
     properties:
       event_id:
@@ -411,6 +477,84 @@ definitions:
       nameSv:
         description: 'Nullable: Swedish translation'
         type: string
+    type: object
+  models.LoungeCategory:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      nameSv:
+        type: string
+      sortOrder:
+        type: integer
+    type: object
+  models.LoungeItem:
+    properties:
+      categoryId:
+        type: integer
+      description:
+        type: string
+      descriptionSv:
+        type: string
+      id:
+        type: integer
+      maxPerOrder:
+        type: integer
+      name:
+        type: string
+      nameSv:
+        type: string
+      soldOut:
+        type: boolean
+      sortOrder:
+        type: integer
+    type: object
+  models.LoungeOrder:
+    properties:
+      companyId:
+        type: integer
+      companyName:
+        type: string
+      createdAt:
+        type: string
+      deliveryError:
+        type: string
+      deliveryStatus:
+        type: string
+      id:
+        type: integer
+      isTest:
+        type: boolean
+      lines:
+        items:
+          $ref: '#/definitions/models.LoungeOrderLine'
+        type: array
+      status:
+        type: string
+    type: object
+  models.LoungeOrderLine:
+    properties:
+      categoryId:
+        type: integer
+      categoryName:
+        type: string
+      categoryNameSv:
+        type: string
+      id:
+        type: integer
+      itemId:
+        type: integer
+      itemName:
+        type: string
+      itemNameSv:
+        type: string
+      orderId:
+        type: integer
+      position:
+        type: integer
+      quantity:
+        type: integer
     type: object
   models.OrganizationGroup:
     properties:
@@ -2459,6 +2603,430 @@ paths:
       summary: Login
       tags:
       - auth
+  /lounge-catalogue:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.loungeCatalogue'
+      summary: Get lounge catalogue
+      tags:
+      - lounge
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complete ordering and revision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeReorder'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.loungeCatalogue'
+        "409":
+          description: Catalogue changed
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Reorder lounge catalogue
+      tags:
+      - lounge
+  /lounge-categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoungeCategory'
+            type: array
+      summary: List lounge categories
+      tags:
+      - lounge
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Localized category
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeCategoryMutation'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoungeCategory'
+      security:
+      - BearerAuth: []
+      summary: Create lounge category
+      tags:
+      - lounge
+  /lounge-categories/{id}:
+    delete:
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Deleted
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete category and items
+      tags:
+      - lounge
+    get:
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeCategory'
+      summary: Get lounge category
+      tags:
+      - lounge
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Localized category
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeCategoryMutation'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeCategory'
+      security:
+      - BearerAuth: []
+      summary: Update lounge category
+      tags:
+      - lounge
+  /lounge-items:
+    get:
+      parameters:
+      - description: Inclusive pagination range
+        in: query
+        name: range
+        type: string
+      - description: Field and ASC/DESC direction
+        in: query
+        name: sort
+        type: string
+      - description: Name, soldOut or ID filter
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoungeItem'
+            type: array
+      summary: List lounge items
+      tags:
+      - lounge-items
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Categorized item
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoungeItem'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoungeItem'
+      security:
+      - BearerAuth: []
+      summary: Create lounge item
+      tags:
+      - lounge-items
+  /lounge-items/{id}:
+    delete:
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Deleted
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete lounge item
+      tags:
+      - lounge-items
+    get:
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeItem'
+      summary: Get lounge item
+      tags:
+      - lounge-items
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoungeItem'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeItem'
+      security:
+      - BearerAuth: []
+      summary: Update lounge item
+      tags:
+      - lounge-items
+  /lounge-orders:
+    get:
+      parameters:
+      - description: Company, category, item, status, isTest
+        in: query
+        name: filter
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoungeOrder'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List lounge orders
+      tags:
+      - lounge-orders
+  /lounge-orders/{id}:
+    get:
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeOrder'
+      security:
+      - BearerAuth: []
+      summary: Get lounge order
+      tags:
+      - lounge-orders
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Operational status only
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeOrderStatus'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeOrder'
+      security:
+      - BearerAuth: []
+      summary: Change lounge order status
+      tags:
+      - lounge-orders
+  /lounge-orders/{id}/claim:
+    post:
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Claim lounge notification delivery
+      tags:
+      - lounge-orders
+  /lounge-orders/{id}/delivery:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Claim and notification outcome
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeDeliveryReport'
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Report lounge notification outcome
+      tags:
+      - lounge-orders
+  /lounge-orders/{id}/retry:
+    post:
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Retry lounge Slack notification
+      tags:
+      - lounge-orders
+  /lounge-orders/filter-options:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lounge historical filter options
+      tags:
+      - lounge-orders
+  /lounge-orders/submit:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order and idempotency key
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.loungeSubmission'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoungeOrder'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoungeOrder'
+      security:
+      - BearerAuth: []
+      summary: Submit lounge order
+      tags:
+      - lounge-orders
+  /lounge-orders/totals:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Lounge quantity totals
+      tags:
+      - lounge-orders
   /me:
     get:
       produces:

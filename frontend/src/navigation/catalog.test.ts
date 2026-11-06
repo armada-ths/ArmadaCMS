@@ -33,10 +33,12 @@ describe("navigation catalog", () => {
     const registered = [
       ...appSource.matchAll(/<Resource\s+name="([^"]+)"/g),
     ].map((match) => match[1]);
-    expect(registered).toHaveLength(19);
-    expect(RESOURCE_NAMES).toHaveLength(19);
-    expect(new Set(RESOURCE_NAMES).size).toBe(19);
-    expect([...RESOURCE_NAMES].sort()).toEqual(registered.sort());
+    expect(registered).toHaveLength(22);
+    expect(RESOURCE_NAMES).toHaveLength(21);
+    expect(new Set(RESOURCE_NAMES).size).toBe(21);
+    expect([...RESOURCE_NAMES].sort()).toEqual(
+      registered.filter((name) => name !== "lounge-categories").sort(),
+    );
   });
 
   it("keeps Guest photos on the top level after Dashboard", () => {
@@ -58,7 +60,7 @@ describe("navigation catalog", () => {
     async (permission) => {
       expect(
         getResourceLinks(await accessibleNavigation([permission])),
-      ).toHaveLength(19);
+      ).toHaveLength(21);
     },
   );
 
@@ -98,6 +100,7 @@ describe("navigation catalog", () => {
     ["/admin/exhibitors/create", ["fair", "exhibitor-settings"]],
     ["/admin/programs/17", ["fair", "exhibitor-settings"]],
     ["/admin/timeline-entries/4", ["website", "history"]],
+    ["/admin/lounge-items/4", ["fair"]],
     ["/admin/photoevents/2/photos", []],
     ["/admin/", []],
   ])("opens the ancestors for %s", (path, expected) => {

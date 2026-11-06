@@ -106,7 +106,14 @@ export const authProvider: AuthProvider = {
     // React-Admin uses "list" and "show" internally; our permission system uses "view"
     const mappedAction =
       action === "list" || action === "show" ? "view" : action;
-    const permissionKey = `${resource}.${mappedAction}`;
+    const group = [
+      "lounge-items",
+      "lounge-categories",
+      "lounge-orders",
+    ].includes(resource)
+      ? "lounge"
+      : resource;
+    const permissionKey = `${group}.${mappedAction}`;
     return hasPerm(permissions, permissionKey);
   },
 };

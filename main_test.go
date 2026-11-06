@@ -14,9 +14,33 @@ func TestLocalPhotosCORS(t *testing.T) {
 		if !isAllowedCORSOrigin(origin) {
 			t.Fatalf("local Photos origin is not allowed: %s", origin)
 		}
+
 	}
 	if isAllowedCORSOrigin("https://untrusted.example:8001") {
 		t.Fatal("an unrelated origin must not be allowed")
+	}
+}
+
+func TestLoungeOrdersRequireAuthentication(t *testing.T) {
+	t.Setenv("LOUNGE_ORDER_SUBMISSION_SECRET", "test-live")
+	t.Setenv("LOUNGE_ORDER_TEST_SUBMISSION_SECRET", "test-preview")
+	handler := CreateMuxClient()
+	for _, path := range []string{
+		"/api/v1/lounge-orders", "/api/v1/lounge-orders/1",
+		"/api/v1/lounge-orders/totals", "/api/v1/lounge-orders/filter-options",
+	} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s leaked without authentication: %d", path, response.Code)
+		}
+	}
+	for _, path := range []string{"/api/v1/lounge-orders/submit", "/api/v1/lounge-orders/1/claim", "/api/v1/lounge-orders/1/delivery", "/api/v1/lounge-orders/1/retry"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s accepted without authentication: %d", path, response.Code)
+		}
 	}
 }
 

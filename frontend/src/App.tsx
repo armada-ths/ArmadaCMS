@@ -66,6 +66,13 @@ import { Dashboard } from "./components/Dashboard/Dashboard";
 import { ResourceMenu } from "./navigation/ResourceMenu";
 import { RESOURCE_LABELS } from "./navigation/catalog";
 import { ReactNode } from "react";
+import { LoungeItemList } from "./components/LoungeItem/LoungeItemList";
+import { LoungeItemCreate } from "./components/LoungeItem/LoungeItemCreate";
+import { LoungeItemEdit } from "./components/LoungeItem/LoungeItemEdit";
+import {
+  LoungeOrderList,
+  LoungeOrderShow,
+} from "./components/LoungeOrder/LoungeOrders";
 
 export const MyMenu = ResourceMenu;
 
@@ -150,6 +157,20 @@ export const App = () => (
       list={ExhibitorList}
       create={ExhibitorCreate}
       edit={ExhibitorEdit}
+    />
+    <Resource
+      name="lounge-items"
+      options={{ label: RESOURCE_LABELS["lounge-items"] }}
+      list={LoungeItemList}
+      create={LoungeItemCreate}
+      edit={LoungeItemEdit}
+    />
+    <Resource name="lounge-categories" />
+    <Resource
+      name="lounge-orders"
+      options={{ label: RESOURCE_LABELS["lounge-orders"] }}
+      list={LoungeOrderList}
+      show={LoungeOrderShow}
     />
     <Resource
       name="employments"
