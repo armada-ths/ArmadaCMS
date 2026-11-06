@@ -17,6 +17,7 @@ type Exhibitor struct {
 	Tier            *Tier   `gorm:"column:tier" json:"tier,omitempty"`
 	CompanyWebsite  *string `gorm:"column:company_website" json:"companyWebsite,omitempty"`
 	About           *string `gorm:"column:about" json:"about,omitempty"`
+	AboutSv         *string `gorm:"column:about_sv" json:"aboutSv,omitempty"` // Nullable: Swedish translation
 	Purpose         *string `gorm:"column:purpose" json:"purpose,omitempty"`
 	LogoSquaredUrl  *string `gorm:"column:logo_squared_url" json:"logoSquared,omitempty"`
 	LogoFreesizeUrl *string `gorm:"column:logo_freesize_url" json:"logoFreesize,omitempty"`

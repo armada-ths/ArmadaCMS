@@ -3,6 +3,8 @@ package models
 import "time"
 
 type PhotoEvent struct {
+	NameSv                *string    `gorm:"column:name_sv" json:"nameSv,omitempty"`
+	DescriptionSv         *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"`
 	ID                    uint64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	Name                  string     `gorm:"column:name" json:"name"`
 	Description           string     `gorm:"column:description" json:"description"`

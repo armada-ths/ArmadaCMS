@@ -2936,6 +2936,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/internal/photos/dispatch": {
+            "post": {
+                "security": [
+                    {
+                        "SchedulerOIDC": []
+                    }
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Dispatch runnable photo work",
+                "responses": {
+                    "202": {
+                        "description": "Worker start requested"
+                    },
+                    "204": {
+                        "description": "No runnable work"
+                    },
+                    "401": {
+                        "description": "Google ID token required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Unexpected service account",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Dispatcher unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/translations/dispatch": {
+            "post": {
+                "security": [
+                    {
+                        "SchedulerOIDC": []
+                    }
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Dispatch runnable translation work",
+                "responses": {
+                    "202": {
+                        "description": "Worker start requested"
+                    },
+                    "204": {
+                        "description": "No runnable work or generation disabled"
+                    },
+                    "401": {
+                        "description": "Google ID token required",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Unexpected service account",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Dispatcher unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "consumes": [
@@ -5040,6 +5118,260 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/translations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Translation review overview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TranslationOverviewResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/translations/{resource}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "List translation review records",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Zero-based page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (maximum 50)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Review status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/translations.Page"
+                        }
+                    }
+                }
+            }
+        },
+        "/translations/{resource}/generate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Generate Swedish translation suggestions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Selected records",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TranslationGenerationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/translations.Job"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/translations/{resource}/selection": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Select all records for bulk translation generation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TranslationSelectionResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/translations/{resource}/{id}/jobs": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Cancel pending translation generation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/translations/{resource}/{id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translations"
+                ],
+                "summary": "Review Swedish translation fields",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource identifier",
+                        "name": "resource",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Versioned field review",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/translations.Review"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/translations.Record"
+                        }
+                    },
+                    "409": {
+                        "description": "Source, published value or draft changed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -5106,6 +5438,80 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.EventroOrderedProduct"
+                    }
+                }
+            }
+        },
+        "controllers.TranslationGenerationRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "regenerate": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "controllers.TranslationOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "aiEnabled": {
+                    "type": "boolean"
+                },
+                "dailyBudget": {
+                    "type": "integer"
+                },
+                "glossaryVersion": {
+                    "type": "string"
+                },
+                "promptVersion": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.TranslationResourceSummary"
+                    }
+                },
+                "usage": {
+                    "$ref": "#/definitions/translations.Usage"
+                }
+            }
+        },
+        "controllers.TranslationResourceSummary": {
+            "type": "object",
+            "properties": {
+                "aiAllowed": {
+                    "type": "boolean"
+                },
+                "canEdit": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "missingRecords": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controllers.TranslationSelectionResponse": {
+            "type": "object",
+            "properties": {
+                "batchSize": {
+                    "type": "integer"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
                     }
                 }
             }
@@ -5225,6 +5631,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "startDate": {
                     "type": "string"
                 }
@@ -5236,10 +5645,16 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "recruitmentId": {
@@ -5362,7 +5777,15 @@ const docTemplate = `{
                 "text": {
                     "type": "string"
                 },
+                "textSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "userId": {
@@ -5378,6 +5801,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5385,6 +5812,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventEnd": {
@@ -5402,7 +5833,13 @@ const docTemplate = `{
                 "fee": {
                     "type": "string"
                 },
+                "feeSv": {
+                    "type": "string"
+                },
                 "food": {
+                    "type": "string"
+                },
+                "foodSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5414,13 +5851,23 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "locationSv": {
+                    "type": "string"
+                },
                 "mapUrl": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "openTo": {
+                    "type": "string"
+                },
+                "openToSv": {
                     "type": "string"
                 },
                 "registrationEnd": {
@@ -5455,6 +5902,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "about": {
+                    "type": "string"
+                },
+                "aboutSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "cities": {
@@ -5550,6 +6001,9 @@ const docTemplate = `{
                         },
                         "description": {
                             "type": "string"
+                        },
+                        "descriptionSv": {
+                            "type": "string"
                         }
                     }
                 },
@@ -5584,6 +6038,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "eventroId": {
@@ -5647,11 +6105,18 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "linkText": {
                     "description": "Nullable",
+                    "type": "string"
+                },
+                "linkTextSv": {
                     "type": "string"
                 },
                 "linkUrl": {
@@ -5661,7 +6126,15 @@ const docTemplate = `{
                 "subtitle": {
                     "type": "string"
                 },
+                "subtitleSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5674,6 +6147,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5681,6 +6158,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
                     "type": "string"
                 },
                 "people": {
@@ -5713,6 +6193,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                },
+                "roleSv": {
                     "type": "string"
                 }
             }
@@ -5749,6 +6232,9 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
+                },
+                "titleSv": {
+                    "type": "string"
                 }
             }
         },
@@ -5759,6 +6245,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 }
             }
@@ -5781,6 +6271,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameSv": {
+                    "type": "string"
+                },
                 "roles": {
                     "type": "array",
                     "items": {
@@ -5798,6 +6291,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionSv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
+                },
                 "eventroRoleId": {
                     "type": "string"
                 },
@@ -5805,6 +6302,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nameSv": {
+                    "description": "Nullable: Swedish translation",
                     "type": "string"
                 },
                 "recruitment": {
@@ -5846,6 +6347,10 @@ const docTemplate = `{
                 },
                 "team_name": {
                     "type": "string"
+                },
+                "team_name_sv": {
+                    "description": "Nullable: Swedish translation",
+                    "type": "string"
                 }
             }
         },
@@ -5870,10 +6375,16 @@ const docTemplate = `{
                 "body": {
                     "type": "string"
                 },
+                "bodySv": {
+                    "type": "string"
+                },
                 "eraId": {
                     "type": "integer"
                 },
                 "eraTitle": {
+                    "type": "string"
+                },
+                "eraTitleSv": {
                     "type": "string"
                 },
                 "id": {
@@ -5886,6 +6397,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }
@@ -5900,6 +6414,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "titleSv": {
                     "type": "string"
                 }
             }
@@ -5943,11 +6460,255 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "translations.FieldView": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "olderPolicy": {
+                    "type": "boolean"
+                },
+                "published": {
+                    "type": "string"
+                },
+                "publishedOutdated": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "suggestion": {
+                    "$ref": "#/definitions/translations.Suggestion"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "translations.Job": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "finishedAt": {
+                    "type": "string"
+                },
+                "glossaryVersion": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "notBefore": {
+                    "type": "string"
+                },
+                "outdated": {
+                    "type": "boolean"
+                },
+                "promptVersion": {
+                    "type": "string"
+                },
+                "recordId": {
+                    "type": "integer"
+                },
+                "requestedBy": {
+                    "type": "integer"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "translations.Page": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/translations.Record"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "translations.Record": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/translations.FieldView"
+                    }
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "job": {
+                    "$ref": "#/definitions/translations.Job"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "translations.Review": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/translations.ReviewField"
+                    }
+                },
+                "fingerprint": {
+                    "type": "string"
+                }
+            }
+        },
+        "translations.ReviewField": {
+            "type": "object",
+            "properties": {
+                "fieldId": {
+                    "type": "string"
+                },
+                "suggestionId": {
+                    "type": "integer"
+                },
+                "targetBefore": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "translations.Suggestion": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "draft": {
+                    "type": "string"
+                },
+                "fieldId": {
+                    "type": "string"
+                },
+                "generated": {
+                    "type": "string"
+                },
+                "glossaryVersion": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "jobId": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "promptVersion": {
+                    "type": "string"
+                },
+                "publishedText": {
+                    "type": "string"
+                },
+                "recordId": {
+                    "type": "integer"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "reviewedAt": {
+                    "type": "string"
+                },
+                "reviewedBy": {
+                    "type": "integer"
+                },
+                "sourceFingerprint": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targetBefore": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "translations.Usage": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "reserved": {
+                    "type": "integer"
+                },
+                "used": {
+                    "type": "integer"
+                }
+            }
         }
     },
     "securityDefinitions": {
         "BearerAuth": {
             "description": "Bearer JWT token obtained from POST /api/v1/login. Format: \"Bearer \u003ctoken\u003e\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "SchedulerOIDC": {
+            "description": "Google-signed OIDC bearer token for the configured scheduler service account and dispatch audience.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

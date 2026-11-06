@@ -9,6 +9,9 @@ vi.mock("react-admin", () => ({
   fetchUtils: { fetchJson },
   HttpError: class extends Error {},
 }));
+vi.mock("./context/authenticatedHttpClient", () => ({
+  authenticatedFetchJson: fetchJson,
+}));
 vi.mock("ra-data-simple-rest", () => ({
   default: () => ({ update: baseUpdate }),
 }));
@@ -40,11 +43,7 @@ describe("bulk deletion", () => {
       "https://cms.example.com/api/v1/exhibitors/1",
       expect.objectContaining({
         method: "DELETE",
-        headers: expect.any(Headers),
       }),
-    );
-    expect(fetchJson.mock.calls[0][1].headers.get("Authorization")).toBe(
-      "Bearer test-token",
     );
   });
 

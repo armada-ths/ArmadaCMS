@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -36,6 +37,15 @@ func TestHandleCORSAllowsConfiguredOrigin(t *testing.T) {
 	}
 	if got := response.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Fatalf("Access-Control-Allow-Credentials = %q", got)
+	}
+	for _, header := range []string{"Content-Range", "X-Armada-Error-Code"} {
+		exposed := false
+		for _, value := range strings.Split(response.Header().Get("Access-Control-Expose-Headers"), ",") {
+			exposed = exposed || strings.EqualFold(strings.TrimSpace(value), header)
+		}
+		if !exposed {
+			t.Fatalf("response header %s is not exposed to browser clients", header)
+		}
 	}
 }
 

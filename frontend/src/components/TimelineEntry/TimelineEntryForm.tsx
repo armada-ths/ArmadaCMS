@@ -12,6 +12,8 @@ import { MarkdownInput } from "../shared/MarkdownInput";
 
 export const TimelineEntryForm = () => (
   <SimpleForm>
+    <TextInput source="titleSv" label="title (Swedish)" fullWidth />
+    <TextInput source="bodySv" label="body (Swedish)" fullWidth />
     <ReferenceInput
       source="eraId"
       reference="timeline-eras"

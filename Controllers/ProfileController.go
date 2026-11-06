@@ -32,7 +32,7 @@ func GetProfiles(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.Profile
 	query := db.DB.Model(&models.Profile{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "email", "title", "rank", "title_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -174,6 +174,7 @@ func CreateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	readMultipartTranslations(r, &profile)
 	if err := createWithAudit(r, "profiles", &profile, func(tx *gorm.DB) error {
 		return tx.Create(&profile).Error
 	}, func(tx *gorm.DB) error {
@@ -289,6 +290,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	before := profile
+	mergeMultipartTranslations(r, &profile, updateMap)
 	if err := updateWithAudit(r, "profiles", id, before, &profile, func(tx *gorm.DB) error {
 		return tx.Model(&profile).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
@@ -299,7 +301,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updates)
+	json.NewEncoder(w).Encode(profile)
 }
 
 // DeleteProfile deletes a profile by ID.

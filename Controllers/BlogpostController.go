@@ -61,7 +61,7 @@ func GetBlogposts(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("published = ?", true)
 	}
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "title", "text", "author", "title_sv", "text_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -158,7 +158,9 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 	item.UserID = int64(userID)
 	item.Title = r.FormValue("title")
+	item.TitleSv = utils.StringPtr(r.FormValue("titleSv"))
 	item.Text = r.FormValue("text")
+	item.TextSv = utils.StringPtr(r.FormValue("textSv"))
 	item.Author = r.FormValue("author")
 	item.Published = r.FormValue("published") != "false"
 	item.ShowCoverInPost = r.FormValue("showCoverInPost") != "false"
@@ -196,6 +198,7 @@ func CreateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 	item.ImageURLs = images
 
+	readMultipartTranslations(r, &item)
 	if err := createWithAudit(r, "blogposts", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, nil, "blog-posts"); err != nil {
@@ -246,7 +249,9 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 
 	updateMap := map[string]interface{}{
 		"title":              r.FormValue("title"),
+		"title_sv":           utils.StringPtr(r.FormValue("titleSv")),
 		"text":               r.FormValue("text"),
+		"text_sv":            utils.StringPtr(r.FormValue("textSv")),
 		"author":             r.FormValue("author"),
 		"published":          r.FormValue("published") != "false",
 		"show_cover_in_post": r.FormValue("showCoverInPost") != "false",
@@ -278,6 +283,7 @@ func UpdateBlogpost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	before := item
+	mergeMultipartTranslations(r, &item, updateMap)
 	if err := updateWithAudit(r, "blogposts", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {

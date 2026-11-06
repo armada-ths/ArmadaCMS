@@ -193,3 +193,39 @@ test("predefined choices send their stored column value", async () => {
     expect(getList.mock.lastCall?.[1].filter).toEqual({ tier: "Gold" }),
   );
 });
+
+test("Swedish column filters keep their original field separate", async () => {
+  const getList = mountList("teams");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Team name");
+  await page.getByLabelText("Team name", { exact: true }).fill("Operations");
+  await addFilter("Team name (Swedish)");
+  await page
+    .getByLabelText("Team name (Swedish)", { exact: true })
+    .fill("Organisation");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      team_name: "Operations",
+      team_name_sv: "Organisation",
+    }),
+  );
+});
+
+test("photo event filters expose both Swedish fields", async () => {
+  const getList = mountList("photoevents");
+  await vi.waitFor(() => expect(getList).toHaveBeenCalled());
+  await addFilter("Name (Swedish)");
+  await page
+    .getByLabelText("Name (Swedish)", { exact: true })
+    .fill("Banketten");
+  await addFilter("Description (Swedish)");
+  await page
+    .getByLabelText("Description (Swedish)", { exact: true })
+    .fill("Bilder fr�n kv�llen");
+  await vi.waitFor(() =>
+    expect(getList.mock.lastCall?.[1].filter).toEqual({
+      name_sv: "Banketten",
+      description_sv: "Bilder fr�n kv�llen",
+    }),
+  );
+});

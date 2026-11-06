@@ -1,63 +1,48 @@
-import axios from "axios";
-
-import { Tokens } from "../models/user";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import globalApi from "./globalApi";
+import {
+  getAccessToken,
+  recoverAccessToken,
+  rejectAccessToken,
+} from "./session";
 
+type SessionRequest = InternalAxiosRequestConfig & { _sessionRetry?: boolean };
 const axiosInstance = axios.create({
   baseURL: globalApi(),
   headers: { "Content-Type": "application/json" },
 });
 
-axiosInstance.interceptors.request.use((config) => {
-  const accessToken = localStorage.getItem("accessToken");
-  const refreshToken = localStorage.getItem("refreshToken");
+const isLogin = (config: InternalAxiosRequestConfig) =>
+  config.url?.replace(/^\//, "") === "login";
 
-  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
-  if (refreshToken)
-    config.headers["X-RefreshAuthorization"] = `Bearer ${refreshToken}`;
-
+axiosInstance.interceptors.request.use(async (config) => {
+  if (!isLogin(config)) {
+    config.headers.Authorization = `Bearer ${await getAccessToken()}`;
+  }
   return config;
 });
 
-/**
- * Exchange the stored refresh token for a new token pair.
- * Uses a plain axios call (not the intercepted instance) to avoid
- * triggering this interceptor recursively.
- * Returns null and clears storage when the refresh token is invalid/expired.
- */
-export const refreshTokens = async (): Promise<Tokens | null> => {
-  const refreshToken = localStorage.getItem("refreshToken");
-  if (!refreshToken) return null;
-  try {
-    const response = await axios.post<Tokens>(
-      `${globalApi()}/refreshAccessToken`,
-      undefined,
-      { headers: { "X-RefreshAuthorization": `Bearer ${refreshToken}` } },
-    );
-    return response.data;
-  } catch {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    return null;
-  }
-};
-
 axiosInstance.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    // Only retry once and skip the refresh endpoint itself to avoid loops
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const tokens = await refreshTokens();
-      if (tokens) {
-        localStorage.setItem("accessToken", tokens.accessToken);
-        localStorage.setItem("refreshToken", tokens.refreshToken);
-        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
-        return axiosInstance(originalRequest);
-      }
+  async (error: unknown) => {
+    if (
+      !axios.isAxiosError(error) ||
+      error.response?.status !== 401 ||
+      !error.config
+    ) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+    const config: SessionRequest = error.config;
+    if (isLogin(config)) return Promise.reject(error);
+    const rejected = String(config.headers.Authorization ?? "").replace(
+      /^Bearer /,
+      "",
+    );
+    if (config._sessionRetry) rejectAccessToken(rejected);
+    config._sessionRetry = true;
+    const token = await recoverAccessToken(rejected);
+    config.headers.Authorization = `Bearer ${token}`;
+    return axiosInstance(config);
   },
 );
 

@@ -8,16 +8,22 @@ type Event struct {
 	ID                   uint       `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
 	EventroID            string     `gorm:"column:eventro_id;uniqueIndex" json:"eventroId"`
 	Name                 string     `gorm:"column:name;not null" json:"name"`
+	NameSv               *string    `gorm:"column:name_sv" json:"nameSv,omitempty"` // Nullable: Swedish translation
 	Description          *string    `gorm:"column:description" json:"description,omitempty"`
+	DescriptionSv        *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
 	Location             string     `gorm:"column:location;not null" json:"location"`
+	LocationSv           *string    `gorm:"column:location_sv" json:"locationSv,omitempty"`
 	OpenTo               *string    `gorm:"column:open_to" json:"openTo,omitempty"`
+	OpenToSv             *string    `gorm:"column:open_to_sv" json:"openToSv,omitempty"`
 	MapURL               *string    `gorm:"column:map_url" json:"mapUrl,omitempty"`
 	Food                 *string    `gorm:"column:food" json:"food,omitempty"`
+	FoodSv               *string    `gorm:"column:food_sv" json:"foodSv,omitempty"`
 	EventStart           time.Time  `gorm:"column:event_start;not null" json:"eventStart"`
 	EventEnd             time.Time  `gorm:"column:event_end;not null" json:"eventEnd"`
 	RegistrationEnd      *time.Time `gorm:"column:registration_end" json:"registrationEnd,omitempty"`
 	ImageURL             *string    `gorm:"column:image_url" json:"imageUrl,omitempty"`
 	Fee                  *string    `gorm:"column:fee" json:"fee,omitempty"`
+	FeeSv                *string    `gorm:"column:fee_sv" json:"feeSv,omitempty"`
 	RegistrationRequired bool       `gorm:"column:registration_required;not null" json:"registrationRequired"`
 	SignupLink           *string    `gorm:"column:signup_link" json:"signupLink,omitempty"`
 	EventMaxCapacity     *int       `gorm:"column:event_max_capacity" json:"eventMaxCapacity,omitempty"`

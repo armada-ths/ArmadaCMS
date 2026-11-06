@@ -2,6 +2,7 @@ import { NumberInput, SimpleForm, TextInput, required } from "react-admin";
 
 export const TimelineEraForm = () => (
   <SimpleForm>
+    <TextInput source="titleSv" label="title (Swedish)" fullWidth />
     <TextInput
       source="title"
       label="Title"

@@ -49,8 +49,19 @@ export const BlogpostCreate = (props: CreateProps) => {
     <Create {...props}>
       <SimpleForm toolbar={<BlogpostCreateToolbar />}>
         <TextInput source="title" fullWidth />
+        <TextInput
+          source="titleSv"
+          label="Title (Swedish)"
+          helperText="Swedish translation of the title (optional)"
+          fullWidth
+        />
         <TextInput source="author" fullWidth />
         <MarkdownInput source="text" label="Content (Markdown)" />
+        <MarkdownInput
+          source="textSv"
+          label="Content (Swedish - Markdown)"
+          helperText="Swedish translation of the content (optional)"
+        />
         {/* Registered but hidden — value is controlled by the toolbar buttons. */}
         <BooleanInput
           source="published"

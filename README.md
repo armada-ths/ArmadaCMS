@@ -137,6 +137,8 @@ Run the shared list search browser test from `frontend/` with `pnpm exec vitest 
 
 ## API
 
+See [Public content translations](docs/translations.md) for Swedish field, sparse update and public response conventions.
+
 Endpoints use `/api/v1`. Public reads need no authentication; writes and admin-only reads require a Bearer JWT obtained from `POST /api/v1/login`. See [Swagger](#swagger-docs) for available endpoints.
 
 Cross-origin requests allow `armada.nu`, local development origins and any additional exact origins listed in `CORS_ALLOWED_ORIGINS`.
@@ -195,3 +197,7 @@ See the [Terraform guide](infra/terraform/README.md) for layout and shared conve
 7. Register the `<Resource>` in `frontend/src/App.tsx`.
 8. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
 9. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.
+
+## Translation review
+
+See [Translation review development](docs/translation-review.md) for the review queue, versioned Armada terminology, worker configuration and local verification. AI generation is disabled by default.

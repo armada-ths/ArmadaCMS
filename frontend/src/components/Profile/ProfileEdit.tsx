@@ -45,6 +45,7 @@ export const ProfileEdit = (props: EditProps) => {
   return (
     <Edit {...props}>
       <SimpleForm>
+        <TextInput source="titleSv" label="title (Swedish)" fullWidth />
         <TextInput label="Name" source="name" />
         <SelectInput
           label="Rank"

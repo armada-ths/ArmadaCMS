@@ -116,6 +116,7 @@ export const ExhibitorEdit = (props: EditProps) => {
           }}
         />
         <TextInput source="about" />
+        <TextInput source="aboutSv" label="About (Swedish)" />
         <TextInput source="purpose" />
         <TextInput source="logoSquared" />
         <div>

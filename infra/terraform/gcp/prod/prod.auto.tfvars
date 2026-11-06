@@ -27,3 +27,6 @@ enable_recaptcha          = true
 recaptcha_allowed_domains = ["armada.nu", "photos.armada.nu"]
 
 revalidation_url = "https://armada.nu/api/revalidate"
+
+enable_translation_worker = true
+translation_ai_enabled    = true

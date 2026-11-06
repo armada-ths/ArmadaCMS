@@ -29,7 +29,7 @@ func GetIndustries(w http.ResponseWriter, r *http.Request) {
 	var items []models.Industry
 	query := db.DB.Model(&models.Industry{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -96,9 +96,10 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "industries", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil, "industries"); err != nil {
+	}, nil, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -128,17 +129,23 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates models.Industry
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := map[string]any{}
+	if _, present := rawUpdates["name"]; present {
+		updateMap["name"] = updates.Name
+	}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := item
 	if err := updateWithAudit(r, "industries", id, before, &item, func(tx *gorm.DB) error {
-		return tx.Model(&item).Updates(updates).Error
+		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}, "industries"); err != nil {
+	}, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

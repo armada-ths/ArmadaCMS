@@ -69,30 +69,48 @@ const ResourceSection = ({
 }: {
   nodes: readonly NavigationNode[];
   depth?: number;
-}) => (
-  <Grid container spacing={2} sx={{ mb: 3 }}>
-    {nodes.map((node) => {
-      if (node.kind === "dashboard") return null;
-      if (node.kind === "resource")
-        return <ResourceCard key={node.id} node={node} />;
-      return (
-        <Grid key={node.id} size={12}>
-          <Box component="section" aria-labelledby={`resources-${node.id}`}>
-            <Typography
-              id={`resources-${node.id}`}
-              variant={depth === 0 ? "h6" : "subtitle1"}
-              component={depth === 0 ? "h3" : "h4"}
-              sx={{ mb: 1, fontWeight: 600 }}
-            >
-              {node.label}
-            </Typography>
-            <ResourceSection nodes={node.children} depth={depth + 1} />
-          </Box>
-        </Grid>
-      );
-    })}
-  </Grid>
-);
+}) => {
+  const basename = useBasename();
+  return (
+    <Grid container spacing={2} sx={{ mb: 3 }}>
+      {nodes.map((node) => {
+        if (node.kind === "dashboard") return null;
+        if (node.kind === "page")
+          return (
+            <Grid key={node.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card variant="outlined">
+                <CardActionArea component={Link} to={`${basename}${node.to}`}>
+                  <CardContent>
+                    <Typography variant="h6">{node.label}</Typography>
+                    <Typography variant="body2">
+                      Review public content translations
+                    </Typography>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        if (node.kind === "resource")
+          return <ResourceCard key={node.id} node={node} />;
+        return (
+          <Grid key={node.id} size={12}>
+            <Box component="section" aria-labelledby={`resources-${node.id}`}>
+              <Typography
+                id={`resources-${node.id}`}
+                variant={depth === 0 ? "h6" : "subtitle1"}
+                component={depth === 0 ? "h3" : "h4"}
+                sx={{ mb: 1, fontWeight: 600 }}
+              >
+                {node.label}
+              </Typography>
+              <ResourceSection nodes={node.children} depth={depth + 1} />
+            </Box>
+          </Grid>
+        );
+      })}
+    </Grid>
+  );
+};
 
 export const ResourceGrid = () => {
   const { nodes, isPending, error } = useNavigation();

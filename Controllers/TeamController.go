@@ -29,7 +29,7 @@ func GetTeams(w http.ResponseWriter, r *http.Request) {
 	var teams []models.Team
 	query := db.DB.Model(&models.Team{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "team_name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "team_name", "team_name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -98,9 +98,10 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&team.TeamNameSv)
 	if err := createWithAudit(r, "teams", &team, func(tx *gorm.DB) error {
 		return tx.Create(&team).Error
-	}, nil, "organization"); err != nil {
+	}, nil, "organization", "recruitment"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -132,17 +133,23 @@ func UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates models.Team
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := map[string]any{}
+	if _, present := rawUpdates["team_name"]; present {
+		updateMap["team_name"] = updates.TeamName
+	}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := team
 	if err := updateWithAudit(r, "teams", id, before, &team, func(tx *gorm.DB) error {
-		return tx.Model(&team).Updates(updates).Error
+		return tx.Model(&team).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&team, id).Error
-	}, "organization"); err != nil {
+	}, "organization", "recruitment"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

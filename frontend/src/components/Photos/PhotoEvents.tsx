@@ -21,6 +21,8 @@ import {
 import { useState } from "react";
 import {
   Box,
+  Select,
+  MenuItem,
   Button,
   Dialog,
   DialogActions,
@@ -31,6 +33,7 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { httpClient } from "../../dataProvider";
+import { authenticatedFetch } from "../../context/authenticatedHttpClient";
 import globalApi from "../../context/globalApi";
 import { toLocalInputValue, toUTCISOString } from "../../utils/dateTimeHelpers";
 
@@ -64,6 +67,7 @@ function EventActions() {
   const record = useRecordContext<PhotoEvent>();
   const notify = useNotify();
   const refresh = useRefresh();
+  const [linkLocale, setLinkLocale] = useState("en");
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState<"rotate" | "delete" | null>(
     null,
@@ -74,7 +78,7 @@ function EventActions() {
     setBusy(true);
     try {
       const response = await httpClient(
-        `${globalApi()}/photoevents/${record.id}/${rotate ? "rotate" : "link"}`,
+        `${globalApi()}/photoevents/${record.id}/${rotate ? "rotate" : "link"}?locale=${linkLocale}`,
         { method: rotate ? "POST" : "GET" },
       );
       await navigator.clipboard.writeText(
@@ -91,13 +95,8 @@ function EventActions() {
   };
 
   const downloadQR = async (format: "svg" | "png") => {
-    const response = await fetch(
-      `${globalApi()}/photoevents/${record.id}/qr?format=${format}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken") ?? ""}`,
-        },
-      },
+    const response = await authenticatedFetch(
+      `${globalApi()}/photoevents/${record.id}/qr?format=${format}&locale=${linkLocale}`,
     );
     if (!response.ok) {
       notify("Could not download the QR code", { type: "error" });
@@ -141,6 +140,22 @@ function EventActions() {
         py: 1,
       }}
     >
+      <Select
+        size="small"
+        value={linkLocale}
+        onChange={(event) => setLinkLocale(event.target.value)}
+        inputProps={{ "aria-label": "Link language" }}
+        title="Link language"
+        sx={{
+          minWidth: 96,
+          height: 30,
+          fontSize: "0.8125rem",
+          "& .MuiSelect-select": { py: 0.5 },
+        }}
+      >
+        <MenuItem value="en">English</MenuItem>
+        <MenuItem value="sv">Swedish</MenuItem>
+      </Select>
       <Button
         size="small"
         variant="outlined"
@@ -267,7 +282,14 @@ const EventForm = ({ editing = false }: { editing?: boolean }) => (
       validate={required()}
       fullWidth
     />
+    <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
     <TextInput source="description" label="Description" multiline fullWidth />
+    <TextInput
+      source="descriptionSv"
+      label="Description (Swedish)"
+      multiline
+      fullWidth
+    />
     <DateTimeInput
       source="uploads_open_at"
       label="Uploads open"

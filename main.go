@@ -12,6 +12,11 @@
 // @in header
 // @name Authorization
 // @description Bearer JWT token obtained from POST /api/v1/login. Format: "Bearer <token>"
+//
+// @securityDefinitions.apikey SchedulerOIDC
+// @in header
+// @name Authorization
+// @description Google-signed OIDC bearer token for the configured scheduler service account and dispatch audience.
 package main
 
 import (
@@ -27,8 +32,10 @@ import (
 	"ArmadaCMS/main/auth"
 	"ArmadaCMS/main/db"
 	_ "ArmadaCMS/main/docs"
+	"ArmadaCMS/main/internal/translations"
 	"ArmadaCMS/main/utils"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -54,6 +61,7 @@ var adminClientRouteSegments = map[string]struct{}{
 	"timeline-entries":   {},
 	"timeline-eras":      {},
 	"login":              {},
+	"translations":       {},
 }
 
 var buildCommit = "unknown"
@@ -70,6 +78,13 @@ func main() {
 
 	db.ConnectDB()
 
+	if os.Getenv("TRANSLATION_WORKER_MODE") == "1" {
+		service := translations.New(db.DB)
+		if err := service.Run(context.Background(), translations.NewGemini(service.Config)); err != nil {
+			log.Fatal("translation worker failed")
+		}
+		return
+	}
 	if os.Getenv("PHOTO_WORKER_MODE") == "1" {
 		if err := runPhotoWorker(context.Background()); err != nil {
 			log.Fatal("photo worker failed: ", err)
@@ -215,13 +230,28 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	mux.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	//refactor in future this is quity messy. // WD
 	publicAPI := mux.PathPrefix("/api/v1").Subrouter()
+	publicAPI.Handle("/internal/translations/dispatch", auth.RequireGoogleServiceAccount(
+		os.Getenv("TRANSLATION_DISPATCH_AUDIENCE"), os.Getenv("TRANSLATION_DISPATCH_SERVICE_ACCOUNT"), idtoken.Validate,
+		http.HandlerFunc(controllers.DispatchTranslationJobs),
+	)).Methods(http.MethodPost)
 	protectedAPI := mux.PathPrefix("/api/v1").Subrouter()
 	protectedAPI.Use(auth.Middleware)
+	protectedAPI.HandleFunc("/translations", controllers.GetTranslationsOverview).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}", controllers.GetTranslationRecords).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}/selection", controllers.GetTranslationSelection).Methods("GET")
+	protectedAPI.HandleFunc("/translations/{resource}/generate", controllers.GenerateTranslations).Methods("POST")
+	protectedAPI.HandleFunc("/translations/{resource}/{id}/review", controllers.ReviewTranslations).Methods("POST")
+	protectedAPI.HandleFunc("/translations/{resource}/{id}/jobs", controllers.CancelTranslationJobs).Methods("DELETE")
+
 	publicAPI.HandleFunc("/login", controllers.Login)
 	publicAPI.HandleFunc("/photo-events/access/{token}", controllers.PhotoEventAccess).Methods("GET")
 	publicAPI.HandleFunc("/photo-events/access/{token}/photos", controllers.PhotoEventUpload).Methods("POST")
 	publicAPI.HandleFunc("/photo-events/access/{token}/gallery", controllers.PhotoEventGallery).Methods("GET")
 	publicAPI.HandleFunc("/photo-events/access/{token}/gallery/refresh", controllers.PhotoEventRefreshURLs).Methods("POST")
+	publicAPI.Handle("/internal/photos/dispatch", auth.RequireGoogleServiceAccount(
+		os.Getenv("PHOTO_DISPATCH_AUDIENCE"), os.Getenv("PHOTO_DISPATCH_SERVICE_ACCOUNT"), idtoken.Validate,
+		http.HandlerFunc(controllers.DispatchPhotoJobs),
+	)).Methods(http.MethodPost)
 	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.view", controllers.ListPhotoEvents)).Methods("GET")
 	protectedAPI.HandleFunc("/photoevents", auth.RequirePermission("photoevents.create", controllers.CreatePhotoEvent)).Methods("POST")
 	protectedAPI.HandleFunc("/photoevents/{id}", auth.RequirePermission("photoevents.view", controllers.GetPhotoEvent)).Methods("GET")
@@ -396,7 +426,7 @@ func HandleCORS(next http.Handler) http.Handler {
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RefreshAuthorization, Content-Range, Range")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Range, X-Armada-Error-Code")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

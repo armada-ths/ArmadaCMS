@@ -162,6 +162,12 @@ jobs:
       - name: Run tests
         run: pnpm run test
 
+      - name: Install browser for translation review tests
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test translation review in Chromium
+        run: pnpm exec vitest run --config vitest.browser.config.ts src/routing.browser.tsx src/components/Translations/Translations.browser.tsx
+
   frontend-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5

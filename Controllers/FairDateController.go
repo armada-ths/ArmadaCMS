@@ -30,7 +30,7 @@ func GetFairDateConfigs(w http.ResponseWriter, r *http.Request) {
 	var items []models.FairDateConfig
 	query := db.DB.Model(&models.FairDateConfig{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "description", "fair_days")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "description", "fair_days", "description_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -99,6 +99,7 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	NormalizeOptionalStringPointers(&item.DescriptionSv)
 	item.EventroID = nil
 
 	if err := createWithAudit(r, "fairdates", &item, func(tx *gorm.DB) error {
@@ -140,7 +141,9 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 	updateMap := BuildNormalizedSnakeCaseUpdateMap(
 		rawUpdates,
-		nil,
+		map[string]struct{}{
+			"descriptionSv": {},
+		},
 		map[string]struct{}{
 			"id":         {},
 			"eventroId":  {},

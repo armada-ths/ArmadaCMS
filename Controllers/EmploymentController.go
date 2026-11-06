@@ -29,7 +29,7 @@ func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	var items []models.Employment
 	query := db.DB.Model(&models.Employment{})
 
-	query = utils.ApplySearch(query, params.Filter["q"], "id", "name")
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
 	var filterErr error
 	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
 	if filterErr != nil {
@@ -96,11 +96,12 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
+	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "employments", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, item.ID).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, item.ID).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -131,17 +132,23 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates models.Employment
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	rawUpdates, err := decodeWithFields(r.Body, &updates)
+	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
 
+	updateMap := map[string]any{}
+	if _, present := rawUpdates["name"]; present {
+		updateMap["name"] = updates.Name
+	}
+	mergeJSONTranslations(rawUpdates, &updates, updateMap)
 	before := item
 	if err := updateWithAudit(r, "employments", id, before, &item, func(tx *gorm.DB) error {
-		return tx.Model(&item).Updates(updates).Error
+		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, id).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, id).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}
