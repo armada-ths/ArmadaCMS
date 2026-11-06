@@ -10,6 +10,7 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![React Admin 5](https://img.shields.io/badge/React_Admin-5-22A6F2?logo=react&logoColor=white)](https://marmelab.com/react-admin/)
 [![TypeScript 6](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![pnpm 12](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
 Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides REST endpoints consumed by the public website ([armada.nu](https://github.com/armada-ths/armada.nu)) and a React-Admin interface for content management.
@@ -146,6 +147,8 @@ Run frontend tests from `frontend/`:
 pnpm run test
 ```
 
+Run the shared list search browser test from `frontend/` with `pnpm exec vitest run --config vitest.browser.config.ts src/components/ResourceList.browser.tsx` (requires Playwright Chromium).
+
 [Integration test instructions](docs/testing/README.md) cover local Storage and the two opt-in PostgreSQL behavior tests. These require explicit test credentials; ordinary Go test runs skip them. See the [script guide](scripts/README.md#script-tests) for release-script tests and the [frontend guide](frontend/README.md#validate-changes) for lint/type checks.
 
 ## API
@@ -169,6 +172,8 @@ swag init --generalInfo main.go --output docs --parseInternal
 Install the generator if needed with `go install github.com/swaggo/swag/cmd/swag@latest`.
 
 ## Cache Revalidation
+
+Eventro import field ownership, conflict review and package mapping are described in [Eventro synchronization](docs/eventro-sync.md).
 
 Write operations invalidate the public site's cache through audit-helper revalidation tags. This requires `REVALIDATION_URL` and `REVALIDATION_SECRET`; it is skipped when unset. See the [shared tag conventions](https://github.com/armada-ths/armada.nu/blob/main/.github/copilot-instructions.md).
 
@@ -204,7 +209,11 @@ See the [Terraform guide](infra/terraform/README.md) for layout and shared conve
 3. Validate the migration with a local Supabase reset.
 4. Create a controller in `Controllers/` following existing CRUD patterns.
 5. Add routes in `main.go` (public for reads, protected for writes).
-6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`.
+6. Create `List`, `Create`, `Edit` components in `frontend/src/components/{Resource}/`. Use the shared `ResourceList` shell for search. Apply `utils.ApplySearch` to the list query with explicit searchable columns and `filter.q`, then use `utils.ApplyColumnFilters` for exact values in public scalar model fields. Count the filtered query before pagination. Column filters accept JSON field names or database column names; timestamps use ISO 8601 with a timezone.
 7. Register the `<Resource>` in `frontend/src/App.tsx`.
 8. If the resource has file uploads, add it to the multipart list in `frontend/src/dataProvider.ts`.
 9. If the resource is displayed on the public site, pass the matching cache tag to the audit helper's `revalidateTags` argument (e.g. `"blog-posts"`) and ensure the same tag is used in the Next.js data hook on `armada.nu`.
+
+## Translation review
+
+See [Translation review development](docs/translation-review.md) for the review queue, versioned Armada terminology, worker configuration and local verification. AI generation is disabled by default.

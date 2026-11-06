@@ -9,6 +9,9 @@ vi.mock("react-admin", () => ({
   fetchUtils: { fetchJson },
   HttpError: class extends Error {},
 }));
+vi.mock("./context/authenticatedHttpClient", () => ({
+  authenticatedFetchJson: fetchJson,
+}));
 vi.mock("ra-data-simple-rest", () => ({
   default: () => ({ update: baseUpdate }),
 }));
@@ -16,7 +19,78 @@ vi.mock("./context/globalApi", () => ({
   default: () => "https://cms.example.com/api/v1",
 }));
 
-import { dataProvider } from "./dataProvider";
+import { BulkDeleteError, dataProvider } from "./dataProvider";
+
+describe("bulk deletion", () => {
+  it("limits 140 deletions to five active requests and accepts empty 204 responses", async () => {
+    let active = 0;
+    let peak = 0;
+    fetchJson.mockImplementation(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      active--;
+      return { status: 204, json: undefined };
+    });
+    const ids = Array.from({ length: 140 }, (_, i) => i + 1);
+    await expect(
+      dataProvider.deleteMany("exhibitors", { ids }),
+    ).resolves.toEqual({ data: ids });
+    expect(peak).toBe(5);
+    expect(active).toBe(0);
+    expect(fetchJson).toHaveBeenCalledTimes(140);
+    expect(fetchJson).toHaveBeenCalledWith(
+      "https://cms.example.com/api/v1/exhibitors/1",
+      expect.objectContaining({
+        method: "DELETE",
+      }),
+    );
+  });
+
+  it("waits for the queue and reports exactly which IDs succeeded or failed", async () => {
+    const completed: string[] = [];
+    fetchJson.mockImplementation(async (url: string) => {
+      await new Promise((resolve) =>
+        setTimeout(resolve, url.endsWith("/2") ? 5 : 0),
+      );
+      completed.push(url);
+      if (url.endsWith("/2") || url.endsWith("/7")) throw new Error("500");
+      return { status: 204 };
+    });
+    const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+    const error = await dataProvider
+      .deleteMany("exhibitors", { ids })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(BulkDeleteError);
+    expect(error).toMatchObject({
+      deletedIds: ids.filter((id) => id !== 2 && id !== 7),
+      failedIds: [2, 7],
+    });
+    expect(completed).toHaveLength(12);
+  });
+
+  it("reports total failure without returning a successful result", async () => {
+    fetchJson.mockRejectedValue(new Error("500"));
+    await expect(
+      dataProvider.deleteMany("exhibitors", { ids: [1, 2] }),
+    ).rejects.toMatchObject({ deletedIds: [], failedIds: [1, 2] });
+  });
+
+  it("handles empty selections and encodes string IDs", async () => {
+    await expect(
+      dataProvider.deleteMany("exhibitors", { ids: [] }),
+    ).resolves.toEqual({ data: [] });
+    expect(fetchJson).not.toHaveBeenCalled();
+    await expect(
+      dataProvider.deleteMany("exhibitors", { ids: ["a/b", "a/b"] }),
+    ).resolves.toEqual({ data: ["a/b"] });
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+    expect(fetchJson).toHaveBeenCalledWith(
+      "https://cms.example.com/api/v1/exhibitors/a%2Fb",
+      expect.anything(),
+    );
+  });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -137,7 +211,7 @@ describe("shared multipart rules", () => {
   );
 
   it("keeps removal rules scoped to the supported resources", async () => {
-    const form = await submit("events", {
+    const form = await submit("exhibitors", {
       team_id: null,
       imageUrl: null,
       industries: [],
@@ -145,6 +219,38 @@ describe("shared multipart rules", () => {
     expect(form.has("team_id")).toBe(false);
     expect(form.has("imageUrl")).toBe(false);
     expect(form.get("industries")).toBe("[]");
+  });
+
+  it.each([null, ""])("clears an event image through %j", async (imageUrl) => {
+    const form = await submit("events", { imageUrl });
+    expect(form.get("imageUrl")).toBe("");
+    expect(form.has("file")).toBe(false);
+  });
+
+  it.each([{}, { imageUrl: undefined }])(
+    "preserves an event image when omitted: %j",
+    async (data) => {
+      const form = await submit("events", data);
+      expect(form.has("imageUrl")).toBe(false);
+      expect(form.has("file")).toBe(false);
+    },
+  );
+
+  it("sends an event replacement file alongside the saved URL", async () => {
+    const rawFile = new File(["photo"], "new.jpg", { type: "image/jpeg" });
+    const form = await submit("events", {
+      imageUrl: "https://example.com/old.jpg",
+      file: { rawFile },
+    });
+    expect(form.get("file")).toBe(rawFile);
+    expect(form.get("imageUrl")).toBe("https://example.com/old.jpg");
+  });
+
+  it("sends an event replacement URL", async () => {
+    const form = await submit("events", {
+      imageUrl: "https://example.com/new.jpg",
+    });
+    expect(form.get("imageUrl")).toBe("https://example.com/new.jpg");
   });
 
   it("clears a combined blog cover and gallery despite stale saved fields", async () => {

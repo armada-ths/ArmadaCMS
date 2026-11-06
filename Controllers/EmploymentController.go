@@ -19,7 +19,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"name\":\"Full-time\"}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.Employment
 // @Header 200 {string} Content-Range "employments 0-24/10"
 // @Router /employments [get]
@@ -29,9 +29,14 @@ func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	var items []models.Employment
 	query := db.DB.Model(&models.Employment{})
 
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(params.Sort[0] + " " + params.Sort[1])
 	}
@@ -39,7 +44,10 @@ func GetEmployments(w http.ResponseWriter, r *http.Request) {
 	start, end := params.Range[0], params.Range[1]
 
 	var total int64
-	db.DB.Model(&models.Employment{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(end - start + 1)
 	query.Find(&items)
@@ -92,8 +100,8 @@ func CreateEmployment(w http.ResponseWriter, r *http.Request) {
 	if err := createWithAudit(r, "employments", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, item.ID).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, item.ID).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -139,8 +147,8 @@ func UpdateEmployment(w http.ResponseWriter, r *http.Request) {
 	if err := updateWithAudit(r, "employments", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
-		return tx.Preload("Exhibitor").First(&item, id).Error
-	}, "employments"); err != nil {
+		return tx.First(&item, id).Error
+	}, "employments", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

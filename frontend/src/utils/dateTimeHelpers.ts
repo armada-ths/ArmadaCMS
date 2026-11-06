@@ -8,6 +8,7 @@
 export const toLocalInputValue = (value?: string): string => {
   if (!value) return "";
   const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   const tzOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 };
@@ -20,5 +21,6 @@ export const toLocalInputValue = (value?: string): string => {
  */
 export const toUTCISOString = (value?: string | null): string | null => {
   if (!value) return null;
-  return new Date(value).toISOString();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };

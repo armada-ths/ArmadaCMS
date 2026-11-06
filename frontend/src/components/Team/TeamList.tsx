@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   DeleteButton,
@@ -9,12 +9,12 @@ import {
 
 export const TeamList = (props: ListProps) => {
   return (
-    <List {...props}>
+    <ResourceList {...props}>
       <Datagrid>
         <TextField source="team_name" />
         <EditButton />
         <DeleteButton />
       </Datagrid>
-    </List>
+    </ResourceList>
   );
 };

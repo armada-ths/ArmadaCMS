@@ -64,7 +64,7 @@
     "vitest": "^5.0.5"
   },
   "name": "armadacms",
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@12.17.0",
   "engines": {
     "node": ">=24.0.0"
   }

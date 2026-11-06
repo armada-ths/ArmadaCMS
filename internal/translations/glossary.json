@@ -1,0 +1,46 @@
+{
+  "reference": "Reviewed public armada.nu catalogs; independent runtime copy",
+  "protected": ["Armada", "THS", "KTH", "Nymble", "Operations Team"],
+  "terms": [
+    {
+      "english": "Project group",
+      "swedish": "Projektgruppen",
+      "context": "Armada organization",
+      "stems": ["projektgrupp"]
+    },
+    {
+      "english": "Hosts",
+      "swedish": "Värdar",
+      "context": "Armada volunteer roles, not web hosting",
+      "stems": ["värd"]
+    },
+    {
+      "english": "Operations Team",
+      "swedish": "Operations Team",
+      "context": "Official Armada team name",
+      "stems": ["operations team"]
+    },
+    {
+      "english": "Exhibitor",
+      "swedish": "Utställare",
+      "context": "Companies attending the Armada fair",
+      "stems": ["utställ"]
+    },
+    {
+      "english": "Career fair",
+      "swedish": "Arbetsmarknadsmässa",
+      "context": "Armada fair descriptions",
+      "stems": ["arbetsmarknadsmäss"]
+    }
+  ],
+  "examples": [
+    {
+      "english": "Scandinavia's largest student-driven career fair",
+      "swedish": "Skandinaviens största studentdrivna arbetsmarknadsmässa"
+    },
+    {
+      "english": "Every year, around 4000 new students come to KTH. Almost as many students get their first full time job or internship. Participating in Armada means you get access to all of them, and can both build awareness among younger students and be top of mind when the older students start looking for a job. Welcome!",
+      "swedish": "Varje år börjar omkring 4000 nya studenter på KTH. Nästan lika många studenter får sitt första heltidsjobb eller sin första praktikplats. Genom att delta i Armada får ni tillgång till dem alla, kan bygga kännedom hos yngre studenter och vara ett självklart val när studenterna senare börjar söka jobb. Välkomna!"
+    }
+  ]
+}

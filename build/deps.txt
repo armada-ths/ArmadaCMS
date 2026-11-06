@@ -14,3 +14,7 @@ golang.org/x/crypto/bcrypt
 gorm.io/driver/postgres
 gorm.io/gorm
 gorm.io/gorm/clause
+github.com/yuin/goldmark
+github.com/yuin/goldmark/extension
+cloud.google.com/go/auth/credentials/idtoken
+google.golang.org/genai

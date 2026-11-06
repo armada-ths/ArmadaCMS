@@ -18,7 +18,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"key\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"enabled\":true}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.FeatureFlag
 // @Header 200 {string} Content-Range "featureflags 0-4/5"
 // @Router /featureflags [get]
@@ -27,15 +27,23 @@ func GetFeatureFlags(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
 	usePagination := r.URL.Query().Get("range") != "" || r.URL.Query().Get("sort") != "" || r.URL.Query().Get("filter") != ""
 
-	for k, v := range params.Filter {
-		query = query.Where(utils.ToSnakeCase(k)+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "key", "description")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(utils.ToSnakeCase(params.Sort[0]) + " " + params.Sort[1])
 	}
 
 	var total int64
-	db.DB.Model(&models.FeatureFlag{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	var items []models.FeatureFlag
 	if usePagination {

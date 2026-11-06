@@ -1,7 +1,7 @@
+import { ResourceList } from "../ResourceList";
 import { Chip } from "@mui/material";
 import type { FC } from "react";
 import {
-  List,
   Datagrid,
   TextField,
   DeleteButton,
@@ -32,7 +32,7 @@ const PermissionsField: FC<{ label?: string }> = () => {
 PermissionsField.displayName = "PermissionsField";
 
 export const RoleList = (props: ListProps) => (
-  <List {...props}>
+  <ResourceList {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="name" />
@@ -40,5 +40,5 @@ export const RoleList = (props: ListProps) => (
       <EditButton />
       <DeleteButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

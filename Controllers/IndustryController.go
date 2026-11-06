@@ -19,7 +19,7 @@ import (
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"name\":\"Finance\"}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Success 200 {array} models.Industry
 // @Header 200 {string} Content-Range "industries 0-24/50"
 // @Router /industries [get]
@@ -29,9 +29,14 @@ func GetIndustries(w http.ResponseWriter, r *http.Request) {
 	var items []models.Industry
 	query := db.DB.Model(&models.Industry{})
 
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "name_sv")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
+
 	if len(params.Sort) == 2 {
 		query = query.Order(params.Sort[0] + " " + params.Sort[1])
 	}
@@ -39,7 +44,10 @@ func GetIndustries(w http.ResponseWriter, r *http.Request) {
 	start, end := params.Range[0], params.Range[1]
 
 	var total int64
-	db.DB.Model(&models.Industry{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	query = query.Offset(start).Limit(end - start + 1)
 	query.Find(&items)
@@ -91,7 +99,7 @@ func CreateIndustry(w http.ResponseWriter, r *http.Request) {
 	NormalizeOptionalStringPointers(&item.NameSv)
 	if err := createWithAudit(r, "industries", &item, func(tx *gorm.DB) error {
 		return tx.Create(&item).Error
-	}, nil, "industries"); err != nil {
+	}, nil, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Create failed", http.StatusInternalServerError)
 		return
 	}
@@ -137,7 +145,7 @@ func UpdateIndustry(w http.ResponseWriter, r *http.Request) {
 		return tx.Model(&item).Updates(updateMap).Error
 	}, func(tx *gorm.DB) error {
 		return tx.First(&item, id).Error
-	}, "industries"); err != nil {
+	}, "industries", "exhibitors"); err != nil {
 		http.Error(w, "Update failed", http.StatusInternalServerError)
 		return
 	}

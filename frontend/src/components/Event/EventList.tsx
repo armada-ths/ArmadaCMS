@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   DateField,
@@ -9,7 +9,7 @@ import {
 } from "react-admin";
 
 export const EventList = (props: ListProps) => (
-  <List {...props}>
+  <ResourceList {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="name" />
@@ -21,5 +21,5 @@ export const EventList = (props: ListProps) => (
       <EditButton />
       <DeleteButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

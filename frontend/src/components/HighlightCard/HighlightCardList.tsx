@@ -1,5 +1,5 @@
+import { ResourceList } from "../ResourceList";
 import {
-  List,
   Datagrid,
   TextField,
   DeleteButton,
@@ -8,7 +8,7 @@ import {
 } from "react-admin";
 
 export const HighlightCardList = (props: ListProps) => (
-  <List {...props}>
+  <ResourceList {...props}>
     <Datagrid>
       <TextField source="id" />
       <TextField source="title" label="Title" />
@@ -18,5 +18,5 @@ export const HighlightCardList = (props: ListProps) => (
       <EditButton />
       <DeleteButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );

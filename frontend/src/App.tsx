@@ -1,4 +1,17 @@
-import { Admin, AppBar, Logout, Resource, Layout, UserMenu } from "react-admin";
+import { Translations } from "./components/Translations/Translations";
+import { TranslationDraftProvider } from "./components/Translations/drafts";
+import {
+  Admin,
+  CustomRoutes,
+  AppBar,
+  Logout,
+  Resource,
+  Layout,
+  UserMenu,
+  defaultLightTheme,
+  defaultDarkTheme,
+} from "react-admin";
+import { BulkDeleteButton } from "./components/BulkDeleteButton";
 import { Route } from "react-router-dom";
 import {
   PhotoEventList,
@@ -76,6 +89,19 @@ import {
 
 export const MyMenu = ResourceMenu;
 
+const bulkDeleteDefaults = {
+  RaDatagrid: { defaultProps: { bulkActionButtons: <BulkDeleteButton /> } },
+};
+
+const lightTheme = {
+  ...defaultLightTheme,
+  components: { ...defaultLightTheme.components, ...bulkDeleteDefaults },
+};
+const darkTheme = {
+  ...defaultDarkTheme,
+  components: { ...defaultDarkTheme.components, ...bulkDeleteDefaults },
+};
+
 const MyUserMenu = () => (
   <UserMenu>
     <ChangePasswordButton />
@@ -86,20 +112,27 @@ const MyUserMenu = () => (
 const MyAppBar = () => <AppBar userMenu={<MyUserMenu />} />;
 
 export const MyLayout = ({ children }: { children?: ReactNode }) => (
-  <Layout menu={MyMenu} appBar={MyAppBar}>
-    {children}
-  </Layout>
+  <TranslationDraftProvider>
+    <Layout menu={MyMenu} appBar={MyAppBar}>
+      {children}
+    </Layout>
+  </TranslationDraftProvider>
 );
 
 export const App = () => (
   <Admin
     basename="/admin"
     dataProvider={dataProvider}
+    theme={lightTheme}
+    darkTheme={darkTheme}
     authProvider={authProvider}
     layout={MyLayout}
     loginPage={CustomLoginPage}
     dashboard={Dashboard}
   >
+    <CustomRoutes>
+      <Route path="/translations" element={<Translations />} />
+    </CustomRoutes>
     <Resource
       name="photoevents"
       options={{ label: RESOURCE_LABELS["photoevents"] }}

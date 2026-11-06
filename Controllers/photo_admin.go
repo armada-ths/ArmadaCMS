@@ -55,7 +55,15 @@ func photoAdminJSON(w http.ResponseWriter, value any) {
 
 func ListPhotoEvents(w http.ResponseWriter, r *http.Request) {
 	var events []models.PhotoEvent
-	if err := db.DB.Order("created_at DESC").Find(&events).Error; err != nil {
+	params, _ := utils.ParseListParams(r.URL.Query())
+	query := utils.ApplySearch(db.DB.Model(&models.PhotoEvent{}), params.Filter["q"], "id", "name", "description", "name_sv", "description_sv")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := query.Order("created_at DESC").Find(&events).Error; err != nil {
 		http.Error(w, "List failed", 500)
 		return
 	}
@@ -84,6 +92,7 @@ func CreatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	if event.MaxPhotosPerGuest == 0 {
 		event.MaxPhotosPerGuest = 25
 	}
+	NormalizeOptionalStringPointers(&event.NameSv, &event.DescriptionSv)
 	if err := validatePhotoEvent(event); err != nil {
 		photoEventBadRequest(w, err.Error())
 		return
@@ -103,7 +112,8 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input models.PhotoEvent
-	if json.NewDecoder(r.Body).Decode(&input) != nil {
+	raw, decodeErr := decodeWithFields(r.Body, &input)
+	if decodeErr != nil {
 		photoEventBadRequest(w, "Invalid event data. Dates must include a timezone")
 		return
 	}
@@ -117,8 +127,15 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 		photoEventBadRequest(w, err.Error())
 		return
 	}
+	if _, present := raw["nameSv"]; !present {
+		input.NameSv = before.NameSv
+	}
+	if _, present := raw["descriptionSv"]; !present {
+		input.DescriptionSv = before.DescriptionSv
+	}
+	NormalizeOptionalStringPointers(&input.NameSv, &input.DescriptionSv)
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
+		return tx.Model(&before).Updates(map[string]any{"name_sv": input.NameSv, "description_sv": input.DescriptionSv, "name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return
@@ -178,7 +195,7 @@ func RotatePhotoEventToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Rotation failed", 500)
 		return
 	}
-	writePhotoEventLink(w, token)
+	writePhotoEventLink(w, token, r.URL.Query().Get("locale"))
 }
 
 func PhotoEventLink(w http.ResponseWriter, r *http.Request) {
@@ -187,29 +204,34 @@ func PhotoEventLink(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	photoEventLink(w, event)
+	photoEventLink(w, event, r.URL.Query().Get("locale"))
 }
 
-func photoEventLink(w http.ResponseWriter, event models.PhotoEvent) {
+func photoEventLink(w http.ResponseWriter, event models.PhotoEvent, locale string) {
 	token, err := utils.PhotoEventToken(event.ID, event.TokenVersion)
 	if err != nil {
 		http.Error(w, "Link configuration missing", 500)
 		return
 	}
-	writePhotoEventLink(w, token)
+	writePhotoEventLink(w, token, locale)
 }
 
-func writePhotoEventLink(w http.ResponseWriter, token string) {
+func writePhotoEventLink(w http.ResponseWriter, token string, locale string) {
 	w.Header().Set("Cache-Control", "no-store")
-	photoAdminJSON(w, map[string]string{"url": photoEventURL(token)})
+	photoAdminJSON(w, map[string]string{"url": photoEventURL(token, locale)})
 }
 
-func photoEventURL(token string) string {
+func photoEventURL(token string, locale string) string {
+	if strings.ToLower(strings.Split(locale, "-")[0]) != "sv" {
+		locale = "en"
+	} else {
+		locale = "sv"
+	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PHOTO_APP_BASE_URL")), "/")
 	if baseURL == "" {
 		baseURL = "https://photos.armada.nu"
 	}
-	return baseURL + "/e/" + token
+	return baseURL + "/" + locale + "/e/" + token
 }
 
 func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +245,7 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "QR configuration missing", 500)
 		return
 	}
-	link := photoEventURL(token)
+	link := photoEventURL(token, r.URL.Query().Get("locale"))
 	qr, err := qrcode.New(link, qrcode.Medium)
 	if err != nil {
 		http.Error(w, "QR generation failed", 500)

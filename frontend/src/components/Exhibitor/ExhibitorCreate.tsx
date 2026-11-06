@@ -21,6 +21,7 @@ import {
   validateExternalUrl,
 } from "@/utils/externalLinkGuards";
 import { InputAdornment } from "@mui/material";
+import { ExhibitorTierInput } from "./ExhibitorTierInput";
 
 export const ExhibitorCreate = (props: CreateProps) => {
   const [selectedOption, setSelectedOption] = useState<"upload" | "link">(
@@ -59,7 +60,7 @@ export const ExhibitorCreate = (props: CreateProps) => {
       <SimpleForm>
         <TextInput source="name" />
         <TextInput source="type" />
-        <TextInput source="tier" />
+        <ExhibitorTierInput />
         <TextInput
           source="companyWebsite"
           format={formatExternalUrlInput}

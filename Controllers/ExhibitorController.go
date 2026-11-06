@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -20,6 +20,18 @@ var exhibitorSortColumns = map[string]string{
 	"type":         "type",
 	"tier":         "tier",
 	"fairLocation": "fair_location",
+}
+
+func parseExhibitorTier(value string) (*models.Tier, error) {
+	tier := models.Tier(strings.TrimSpace(value))
+	switch tier {
+	case "":
+		return nil, nil
+	case models.TierStandard, models.TierBronze, models.TierSilver, models.TierGold:
+		return &tier, nil
+	default:
+		return nil, errors.New("tier must be Standard, Bronze, Silver, or Gold")
+	}
 }
 
 func exhibitorSortColumn(field string) string {
@@ -35,7 +47,7 @@ func exhibitorSortColumn(field string) string {
 // @Produce json
 // @Param range query string false "Pagination range, e.g. [0,24]"
 // @Param sort query string false "Sort, e.g. [\"name\",\"ASC\"]"
-// @Param filter query string false "Filter, e.g. {\"tier\":\"Gold\"}"
+// @Param filter query string false "Filter object; q searches text, other public scalar field names or database column names match exact values"
 // @Param all query bool false "Return all exhibitors without pagination, sorted by tier"
 // @Success 200 {array} models.Exhibitor
 // @Header 200 {string} Content-Range "exhibitors 0-24/100"
@@ -45,8 +57,12 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	var exhibitors []models.Exhibitor
 	query := db.DB.Model(&models.Exhibitor{})
 
-	for k, v := range params.Filter {
-		query = query.Where(k+" = ?", v)
+	query = utils.ApplySearch(query, params.Filter["q"], "id", "name", "type", "tier", "about", "purpose", "cities", "fair_location", "about_sv")
+	var filterErr error
+	query, filterErr = utils.ApplyColumnFilters(query, params.Filter)
+	if filterErr != nil {
+		http.Error(w, filterErr.Error(), http.StatusBadRequest)
+		return
 	}
 
 	all := r.URL.Query().Get("limit") == "all" || r.URL.Query().Get("all") == "true"
@@ -56,7 +72,10 @@ func GetExhibitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var total int64
-	db.DB.Model(&models.Exhibitor{}).Count(&total)
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
 
 	if all {
 		query = query.Order(`
@@ -149,10 +168,16 @@ func CreateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
+	exhibitor.Cities = trimmedOptionalFormValue(r, "cities", exhibitor.Cities)
+	exhibitor.LogoSquaredUrl = trimmedOptionalFormValue(r, "logoSquared", exhibitor.LogoSquaredUrl)
+	exhibitor.MapImg = trimmedOptionalFormValue(r, "mapImg", exhibitor.MapImg)
+	exhibitor.VyerPosition = trimmedOptionalFormValue(r, "vyerPosition", exhibitor.VyerPosition)
+	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	exhibitor.Tier, err = parseExhibitorTier(r.FormValue("tier"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Handle logo
@@ -260,11 +285,20 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	exhibitor.Purpose = utils.StringPtr(r.FormValue("purpose"))
 	exhibitor.ClimateCompensation = r.FormValue("climateCompensation") == "true"
 	exhibitor.Flyer = r.FormValue("flyer")
+	exhibitor.Cities = trimmedOptionalFormValue(r, "cities", exhibitor.Cities)
+	exhibitor.LogoSquaredUrl = trimmedOptionalFormValue(r, "logoSquared", exhibitor.LogoSquaredUrl)
+	exhibitor.MapImg = trimmedOptionalFormValue(r, "mapImg", exhibitor.MapImg)
+	exhibitor.VyerPosition = trimmedOptionalFormValue(r, "vyerPosition", exhibitor.VyerPosition)
+	exhibitor.LocationSpecial = trimmedOptionalFormValue(r, "locationSpecial", exhibitor.LocationSpecial)
 
 	// --- Tier (custom type) ---
-	if tierStr := r.FormValue("tier"); tierStr != "" {
-		t := models.Tier(tierStr)
-		exhibitor.Tier = &t
+	if _, present := r.MultipartForm.Value["tier"]; present {
+		tier, err := parseExhibitorTier(r.FormValue("tier"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		exhibitor.Tier = tier
 	}
 
 	// --- Handle logo upload or link ---
@@ -289,22 +323,34 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 		exhibitor.LogoFreesizeUrl = &fileURL
 	}
 
+	if _, present := r.MultipartForm.Value["logoFreesize"]; present && r.FormValue("logoFreesize") == "" {
+		if _, _, err := r.FormFile("file"); err != nil {
+			exhibitor.LogoFreesizeUrl = nil
+		}
+	}
+	if !stringPointersEqual(exhibitor.LogoFreesizeUrl, before.LogoFreesizeUrl) {
+		exhibitor.LogoThumbnail = nil
+	}
+
 	// --- Decode many-to-many JSON arrays ---
 	var updates models.Exhibitor
 
 	if val := r.FormValue("programs"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Programs); err != nil {
-			log.Printf("❌ Failed to parse programs JSON: %v", err)
+			http.Error(w, "invalid programs value", http.StatusBadRequest)
+			return
 		}
 	}
 	if val := r.FormValue("industries"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Industries); err != nil {
-			log.Printf("❌ Failed to parse industries JSON: %v", err)
+			http.Error(w, "invalid industries value", http.StatusBadRequest)
+			return
 		}
 	}
 	if val := r.FormValue("employments"); val != "" {
 		if err := json.Unmarshal([]byte(val), &updates.Employments); err != nil {
-			log.Printf("❌ Failed to parse employments JSON: %v", err)
+			http.Error(w, "invalid employments value", http.StatusBadRequest)
+			return
 		}
 	}
 

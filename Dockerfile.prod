@@ -5,7 +5,7 @@ FROM node:24-alpine AS frontend-builder
 
 WORKDIR /frontend
 
-RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
+RUN corepack enable && corepack prepare pnpm@12.17.0 --activate
 
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -44,6 +44,7 @@ COPY audit/ ./audit/
 COPY auth/ ./auth/
 COPY db/ ./db/
 COPY docs/ ./docs/
+COPY internal/ ./internal/
 COPY models/ ./models/
 COPY utils/ ./utils/
 

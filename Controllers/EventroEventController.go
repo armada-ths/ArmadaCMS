@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
@@ -20,15 +19,12 @@ import (
 
 // ---------- Eventro API Models ----------
 
-type eventroEventsResponse struct {
-	Events []eventroEventResponse `json:"events"`
-	Count  int                    `json:"count"`
-}
-
 type eventroEventResponse struct {
 	CustomFields            map[string]json.RawMessage `json:"customFields"`
 	ID                      string                     `json:"id"`
 	Name                    string                     `json:"name"`
+	URL                     *string                    `json:"url"`
+	Location                *string                    `json:"location"`
 	Description             *string                    `json:"description"`
 	Participants            int                        `json:"participants"`
 	AllowWaitlist           bool                       `json:"allowWaitlist"`
@@ -61,30 +57,9 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	endpoint := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/events/", url.PathEscape(fairID))
 
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	items, err := fetchEventroPages[eventroEventResponse](r.Context(), client, endpoint, "events", os.Getenv("EVENTRO_API"), os.Getenv("EVENTRO_ORG"))
 	if err != nil {
-		http.Error(w, "failed to create request", http.StatusInternalServerError)
-		return
-	}
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("EVENTRO_API"))
-	req.Header.Set("organization", os.Getenv("EVENTRO_ORG"))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, "failed to contact Eventro API", http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		http.Error(w, "unexpected Eventro status: "+resp.Status, http.StatusBadGateway)
-		return
-	}
-
-	var result eventroEventsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Printf("❌ Failed to decode Eventro response: %v", err)
-		http.Error(w, "failed to decode Eventro response", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 
@@ -99,50 +74,18 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	childRequest := audit.WithParent(r, group.ID)
 
-	for _, e := range result.Events {
+	for _, e := range items {
+		if !validEventroTimestamp(e.EventStartsAt) || !validEventroTimestamp(e.EventEndsAt) {
+			failed++
+			continue
+		}
 		ev := mapEventroToEvent(e)
 		created := false
 		changed := false
 		err := db.DB.Transaction(func(tx *gorm.DB) error {
-			var existing models.Event
-			findErr := tx.Where("eventro_id = ?", ev.EventroID).First(&existing).Error
-			if findErr != nil && findErr != gorm.ErrRecordNotFound {
-				return findErr
-			}
-			preserveOmittedEventroFields(&ev, existing, e.CustomFields)
-			if findErr == nil &&
-				existing.Location == ev.Location &&
-				stringPointersEqual(existing.Food, ev.Food) &&
-				stringPointersEqual(existing.OpenTo, ev.OpenTo) &&
-				stringPointersEqual(existing.MapURL, ev.MapURL) &&
-				existing.Name == ev.Name &&
-				stringPointersEqual(existing.Description, ev.Description) &&
-				existing.EventStart.Equal(ev.EventStart) &&
-				existing.EventEnd.Equal(ev.EventEnd) &&
-				timesEqual(existing.RegistrationEnd, ev.RegistrationEnd) &&
-				intPointersEqual(existing.EventMaxCapacity, ev.EventMaxCapacity) {
-				return nil
-			}
-
-			result := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "eventro_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"name", "description", "event_start", "event_end",
-					"registration_end", "event_max_capacity", "location", "food", "open_to", "map_url",
-				}),
-			}).Create(&ev)
-			if result.Error != nil {
-				return result.Error
-			}
-			if err := tx.Where("eventro_id = ?", ev.EventroID).First(&ev).Error; err != nil {
-				return err
-			}
-			changed = true
-			created = findErr == gorm.ErrRecordNotFound
-			if created {
-				return audit.LogCreate(tx, childRequest, "events", ev.ID, ev)
-			}
-			return audit.LogUpdate(tx, childRequest, "events", ev.ID, existing, ev)
+			_, inserted, updated, err := syncEventroRecordWithAudit(tx, childRequest, "events", &ev, "eventro_id", e.ID, nil, eventroEventSyncFields(e))
+			created, changed = inserted, inserted || updated
+			return err
 		})
 		if err != nil {
 			log.Printf("❌ Failed upserting event %s (%s): %v", e.ID, e.Name, err)
@@ -169,21 +112,7 @@ func FetchEventsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("✅ Event sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d", inserted, updated)
-}
-
-func timesEqual(left, right *time.Time) bool {
-	if left == nil || right == nil {
-		return left == right
-	}
-	return left.Equal(*right)
-}
-
-func intPointersEqual(left, right *int) bool {
-	if left == nil || right == nil {
-		return left == right
-	}
-	return *left == *right
+	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d, unchanged: %d, failed: %d", inserted, updated, unchanged, failed)
 }
 
 func stringPointersEqual(left, right *string) bool {
@@ -208,7 +137,10 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		return &t
 	}
 
-	location, _ := eventroTextField(e.CustomFields, "location")
+	signupLink := e.URL
+	NormalizeOptionalStringPointers(&signupLink)
+
+	location, _ := eventroEventLocation(e)
 	food, _ := eventroTextField(e.CustomFields, "food")
 	openTo, _ := eventroTextField(e.CustomFields, "opento")
 	mapURL, _ := eventroTextField(e.CustomFields, "mapurl")
@@ -217,19 +149,20 @@ func mapEventroToEvent(e eventroEventResponse) models.Event {
 		locationText = *location
 	}
 	return models.Event{
-		EventroID:        e.ID,
-		Name:             e.Name,
-		Description:      utils.SanitizeEventDescription(e.Description),
-		Location:         locationText,
-		Food:             food,
-		OpenTo:           openTo,
-		MapURL:           mapURL,
-		EventStart:       derefOrNow(parseTime(e.EventStartsAt)),
-		EventEnd:         derefOrNow(parseTime(e.EventEndsAt)),
-		RegistrationEnd:  parseTime(e.ClosesForRegistrationAt),
-		ImageURL:         nil,
-		SignupLink:       nil,
-		EventMaxCapacity: &e.MaxParticipants,
+		EventroID:            e.ID,
+		Name:                 e.Name,
+		Description:          utils.SanitizeEventDescription(e.Description),
+		Location:             locationText,
+		Food:                 food,
+		OpenTo:               openTo,
+		MapURL:               mapURL,
+		EventStart:           derefOrNow(parseTime(e.EventStartsAt)),
+		EventEnd:             derefOrNow(parseTime(e.EventEndsAt)),
+		RegistrationEnd:      parseTime(e.ClosesForRegistrationAt),
+		ImageURL:             nil,
+		SignupLink:           signupLink,
+		RegistrationRequired: signupLink != nil,
+		EventMaxCapacity:     &e.MaxParticipants,
 	}
 }
 
@@ -256,17 +189,41 @@ func eventroTextField(fields map[string]json.RawMessage, key string) (*string, b
 	return value, true
 }
 
-func preserveOmittedEventroFields(event *models.Event, existing models.Event, fields map[string]json.RawMessage) {
-	if _, present := eventroTextField(fields, "location"); !present {
-		event.Location = existing.Location
+func eventroEventLocation(input eventroEventResponse) (*string, bool) {
+	location := input.Location
+	NormalizeOptionalStringPointers(&location)
+	if location != nil {
+		return location, true
 	}
-	if _, present := eventroTextField(fields, "food"); !present {
-		event.Food = existing.Food
+	location, present := eventroTextField(input.CustomFields, "location")
+	return location, present || input.Location != nil
+}
+
+func eventroEventSyncFields(e eventroEventResponse) []string {
+	fields := append([]string{}, eventroResourceSpecs["events"].fields...)
+	omitted := map[string]bool{}
+	// A missing signup link must not clear a CMS registration requirement.
+	signupLink := e.URL
+	NormalizeOptionalStringPointers(&signupLink)
+	if signupLink == nil {
+		omitted["registrationRequired"] = true
 	}
-	if _, present := eventroTextField(fields, "opento"); !present {
-		event.OpenTo = existing.OpenTo
+	if e.URL == nil {
+		omitted["signupLink"] = true
 	}
-	if _, present := eventroTextField(fields, "mapurl"); !present {
-		event.MapURL = existing.MapURL
+	if _, present := eventroEventLocation(e); !present {
+		omitted["location"] = true
 	}
+	for field, key := range map[string]string{"food": "food", "openTo": "opento", "mapUrl": "mapurl"} {
+		if _, present := eventroTextField(e.CustomFields, key); !present {
+			omitted[field] = true
+		}
+	}
+	selected := []string{}
+	for _, field := range fields {
+		if !omitted[field] {
+			selected = append(selected, field)
+		}
+	}
+	return selected
 }

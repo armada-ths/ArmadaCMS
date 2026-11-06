@@ -1,3 +1,4 @@
+import Translate from "@mui/icons-material/Translate";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import AdminPanelSettings from "@mui/icons-material/AdminPanelSettings";
 import Badge from "@mui/icons-material/Badge";
@@ -64,7 +65,13 @@ export interface DashboardLink extends NavigationBase {
   kind: "dashboard";
   to: string;
 }
-export type NavigationNode = ResourceLink | NavigationGroup | DashboardLink;
+export interface TranslationPageLink extends NavigationBase {
+  kind: "page";
+  to: string;
+  resources: readonly ResourceName[];
+}
+export type NavigationNode =
+  ResourceLink | NavigationGroup | DashboardLink | TranslationPageLink;
 
 const resource = (
   name: ResourceName,
@@ -118,6 +125,30 @@ export const NAVIGATION: readonly NavigationNode[] = [
     label: "Website content",
     Icon: Web,
     children: [
+      {
+        kind: "page",
+        id: "translations",
+        label: "Translations",
+        Icon: Translate,
+        to: "/translations",
+        resources: [
+          "photoevents",
+          "exhibitors",
+          "industries",
+          "programs",
+          "employments",
+          "events",
+          "fairdates",
+          "blogposts",
+          "highlightcards",
+          "timeline-entries",
+          "timeline-eras",
+          "profiles",
+          "teams",
+          "recruitmentperiods",
+          "recruitmentroles",
+        ],
+      },
       resource("blogposts", Article),
       resource("highlightcards", Stars),
       {
@@ -187,7 +218,10 @@ export const filterNavigation = (
       const children = filterNavigation(node.children, canAccess);
       return children.length ? [{ ...node, children }] : [];
     }
-    return node.kind === "dashboard" || canAccess[node.resource] === true
+    return node.kind === "dashboard" ||
+      (node.kind === "page"
+        ? node.resources.some((resource) => canAccess[resource] === true)
+        : canAccess[node.resource] === true)
       ? [node]
       : [];
   });

@@ -66,7 +66,11 @@ describe("navigation catalog", () => {
 
   it("preserves child access without granting access to its parent", async () => {
     const nodes = await accessibleNavigation(["industries.view"]);
-    expect(nodes.map((node) => node.id)).toEqual(["dashboard", "fair"]);
+    expect(nodes.map((node) => node.id)).toEqual([
+      "dashboard",
+      "fair",
+      "website",
+    ]);
     expect(getResourceLinks(nodes).map((node) => node.resource)).toEqual([
       "industries",
     ]);
@@ -81,6 +85,7 @@ describe("navigation catalog", () => {
     expect(nodes.map((node) => node.id)).toEqual([
       "dashboard",
       "photoevents",
+      "website",
       "organisation",
     ]);
     expect(getResourceLinks(nodes).map((node) => node.resource)).toEqual([

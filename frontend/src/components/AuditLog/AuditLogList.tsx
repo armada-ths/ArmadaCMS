@@ -1,3 +1,4 @@
+import { ResourceList } from "../ResourceList";
 import { useId, useState } from "react";
 import {
   Button,
@@ -10,7 +11,6 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import {
-  List,
   Datagrid,
   TextField,
   DateField,
@@ -25,7 +25,6 @@ import {
 import { AuditLogChildren } from "./AuditLogChildren";
 
 const auditLogFilters = [
-  <TextInput key="q" label="Search" source="q" alwaysOn />,
   <SelectInput
     key="action"
     source="action"
@@ -114,7 +113,7 @@ const ListActions = () => {
 };
 
 export const AuditLogList = (props: ListProps) => (
-  <List
+  <ResourceList
     {...props}
     sort={{ field: "created_at", order: "DESC" }}
     filters={auditLogFilters}
@@ -142,5 +141,5 @@ export const AuditLogList = (props: ListProps) => (
       <TextField source="child_count" label="Related" />
       <ShowButton />
     </Datagrid>
-  </List>
+  </ResourceList>
 );
