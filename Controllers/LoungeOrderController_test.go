@@ -87,6 +87,55 @@ func loungeInput(company, item uint, key string) map[string]any {
 	return map[string]any{"idempotencyKey": key, "exhibitorId": company, "items": []map[string]any{{"id": fmt.Sprint(item), "quantity": 2}}}
 }
 
+func TestLoungeOrderIDFilters(t *testing.T) {
+	connection, err := gorm.Open(postgres.Open("host=localhost user=test dbname=test sslmode=disable"), &gorm.Config{DryRun: true, DisableAutomaticPing: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := db.DB
+	db.DB = connection
+	t.Cleanup(func() {
+		db.DB = old
+		sql, sqlErr := connection.DB()
+		if sqlErr == nil {
+			_ = sql.Close()
+		}
+	})
+	for _, key := range []string{"companyId", "categoryId", "itemId"} {
+		for _, value := range []string{"900000001", "9007199254740991", `"900000001"`} {
+			t.Run(key+"/"+value, func(t *testing.T) {
+				raw := fmt.Sprintf(`{"%s":%s}`, key, value)
+				request := httptest.NewRequest("GET", "/orders?filter="+url.QueryEscape(raw), nil)
+				query, filters, queryErr := loungeOrderQuery(request)
+				if queryErr != nil {
+					t.Fatal(queryErr)
+				}
+				expected := uint64(900000001)
+				if value == "9007199254740991" {
+					expected = 9007199254740991
+				}
+				if filters[key] != expected {
+					t.Fatalf("ID lost precision: %v", filters[key])
+				}
+				statement := query.Find(&[]models.LoungeOrder{}).Statement
+				if !strings.Contains(fmt.Sprint(statement.Vars), fmt.Sprint(expected)) {
+					t.Fatalf("ID missing from query: %v", statement.Vars)
+				}
+			})
+		}
+	}
+	for _, raw := range []string{
+		`{"companyId":9007199254740992}`, `{"companyId":1.5}`, `{"companyId":0}`,
+		`{"companyId":true}`, `{"companyId":null}`, `{"companyId":-1}`,
+		`{"companyId":1} {}`, `{"companyId":`,
+	} {
+		request := httptest.NewRequest("GET", "/orders?filter="+url.QueryEscape(raw), nil)
+		if _, _, err := loungeOrderQuery(request); err == nil {
+			t.Fatalf("accepted invalid filter: %s", raw)
+		}
+	}
+}
+
 func TestLoungeOpeningBoundaries(t *testing.T) {
 	zone, _ := time.LoadLocation("Europe/Stockholm")
 	for _, example := range []struct {

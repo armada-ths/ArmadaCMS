@@ -344,7 +344,12 @@ func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
 	query := db.DB.Model(&models.LoungeOrder{})
 	filter := map[string]any{}
 	if raw := r.URL.Query().Get("filter"); raw != "" {
-		if err := json.Unmarshal([]byte(raw), &filter); err != nil {
+		decoder := json.NewDecoder(strings.NewReader(raw))
+		decoder.UseNumber()
+		if !json.Valid([]byte(raw)) {
+			return nil, nil, errors.New("invalid filter")
+		}
+		if err := decoder.Decode(&filter); err != nil {
 			return nil, nil, errors.New("invalid filter")
 		}
 	}
