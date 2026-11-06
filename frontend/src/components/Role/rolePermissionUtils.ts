@@ -53,6 +53,11 @@ export const PERMISSION_ACTIONS = [
 
 /** Restrict resource choices to actions that the API actually accepts. */
 export const RESOURCE_ACTION_OVERRIDES = [
+  {
+    id: "lounge",
+    name: "Lounge catalogue and orders",
+    actions: ["view", "create", "edit", "delete"],
+  },
   { id: "auditlogs", name: "Audit logs", actions: ["view"] },
   {
     id: "eventphotos",
@@ -210,12 +215,17 @@ export const getSpecialPermCoveringWildcards = (
 
 export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
-  const registeredResources = Object.entries(resourceDefinitions).map(
-    ([resource, definition]) => ({
+  const registeredResources = Object.entries(resourceDefinitions)
+    .filter(
+      ([resource]) =>
+        !["lounge-items", "lounge-categories", "lounge-orders"].includes(
+          resource,
+        ),
+    )
+    .map(([resource, definition]) => ({
       id: resource,
       name: definition.options?.label ?? resource,
-    }),
-  );
+    }));
   const registeredNames = new Set(registeredResources.map(({ id }) => id));
 
   return [

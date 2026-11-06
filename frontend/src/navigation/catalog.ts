@@ -19,11 +19,14 @@ import Stars from "@mui/icons-material/Stars";
 import Timeline from "@mui/icons-material/Timeline";
 import Web from "@mui/icons-material/Web";
 import WorkHistory from "@mui/icons-material/WorkHistory";
+import LocalCafe from "@mui/icons-material/LocalCafe";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 export const RESOURCE_LABELS = {
   photoevents: "Guest photos",
   exhibitors: "Exhibitors",
+  "lounge-items": "Lounge catalogue",
+  "lounge-orders": "Lounge orders",
   industries: "Industries",
   programs: "Programs",
   employments: "Employments",
@@ -112,6 +115,8 @@ export const NAVIGATION: readonly NavigationNode[] = [
       },
       resource("events", Event),
       resource("fairdates", CalendarMonth),
+      resource("lounge-items", LocalCafe),
+      resource("lounge-orders", LocalCafe),
     ],
   },
   {
