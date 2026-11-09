@@ -8,6 +8,7 @@ See [README.md](../README.md) for full getting-started guide, project structure,
 
 ## Documentation
 
+- Write README files, code comments, and configuration descriptions in terms of the system as it works today. Describe behavior, constraints, and the reasons behind them. Put rollout history, comparisons with the previous implementation, and checks performed for a change in the PR description or delivery chat.
 - Add only relevant information to README files and match the document's existing level of detail. Keep summaries concise; create or extend focused documentation in a suitable subdirectory only when the extra detail is needed.
 - Keep shared, one-time infrastructure bootstrap and provisioning instructions out of committed files; provide them in the delivery chat. Keep per-developer setup instructions (local tools, authentication, backend initialization and local environment configuration) in the relevant repository documentation.
 

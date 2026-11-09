@@ -12,7 +12,7 @@ Reference: [`infra/terraform/README.md`](../../infra/terraform/README.md)
 | Root             | HCP Terraform workspace   | What it manages                                                                                                             |
 | ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager                                                         |
-| `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata                                                           |
+| `supabase/prod/` | `armadacms-supabase-prod` | Supabase project, production/staging settings and exported connection metadata                                              |
 | `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secrets; optional VPC egress is currently disabled |
 | `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA and Maps keys; local execution, remote state                                                    |
 
@@ -32,7 +32,7 @@ left to CI, not executed through the local CLI. The `gcp/local` root is the only
 Roots share live values via `data "tfe_outputs"` — **do not hardcode outputs from one root into another**.
 
 - `gcp/prod` reads DB and Supabase Storage outputs from `armadacms-supabase-prod` to populate Cloud Run env vars.
-- `gcp/prod` exports `static_egress_ip`, which is allowlisted manually in Supabase. The current `supabase/prod` root does not read GCP state or manage network restrictions.
+- `gcp/prod` exports `static_egress_ip`; `supabase/prod` reads it through `tfe_outputs` to manage the production network allowlist.
 - `gcp/staging` reads `staging_db_host`, `staging_db_user`, and `staging_db_name` for the persistent Supabase staging branch, plus the shared production Storage configuration.
 
 For `data "tfe_outputs"` to work, each GCP workspace must be allowed to read `armadacms-supabase-prod` state. This access is a workspace prerequisite and is not expressed in Terraform config.

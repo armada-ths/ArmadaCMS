@@ -1,109 +1,56 @@
-# ArmadaCMS Terraform — Supabase production
+# ArmadaCMS Terraform — Supabase production and staging settings
 
-This Terraform root tracks the **hosted Supabase production project** for `ArmadaCMS`.
-It imports the already-created project record and exports connection metadata for the
-GCP workspaces. It does not currently manage platform settings.
+This root manages the hosted production project and platform settings for
+production and its persistent staging branch. It exports connection metadata
+for the GCP workspaces. The Supabase provider is constrained to the
+1.11 patch series and locked to 1.11.0.
 
-Today this root imports and manages:
+## Managed configuration
 
-- the Supabase project record itself via `supabase_project.production`
-- exported connection metadata for future cross-workspace use
+| File                               | Purpose                                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `project.tf`                       | Production project record, protected by `prevent_destroy`                                          |
+| `settings.tf`                      | Production and staging API, Auth, Storage, SSL and network settings; production pooler data source |
+| `gcp_state.tf`                     | Reads the production Cloud NAT address from `armadacms-gcp-prod` through `tfe_outputs`             |
+| `variables.tf`, `prod.auto.tfvars` | Project references, connection metadata and non-secret desired settings                            |
+| `outputs.tf`                       | Project and connection metadata shared with GCP                                                    |
+| `backend.tf.example`               | Per-developer HCP Terraform backend configuration                                                  |
 
-It intentionally does **not** yet manage preview branches, Edge Functions, custom API
-keys, or hosted secrets. Those can be added later in small, reviewable steps.
+- **Data API** uses `pg_pgrst_no_exposed_schemas` in both environments, so no application schemas are exposed. The search path is `public,extensions` and the row limit is 1000.
+- **Auth** disables Supabase Auth sign-ups. The Go API handles ArmadaCMS authentication.
+- **Storage** enables the S3 protocol and image transformations and sets a 5 GiB upload limit. Both application deployments use production Storage.
+- **SSL** is required for database connections in both environments.
+- **Network** allows only the GCP production Cloud NAT address in production, as a `/32`. A missing or invalid address fails the resource precondition. Staging allows all IPv4 and IPv6 addresses and uses a direct IPv6 connection.
 
-## What it manages
+The staging branch lifecycle, database parameter overrides, SQL migrations,
+bucket policies, API keys, credentials, Edge Functions, Auth providers, Storage
+analytics and pooler sizing are outside this root's scope.
 
-| File                 | Resources / purpose                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `versions.tf`        | Terraform version and `supabase/supabase` provider                                                            |
-| `variables.tf`       | Required org/password inputs plus non-secret project defaults                                                 |
-| `locals.tf`          | Derived project URL, DB host, pooler user, and staging DB host                                                |
-| `project.tf`         | Imports and manages `supabase_project.production`                                                             |
-| `settings.tf`        | `data.supabase_pooler` — pooler URLs; `supabase_settings` intentionally **not** managed (see comments inside) |
-| `outputs.tf`         | Exports project metadata and DB connection details                                                            |
-| `prod.auto.tfvars`   | Committed non-secret defaults for the current production project                                              |
-| `backend.tf.example` | HCP Terraform backend template                                                                                |
+## Workspace and dependencies
 
-## Architecture notes
+Workspace: `armadacms-supabase-prod`, organization: `THS-Armada`.
 
-- This root imports the hosted production project and exposes connection metadata to the GCP workspaces.
-- `prevent_destroy = true` is enabled on the imported production project resource.
-- ArmadaCMS connects to Postgres via its Go API using direct DB/pooler connections. It does
-  not use Supabase Auth, PostgREST, Realtime, or Edge Functions.
-- The provider requires `database_password` in configuration, but the Management API does
-  **not** return it on import. You must provide the current password (or intentionally reset
-  it in the dashboard first).
-- The root exports pooler and staging DB connection details consumed by the GCP workspaces.
-- Supabase Storage configuration (`supabase_url`, `supabase_storage_s3_endpoint`, `supabase_storage_bucket`, `supabase_storage_region`) is also exported here so GCP workspaces read them via `tfe_outputs` — keeping all Supabase project metadata in one place.
-- Staging is a persistent branch of the production Supabase project. Its DB host, user,
-  and name are stored as variables here and exported so `gcp/staging` can read them via
-  `tfe_outputs` without hardcoding. This root exports the connection metadata but does not
-  manage the branch lifecycle.
-- Supabase network restrictions are not managed by this root. The production Cloud NAT
-  address is exported as `static_egress_ip` by `armadacms-gcp-prod` and must be allowlisted
-  in the Supabase dashboard or another separately managed workflow.
+- `SUPABASE_ACCESS_TOKEN` authenticates the Supabase provider.
+- `organization_id` is the Supabase organization slug.
+- `database_password` is the sensitive password for the production database.
+- `gcp/prod` exports `static_egress_ip`; this root reads it using `tfe_outputs`.
+- `gcp/prod` and `gcp/staging` read this root's connection outputs.
 
-## Workspace dependencies
+These reads use the published workspace outputs. The output names form the
+interface between the workspaces.
 
-This root has no cross-workspace state dependencies.
+GCP Secret Manager stores runtime secrets. SQL migrations define the application database schema.
 
-For the full cross-workspace layout, see [`../../README.md`](../../README.md).
+## Development and validation
 
-## Workspace configuration
+Copy `backend.tf.example` to the ignored `backend.tf` for authenticated workspace
+operations. Use `terraform fmt -check -recursive infra/terraform` and validate this
+root locally. `terraform test` in this root uses mocked providers to check that
+missing or invalid NAT outputs stop the plan. Remote applies use the reviewed HCP
+Terraform workflow.
 
-Workspace: `armadacms-supabase-prod` in the `THS-Armada` organization.
+`supabase/config.toml` configures the local development stack.
 
-### Environment variables
-
-Required workspace inputs:
-
-| Variable                | Notes                                                              |
-| ----------------------- | ------------------------------------------------------------------ |
-| `SUPABASE_ACCESS_TOKEN` | Sensitive env var; Personal Access Token for the Supabase provider |
-
-### Terraform variables
-
-Required workspace inputs:
-
-| Variable            | Sensitive | Notes                                                                  |
-| ------------------- | --------- | ---------------------------------------------------------------------- |
-| `organization_id`   | No        | Supabase **organization slug** from Organization Settings              |
-| `database_password` | Yes       | Current production DB password; required because import cannot read it |
-
-Everything else has committed non-secret defaults in `prod.auto.tfvars`.
-
-## Ongoing operations
-
-### Importing additional managed settings later
-
-A safe follow-up pattern is:
-
-1. Import the relevant resource into state.
-2. Start by managing only a small subset of settings in Terraform.
-3. Apply and verify no unexpected drift.
-4. Expand the managed surface gradually.
-
-### If you later want REST or GraphQL access
-
-Only opt schemas into `api.db_schema` when you intentionally want to expose them through the
-Supabase Data API / GraphQL surface.
-
-- Add the schema explicitly (for example `public` or `public,graphql_public`).
-- Add explicit `GRANT`s for the roles that should reach those objects.
-- Keep RLS enabled and add table-specific policies.
-
-Do **not** expose the `storage` schema just because Storage is in use; the Storage service works
-through its own API and treats the underlying schema as implementation detail / read-only metadata.
-
-When you intentionally want Terraform to start managing project settings again, reintroduce a
-`supabase_settings` resource in `settings.tf`, import it, and apply in a reviewed run.
-
-### Rotating the database password
-
-If you intentionally rotate the database password in Supabase:
-
-1. Reset it in the Supabase dashboard.
-2. Update the sensitive `database_password` Terraform variable in HCP Terraform.
-3. Queue a new apply so Terraform state matches reality.
-4. Update every runtime that uses the DB password (`gcp/prod`, local secrets, CI, etc.).
+Provider 1.11.0 checks project and service health before applying settings.
+It skips the REST check only for an empty `db_schema`, so
+`pg_pgrst_no_exposed_schemas` still triggers that check.

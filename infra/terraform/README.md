@@ -14,7 +14,7 @@ infra/terraform/
 │   ├── local/     # Dedicated local-development reCAPTCHA and Maps Embed keys
 │   └── staging/   # GCP staging stack — Cloud Run, domain mapping, shared images, secrets
 └── supabase/
-    └── prod/      # Supabase production stack — imported project record + connection metadata
+    └── prod/      # Supabase production stack — project record, production/staging settings + connection metadata
 ```
 
 ## Active roots
@@ -24,7 +24,7 @@ infra/terraform/
 | `gcp/prod/`      | `armadacms-gcp-prod`      | Cloud Run, VPC egress, HTTPS LB, Actions federation, Secret Manager                     | [`gcp/prod/README.md`](gcp/prod/README.md)           |
 | `gcp/local/`     | `armadacms-gcp-local`     | Local-development reCAPTCHA and Maps keys; local execution with remote state            | [`gcp/local/README.md`](gcp/local/README.md)         |
 | `gcp/staging/`   | `armadacms-gcp-staging`   | Cloud Run, domain mapping, shared Artifact Registry, Actions federation, Secret Manager | [`gcp/staging/README.md`](gcp/staging/README.md)     |
-| `supabase/prod/` | `armadacms-supabase-prod` | Imported Supabase project record and exported connection metadata                       | [`supabase/prod/README.md`](supabase/prod/README.md) |
+| `supabase/prod/` | `armadacms-supabase-prod` | Supabase project, production/staging platform settings and connection metadata          | [`supabase/prod/README.md`](supabase/prod/README.md) |
 
 ## Cross-workspace state sharing
 
@@ -33,7 +33,7 @@ Workspace pairs share live infrastructure values without hardcoding them:
 **Production:**
 
 - `gcp/prod` reads `pooler_host`, `pooler_user`, `db_name`, and Supabase Storage configuration from `armadacms-supabase-prod` to populate Cloud Run environment variables.
-- `gcp/prod` exports `static_egress_ip`. That address is allowlisted manually in Supabase; the current `supabase/prod` root does not manage network restrictions or read GCP state.
+- `gcp/prod` exports `static_egress_ip`. `supabase/prod` reads that output through `tfe_outputs` to manage the production database allowlist.
 
 **Staging:**
 
