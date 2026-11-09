@@ -24,6 +24,6 @@ supabase_storage_s3_endpoint = "https://rsdjnixgxqauonaofrwr.storage.supabase.co
 supabase_storage_bucket      = "armadacms-files"
 supabase_storage_region      = "eu-north-1"
 
-# Existing persistent staging branch and hosted Storage limit.
+# Persistent staging branch reference and hosted Storage upload limit.
 staging_project_ref     = "dqeikqjiztvmifmnbzbf"
 storage_file_size_limit = 5368709120

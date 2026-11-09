@@ -4,25 +4,25 @@ variable "organization_id" {
 }
 
 variable "project_ref" {
-  description = "Supabase production project reference to import and manage."
+  description = "Reference of the Supabase production project."
   type        = string
   default     = "rsdjnixgxqauonaofrwr"
 }
 
 variable "project_name" {
-  description = "Human-readable name of the Supabase production project. Must match the existing project when importing."
+  description = "Display name of the Supabase production project."
   type        = string
   default     = "ArmadaCMS"
 }
 
 variable "project_region" {
-  description = "Supabase region of the production project. Must match the existing project when importing."
+  description = "Supabase region of the production project."
   type        = string
   default     = "eu-north-1"
 }
 
 variable "database_password" {
-  description = "Current production database password for the imported Supabase project. The provider requires this in configuration, but the Management API does not return it back on import."
+  description = "Password for the Supabase production database."
   type        = string
   sensitive   = true
 }
@@ -40,7 +40,7 @@ variable "database_user" {
 }
 
 variable "api_db_schema" {
-  description = "PostgREST schemas for both environments. Preserve the hosted no-exposed-schemas sentinel unless intentionally enabling Data API access."
+  description = "PostgREST schemas for both environments. Set to pg_pgrst_no_exposed_schemas to expose no application schemas."
   type        = string
   default     = "pg_pgrst_no_exposed_schemas"
 }
@@ -112,13 +112,13 @@ variable "supabase_storage_region" {
 }
 
 variable "staging_project_ref" {
-  description = "Project reference of the existing persistent Supabase staging branch."
+  description = "Project reference of the persistent Supabase staging branch."
   type        = string
   default     = "dqeikqjiztvmifmnbzbf"
 }
 
 variable "storage_file_size_limit" {
-  description = "Hosted Storage upload size limit in bytes; 5 GiB matches the existing production and staging settings."
+  description = "Hosted Storage upload size limit in bytes for production and staging."
   type        = number
   default     = 5368709120
 

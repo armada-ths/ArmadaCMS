@@ -14,7 +14,7 @@ locals {
     max_rows             = var.api_max_rows
   }
 
-  # ArmadaCMS authenticates through its Go API, not Supabase Auth.
+  # The Go API handles ArmadaCMS authentication.
   managed_auth_settings = {
     disable_signup = true
   }

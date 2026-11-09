@@ -2,8 +2,6 @@ data "supabase_pooler" "production" {
   project_ref = var.project_ref
 }
 
-# Adopt the existing hosted settings. Only the JSON keys below are managed;
-# credentials and other service configuration remain outside this root.
 resource "supabase_settings" "production" {
   project_ref = var.project_ref
 
@@ -24,8 +22,7 @@ resource "supabase_settings" "production" {
   }
 }
 
-# The persistent branch has its own project ref. Provider 1.11.0 resolves
-# branch refs through the branches endpoint when the projects endpoint is 404.
+# Staging settings target the persistent branch's project ref.
 resource "supabase_settings" "staging" {
   project_ref = var.staging_project_ref
 
@@ -34,7 +31,7 @@ resource "supabase_settings" "staging" {
   storage         = jsonencode(local.managed_storage_settings)
   ssl_enforcement = true
 
-  # Preserve staging's current IPv4/IPv6 access; it has no static Cloud NAT IP.
+  # Staging uses a direct IPv6 connection without a static Cloud NAT IP.
   network = jsonencode({
     restrictions = ["0.0.0.0/0", "::/0"]
   })
