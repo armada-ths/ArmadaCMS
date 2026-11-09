@@ -230,9 +230,7 @@ function PhotoModerationContent({ eventId }: { eventId: number }) {
           <Stack
             key={item.id}
             direction="row"
-            alignItems="center"
-            gap={1}
-            sx={{ mt: 1 }}
+            sx={{ mt: 1, alignItems: "center", gap: 1 }}
           >
             <Typography variant="body2">
               Export {item.id}: {item.status}

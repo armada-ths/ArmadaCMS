@@ -252,7 +252,7 @@ export function EventroSyncReview({
                     key={field.field}
                     sx={{ borderTop: 1, borderColor: "divider", pt: 2, mt: 2 }}
                   >
-                    <Typography fontWeight="bold">
+                    <Typography sx={{ fontWeight: "bold" }}>
                       {fieldLabels[field.field] ?? field.field} —{" "}
                       {field.conflict ? "Review needed" : "CMS override"}
                     </Typography>
