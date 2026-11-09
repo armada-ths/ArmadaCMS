@@ -13,11 +13,16 @@ import {
 import type { NavigationNode, ResourceLink } from "../../navigation/catalog";
 import { useNavigation } from "../../navigation/useNavigation";
 
+const countSortFields: Partial<Record<ResourceLink["resource"], string>> = {
+  "timeline-entries": "timelineOrder",
+  "timeline-eras": "sortOrder",
+};
+
 const ResourceCard = ({ node }: { node: ResourceLink }) => {
   const basename = useBasename();
   const { total, isPending, error } = useGetList(node.resource, {
     pagination: { page: 1, perPage: 1 },
-    sort: { field: "id", order: "ASC" },
+    sort: { field: countSortFields[node.resource] ?? "id", order: "ASC" },
   });
   const { Icon } = node;
   return (
