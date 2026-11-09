@@ -40,9 +40,9 @@ variable "database_user" {
 }
 
 variable "api_db_schema" {
-  description = "PostgREST schemas for both environments. Set to pg_pgrst_no_exposed_schemas to expose no application schemas."
+  description = "PostgREST schemas for both environments. An empty string disables schema exposure through the Data API."
   type        = string
-  default     = "pg_pgrst_no_exposed_schemas"
+  default     = ""
 }
 
 variable "api_db_extra_search_path" {

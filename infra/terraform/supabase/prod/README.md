@@ -16,7 +16,7 @@ for the GCP workspaces. The Supabase provider is constrained to the
 | `outputs.tf`                       | Project and connection metadata shared with GCP                                                    |
 | `backend.tf.example`               | Per-developer HCP Terraform backend configuration                                                  |
 
-- **Data API** uses `pg_pgrst_no_exposed_schemas` in both environments, so no application schemas are exposed. The search path is `public,extensions` and the row limit is 1000.
+- **Data API** uses an empty `db_schema` in both environments to disable schema exposure. The search path is `public,extensions` and the row limit is 1000.
 - **Auth** disables Supabase Auth sign-ups. The Go API handles ArmadaCMS authentication.
 - **Storage** enables the S3 protocol and image transformations and sets a 5 GiB upload limit. Both application deployments use production Storage.
 - **SSL** is required for database connections in both environments.
@@ -51,6 +51,5 @@ Terraform workflow.
 
 `supabase/config.toml` configures the local development stack.
 
-Provider 1.11.0 checks project and service health before applying settings.
-It skips the REST check only for an empty `db_schema`, so
-`pg_pgrst_no_exposed_schemas` still triggers that check.
+The provider checks project and service health before applying settings. It
+skips the REST check when the Management API returns an empty `db_schema`.
