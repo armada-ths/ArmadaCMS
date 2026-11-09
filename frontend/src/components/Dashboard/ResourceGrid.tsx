@@ -5,6 +5,7 @@ import {
   Card,
   CardActionArea,
   CardContent,
+  Chip,
   Grid,
   Skeleton,
   Stack,
@@ -86,7 +87,18 @@ const ResourceSection = ({
               <Card variant="outlined">
                 <CardActionArea component={Link} to={`${basename}${node.to}`}>
                   <CardContent>
-                    <Typography variant="h6">{node.label}</Typography>
+                    <Typography variant="h6">
+                      {node.label}
+                      {node.badge && (
+                        <Chip
+                          component="span"
+                          label={node.badge}
+                          size="small"
+                          variant="outlined"
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                    </Typography>
                     <Typography variant="body2">
                       Review public content translations
                     </Typography>

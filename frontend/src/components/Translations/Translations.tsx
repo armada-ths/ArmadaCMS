@@ -4,6 +4,7 @@ import { Title, useBasename, useBlocker } from "react-admin";
 import { Link } from "react-router-dom";
 import {
   Alert,
+  AlertTitle,
   Box,
   Button,
   Checkbox,
@@ -189,6 +190,10 @@ export function Translations() {
       )}
       {overview.data && (
         <Alert severity="info">
+          <AlertTitle>
+            AI translation
+            <Chip label="Beta" size="small" variant="outlined" sx={{ ml: 1 }} />
+          </AlertTitle>
           {overview.data.aiEnabled
             ? "AI generation is enabled."
             : "AI generation is disabled. Manual translation and review remain available."}{" "}

@@ -3,6 +3,7 @@ import { Menu, MenuItemLink, useBasename, useSidebarState } from "react-admin";
 import { useLocation } from "react-router-dom";
 import {
   Box,
+  Chip,
   Collapse,
   MenuItem,
   ListItemIcon,
@@ -59,7 +60,22 @@ export const ResourceMenu = () => {
         <MenuItemLink
           key={node.id}
           to={`${basename}${node.to}`}
-          primaryText={node.label}
+          primaryText={
+            node.kind === "page" && node.badge ? (
+              <>
+                {node.label}
+                <Chip
+                  component="span"
+                  label={node.badge}
+                  size="small"
+                  variant="outlined"
+                  sx={{ ml: 1 }}
+                />
+              </>
+            ) : (
+              node.label
+            )
+          }
           leftIcon={<Icon />}
           selected={active}
           aria-current={active ? "page" : undefined}

@@ -64,6 +64,7 @@ export interface DashboardLink extends NavigationBase {
 }
 export interface TranslationPageLink extends NavigationBase {
   kind: "page";
+  badge?: string;
   to: string;
   resources: readonly ResourceName[];
 }
@@ -124,6 +125,7 @@ export const NAVIGATION: readonly NavigationNode[] = [
         kind: "page",
         id: "translations",
         label: "Translations",
+        badge: "Beta",
         Icon: Translate,
         to: "/translations",
         resources: [
