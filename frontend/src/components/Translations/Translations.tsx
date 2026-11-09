@@ -482,7 +482,11 @@ function TranslationRecordCard({
   }
   return (
     <Paper variant="outlined" sx={{ p: 2, my: 2 }}>
-      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
         <FormControlLabel
           control={
             <Checkbox
@@ -660,7 +664,7 @@ function TranslationRecordCard({
           </Box>
         ))}
       </Box>
-      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap" }}>
         {draft && (
           <Button
             disabled={saving}

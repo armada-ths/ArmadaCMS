@@ -82,7 +82,7 @@ export const LatestBlogPosts = ({ perms }: { perms: string[] }) => {
                     primary={post.title || "(Untitled)"}
                     secondary={`${post.author} · ${new Date(post.createdAt).toLocaleDateString()}`}
                     slotProps={{
-                      primary: { variant: "body2", fontWeight: 600 },
+                      primary: { variant: "body2", sx: { fontWeight: 600 } },
                       secondary: { variant: "caption" },
                     }}
                   />
