@@ -171,7 +171,6 @@ export const ExhibitorEdit = (props: EditProps) => {
         </ReferenceArrayInput>
 
         <TextInput source="cities" />
-        <TextInput source="fairLocation" />
         <TextInput source="vyerPosition" />
         <TextInput source="locationSpecial" />
         <BooleanInput source="climateCompensation" />

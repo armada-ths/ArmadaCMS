@@ -112,7 +112,6 @@ export const RESOURCE_FILTERS: Record<ResourceName, ResourceFilter[]> = {
     text("purpose", "Purpose"),
     text("company_website", "Company website"),
     text("cities", "Cities"),
-    text("fair_location", "Fair location"),
     text("location_special", "Special location"),
     boolean("climate_compensation", "Climate compensation"),
     text("vyer_position", "Vyer position"),

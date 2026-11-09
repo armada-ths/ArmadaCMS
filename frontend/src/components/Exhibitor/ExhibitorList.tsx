@@ -17,7 +17,6 @@ export const ExhibitorList = (props: ListProps) => (
       <TextField source="name" />
       <TextField source="type" />
       <TextField source="tier" />
-      <TextField source="fairLocation" label="Fair location" />
       <ArrayField source="industries" sortable={false}>
         <SingleFieldList sx={{ gap: 1 }}>
           <ChipField source="name" />
