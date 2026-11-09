@@ -120,6 +120,8 @@ test("opens embedded category records as selected choices and preserves them on 
   await page.getByRole("button", { name: /ra\.action\.save/i }).click();
   await vi.waitFor(() => expect(update).toHaveBeenCalled());
   const payload = update.mock.calls[0][1].data;
+  const form = createMultipartFormData("exhibitors", payload);
+  expect(form.get("fairLocation")).toBe(record.fairLocation);
   expect(payload.industries).toEqual([{ id: 11 }]);
   expect(payload.programs).toEqual([{ id: 22 }]);
   expect(payload.employments).toEqual([{ id: 33 }]);
