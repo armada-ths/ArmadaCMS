@@ -45,7 +45,7 @@ func acknowledgeEventroCMSEdits(tx *gorm.DB, r *http.Request, resource string, b
 	if err != nil {
 		return err
 	}
-	state, err := loadEventroSyncState(tx, resource, uint(id))
+	state, err := loadEventroSyncState(tx.Clauses(clause.Locking{Strength: "UPDATE"}), resource, uint(id))
 	if err != nil {
 		return err
 	}
@@ -175,10 +175,15 @@ func saveEventroSyncStateWithAudit(tx *gorm.DB, r *http.Request, before models.E
 
 // syncEventroRecordWithAudit runs inside the caller's transaction and updates only
 // the allowlisted import fields. Source state and audited content commit together.
-func syncEventroRecordWithAudit(tx *gorm.DB, r *http.Request, resource string, incoming any, identityColumn string, identity any, fallback map[string]any, fields []string) (uint, bool, bool, error) {
-	if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", fmt.Sprintf("eventro:%s:%v", resource, identity)).Error; err != nil {
+func syncEventroRecordWithAudit(tx *gorm.DB, r *http.Request, resource string, incoming any, identityColumn, identity string, fallback map[string]any, fields []string) (uint, bool, bool, error) {
+	if err := beginEventroImport(tx, resource, identity); err != nil {
 		return 0, false, false, err
 	}
+	return mergeEventroRecordWithAudit(tx, r, resource, incoming, identityColumn, identity, fallback, fields)
+}
+
+// The caller has acquired the sync lock and checked the source identity.
+func mergeEventroRecordWithAudit(tx *gorm.DB, r *http.Request, resource string, incoming any, identityColumn, identity string, fallback map[string]any, fields []string) (uint, bool, bool, error) {
 	spec := eventroResourceSpecs[resource]
 	existing := spec.newModel()
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where(identityColumn+" = ?", identity).First(existing).Error

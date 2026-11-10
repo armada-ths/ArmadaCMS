@@ -3,6 +3,7 @@ package controllers
 import (
 	"ArmadaCMS/main/audit"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -66,15 +67,15 @@ func FetchRecruitmentsEventro(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
 		return
 	}
-	inserted, updated, failed, err := syncRecruitmentsFromEventro(audit.WithParent(r, group.ID))
+	inserted, updated, skipped, failed, err := syncRecruitmentsFromEventro(audit.WithParent(r, group.ID))
 	if err != nil {
 		_ = finalizeAuditGroup(group.ID, "failed", map[string]any{"source": "eventro", "error": err.Error()})
 		log.Printf("❌ Recruitment sync failed: %v", err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	status := auditGroupStatus(inserted+updated, failed)
-	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "failed": failed}); err != nil {
+	status := auditGroupStatus(inserted+updated+skipped, failed)
+	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "skipped": skipped, "failed": failed}); err != nil {
 		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
 		return
 	}
@@ -83,7 +84,7 @@ func FetchRecruitmentsEventro(w http.ResponseWriter, r *http.Request) {
 		go utils.RevalidateTag("organization")
 	}
 
-	message := fmt.Sprintf("Sync completed — inserted: %d, updated: %d, failed: %d", inserted, updated, failed)
+	message := fmt.Sprintf("Sync completed — inserted: %d, updated: %d, skipped: %d, failed: %d", inserted, updated, skipped, failed)
 	log.Printf("✅ Recruitment sync completed — inserted: %d, updated: %d", inserted, updated)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(message))
@@ -120,17 +121,18 @@ func GetRecruitment(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, error) {
+func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, int, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	baseURL := "https://app.eventro.se/api/v1/recruitments/"
 
 	allRecruitments, err := fetchEventroPages[eventroRecruitmentResponse](auditRequest.Context(), client, baseURL, "recruitments", os.Getenv("EVENTRO_API"), os.Getenv("EVENTRO_ORG"))
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
 	inserted := 0
 	updated := 0
+	skipped := 0
 	failed := 0
 
 	for _, incoming := range allRecruitments {
@@ -141,6 +143,10 @@ func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, err
 			periodID, wasInserted, wasUpdated, err = upsertRecruitmentPeriod(tx, auditRequest, incoming)
 			return err
 		})
+		if errors.Is(err, errEventroSyncSkipped) {
+			skipped++
+			continue
+		}
 		if err != nil {
 			log.Printf("❌ Failed upserting recruitment period %q (%s): %v", incoming.Name, incoming.ID, err)
 			failed++
@@ -161,6 +167,10 @@ func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, err
 				roleInserted, roleUpdated, err = upsertRecruitmentRole(tx, auditRequest, periodID, role)
 				return err
 			})
+			if errors.Is(roleErr, errEventroSyncSkipped) {
+				skipped++
+				continue
+			}
 			if roleErr != nil {
 				log.Printf("❌ Failed upserting recruitment role %q (%s): %v", role.Role, role.ID, roleErr)
 				failed++
@@ -176,7 +186,7 @@ func syncRecruitmentsFromEventro(auditRequest *http.Request) (int, int, int, err
 		}
 	}
 
-	return inserted, updated, failed, nil
+	return inserted, updated, skipped, failed, nil
 }
 
 func upsertRecruitmentPeriod(tx *gorm.DB, r *http.Request, incoming eventroRecruitmentResponse) (uint, bool, bool, error) {
@@ -193,6 +203,16 @@ func upsertRecruitmentRole(tx *gorm.DB, r *http.Request, periodID uint, incoming
 	if id == "" {
 		return false, false, fmt.Errorf("missing Eventro role id")
 	}
+	if err := beginEventroImport(tx, "recruitmentroles", id); err != nil {
+		return false, false, err
+	}
+	var period models.RecruitmentPeriod
+	if err := tx.Select("id").First(&period, periodID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, false, errEventroSyncSkipped
+		}
+		return false, false, err
+	}
 	teamID, err := findOrCreateTeamIDByName(tx, r, deriveRecruitmentRoleTeamName(incoming))
 	if err != nil {
 		return false, false, err
@@ -202,7 +222,7 @@ func upsertRecruitmentRole(tx *gorm.DB, r *http.Request, periodID uint, incoming
 	if teamID != nil {
 		fields = append(fields, "team_id")
 	}
-	_, inserted, updated, err := syncEventroRecordWithAudit(tx, r, "recruitmentroles", &role, "eventro_role_id", id, map[string]any{"recruitment_id": periodID, "LOWER(name)": strings.ToLower(role.Name)}, fields)
+	_, inserted, updated, err := mergeEventroRecordWithAudit(tx, r, "recruitmentroles", &role, "eventro_role_id", id, map[string]any{"recruitment_id": periodID, "LOWER(name)": strings.ToLower(role.Name)}, fields)
 	return inserted, updated, err
 }
 

@@ -6,6 +6,7 @@ import (
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -72,6 +73,7 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 
 	inserted := 0
 	updated := 0
+	skipped := 0
 	failed := 0
 	group, err := startAuditGroup(r, "sync", "profiles", "eventro-members", map[string]any{"source": "eventro", "status": "running"})
 	if err != nil {
@@ -115,6 +117,10 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 				created, changed = inserted, updated
 				return err
 			})
+			if errors.Is(err, errEventroSyncSkipped) {
+				skipped++
+				continue
+			}
 			if err != nil {
 				failed++
 				continue
@@ -128,8 +134,8 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	status := auditGroupStatus(inserted+updated, failed)
-	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "failed": failed}); err != nil {
+	status := auditGroupStatus(inserted+updated+skipped, failed)
+	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "skipped": skipped, "failed": failed}); err != nil {
 		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
 		return
 	}
@@ -137,9 +143,10 @@ func FetchMembersEventro(w http.ResponseWriter, r *http.Request) {
 		go utils.RevalidateTag("organization")
 	}
 	message := fmt.Sprintf(
-		"Sync completed — inserted: %d, updated: %d, failed: %d",
+		"Sync completed — inserted: %d, updated: %d, skipped: %d, failed: %d",
 		inserted,
 		updated,
+		skipped,
 		failed,
 	)
 	log.Printf("✅ %s", message)

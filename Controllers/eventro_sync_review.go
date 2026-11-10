@@ -231,6 +231,11 @@ func ResolveEventroSyncReview(w http.ResponseWriter, r *http.Request) {
 	}
 	before, after := spec.newModel(), spec.newModel()
 	err := updateWithAudit(eventroSourceWriteRequest(r), decision.Resource, decision.RecordID, before, &after, func(tx *gorm.DB) error {
+		if decision.Resource == "exhibitors" {
+			if err := lockEventroSyncDomain(tx, decision.Resource); err != nil {
+				return err
+			}
+		}
 		if err := eventroReviewQuery(tx.Clauses(clause.Locking{Strength: "UPDATE"}), decision.Resource).First(before, decision.RecordID).Error; err != nil {
 			return err
 		}

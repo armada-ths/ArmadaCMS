@@ -355,6 +355,9 @@ func UpdateExhibitor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := updateWithAudit(r, "exhibitors", id, before, &exhibitor, func(tx *gorm.DB) error {
+		if err := lockEventroSyncDomain(tx, "exhibitors"); err != nil {
+			return err
+		}
 		if err := tx.Model(&exhibitor).Select("*").Updates(exhibitor).Error; err != nil {
 			return err
 		}

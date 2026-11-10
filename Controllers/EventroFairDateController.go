@@ -87,6 +87,7 @@ func FetchFairDatesEventro(w http.ResponseWriter, r *http.Request) {
 		"updated":   stats.updated,
 		"unchanged": stats.unchanged,
 		"deleted":   stats.deleted,
+		"skipped":   stats.skipped,
 		"failed":    0,
 	}); err != nil {
 		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
@@ -97,19 +98,21 @@ func FetchFairDatesEventro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf(
-		"✅ Fair date sync completed — inserted: %d, updated: %d, unchanged: %d, deleted: %d",
+		"✅ Fair date sync completed — inserted: %d, updated: %d, unchanged: %d, deleted: %d, skipped: %d",
 		stats.inserted,
 		stats.updated,
 		stats.unchanged,
 		stats.deleted,
+		stats.skipped,
 	)
 	_, _ = fmt.Fprintf(
 		w,
-		"Sync completed — inserted: %d, updated: %d, unchanged: %d, deleted: %d",
+		"Sync completed — inserted: %d, updated: %d, unchanged: %d, deleted: %d, skipped: %d",
 		stats.inserted,
 		stats.updated,
 		stats.unchanged,
 		stats.deleted,
+		stats.skipped,
 	)
 }
 
@@ -118,6 +121,7 @@ type fairDateSyncStats struct {
 	updated   int
 	unchanged int
 	deleted   int
+	skipped   int
 }
 
 func syncFairDateConfigWithAudit(r *http.Request, item models.FairDateConfig) (fairDateSyncStats, error) {
@@ -127,6 +131,9 @@ func syncFairDateConfigWithAudit(r *http.Request, item models.FairDateConfig) (f
 			return errors.New("eventro fair has no ID")
 		}
 		_, inserted, updated, err := syncEventroRecordWithAudit(tx, r, "fairdates", &item, "eventro_id", *item.EventroID, nil, nil)
+		if err != nil {
+			return err
+		}
 		if inserted {
 			stats.inserted = 1
 		} else if updated {
@@ -134,8 +141,12 @@ func syncFairDateConfigWithAudit(r *http.Request, item models.FairDateConfig) (f
 		} else {
 			stats.unchanged = 1
 		}
-		return err
+		return nil
 	})
+	if errors.Is(err, errEventroSyncSkipped) {
+		stats.skipped = 1
+		return stats, nil
+	}
 	return stats, err
 }
 

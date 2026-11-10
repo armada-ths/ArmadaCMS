@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func startAuditGroup(r *http.Request, action string, resourceType string, resourceID any, data any) (*models.AuditLog, error) {
@@ -120,21 +122,13 @@ func updateWithGroupedAudit[T any](r *http.Request, resourceType string, resourc
 
 func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, beforeDelete func(tx *gorm.DB, entity *T) error, revalidateTags ...string) {
 	var entity T
-	query := db.DB
-	if buildQuery != nil {
-		query = buildQuery(query)
-	}
-
-	if err := query.First(&entity, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			http.Error(w, notFoundMessage, http.StatusNotFound)
-			return
+	if err := db.DB.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := loadRecordForAuditedDelete(tx, resourceType, id, &entity, buildQuery); err != nil {
+			return err
 		}
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-
-	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := blockDeletedEventroRecord(tx, r, resourceType, &entity); err != nil {
+			return err
+		}
 		if beforeDelete != nil {
 			if err := beforeDelete(tx, &entity); err != nil {
 				return err
@@ -166,31 +160,22 @@ func writeDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request,
 
 func writeGroupedDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.Request, resourceType string, id string, notFoundMessage string, buildQuery func(tx *gorm.DB) *gorm.DB, beforeDelete func(tx *gorm.DB, entity *T, childRequest *http.Request) error, summaryData any, revalidateTags ...string) {
 	var entity T
-	query := db.DB
-	if buildQuery != nil {
-		query = buildQuery(query)
-	}
-
-	if err := query.First(&entity, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			http.Error(w, notFoundMessage, http.StatusNotFound)
-			return
+	if err := db.DB.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := loadRecordForAuditedDelete(tx, resourceType, id, &entity, buildQuery); err != nil {
+			return err
 		}
-		http.Error(w, "Delete failed", http.StatusInternalServerError)
-		return
-	}
-
-	if err := db.DB.Transaction(func(tx *gorm.DB) error {
 		group, err := audit.StartGroupWithData(tx, r, "delete", resourceType, id, entity, summaryData)
 		if err != nil {
 			return err
 		}
 		childRequest := audit.WithParent(r, group.ID)
-
 		if beforeDelete != nil {
 			if err := beforeDelete(tx, &entity, childRequest); err != nil {
 				return err
 			}
+		}
+		if err := blockDeletedEventroRecord(tx, childRequest, resourceType, &entity); err != nil {
+			return err
 		}
 		result := tx.Delete(&entity)
 		if result.Error != nil {
@@ -214,6 +199,20 @@ func writeGroupedDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.R
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func loadRecordForAuditedDelete(tx *gorm.DB, resource, id string, entity any, buildQuery func(*gorm.DB) *gorm.DB) error {
+	query := tx
+	if _, synced := eventroResourceSpecs[resource]; synced || slices.Contains(eventroCategoryResources, resource) {
+		if err := lockEventroSyncDomain(tx, resource); err != nil {
+			return err
+		}
+		query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	if buildQuery != nil {
+		query = buildQuery(query)
+	}
+	return query.First(entity, id).Error
 }
 
 func removeExhibitorAssociationWithAudit(tx *gorm.DB, childRequest *http.Request, exhibitors []models.Exhibitor, association string, value any) error {

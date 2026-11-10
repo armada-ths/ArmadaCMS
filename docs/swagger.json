@@ -1208,6 +1208,99 @@
                 }
             }
         },
+        "/eventrosyncblocks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "List blocked Eventro records for a resource",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CMS resource",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.EventroSyncBlock"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid resource",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient resource permissions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/eventrosyncblocks/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "eventro"
+                ],
+                "summary": "Allow a blocked Eventro record to sync again",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Block ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid block ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient resource permissions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Block not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/eventrosyncreview": {
             "get": {
                 "security": [
@@ -5887,6 +5980,26 @@
                     "type": "string"
                 },
                 "productId": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EventroSyncBlock": {
+            "type": "object",
+            "properties": {
+                "deletedAt": {
+                    "type": "string"
+                },
+                "eventroKey": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "resource": {
                     "type": "string"
                 }
             }

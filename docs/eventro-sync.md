@@ -10,6 +10,14 @@ The dashboard's **Review sync and data quality** dialog selects a resource and s
 
 Paginated exports are fetched and validated completely before content import. Duplicate IDs, changing totals, missing lists and truncated pagination fail the fetch. A source fetch failure does not delete data. No sync deletes records that are absent from an export, including other fair-date configurations. When several fair-date configurations exist, the review highlights them; the public dates endpoint continues to use the highest ID. Remove obsolete configurations through the normal authorized CMS workflow when appropriate.
 
+## Deleted records
+
+Deleting an Eventro-linked record in the CMS also blocks future imports of its Eventro identity. Deleting a recruitment period blocks the period and each of its linked roles. Sync reports these exclusions as skipped. Member profiles use the name-derived Eventro key, so a source name change can produce a new identity.
+
+The **Blocked records** tab under **Review sync and data quality** is available to users with Eventro sync access and delete permission for the selected resource. **Allow reimport** lets the next sync create a fresh record from Eventro. Period and role blocks are managed separately. Both blocking and allowing reimport are audited.
+
+Deleting an industry, employment type or field of study globally also blocks its normalized label in that category type. Eventro applies alias mapping before checking the block. Other categories on the same exhibitor remain eligible for synchronization. Category blocks can be lifted from the same tab.
+
 ## Category normalization
 
 Exhibitor industries, employment types and fields of study are normalized before field ownership comparison and category persistence using `internal/eventrocategories/mapping.csv`. The CSV is embedded in the backend binary. Matching ignores case and redundant whitespace; aliases that resolve to the same category are deduplicated within their category type. Unknown labels are retained. The `Review` column is retained as mapping metadata and does not change the specified normalized value. Known employment programmes misplaced under fields of study (`Graduate programme` and `Summer Internship programme`, including their `program` spelling) are moved to employment types before deduplication. Locations are unaffected.

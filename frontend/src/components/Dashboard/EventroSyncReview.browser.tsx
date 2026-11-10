@@ -8,10 +8,11 @@ import { EventroSyncReview } from "./EventroSyncReview";
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  delete: vi.fn(),
   notify: vi.fn(),
 }));
 vi.mock("../../context/axiosInstance", () => ({
-  default: { get: mocks.get, post: mocks.post },
+  default: { get: mocks.get, post: mocks.post, delete: mocks.delete },
 }));
 vi.mock("react-admin", () => ({ useNotify: () => mocks.notify }));
 
@@ -19,6 +20,7 @@ let container: HTMLDivElement, root: Root, client: QueryClient;
 beforeEach(() => {
   mocks.get.mockReset();
   mocks.post.mockReset();
+  mocks.delete.mockReset();
   mocks.notify.mockReset();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -139,4 +141,50 @@ test("does not offer review when no resource can be edited", async () => {
   render(["eventrosync.access"]);
   await vi.waitFor(() => expect(container.textContent).toBe(""));
   expect(mocks.get).not.toHaveBeenCalled();
+});
+
+test("allows reimport from the blocked-records tab with delete permission", async () => {
+  mocks.get
+    .mockResolvedValueOnce({
+      data: [
+        {
+          id: 31,
+          eventroKey: "example.member",
+          label: "Example Member",
+          deletedAt: "2026-11-10T12:00:00Z",
+        },
+      ],
+    })
+    .mockResolvedValue({ data: [] });
+  mocks.delete.mockResolvedValue({ status: 204 });
+  render(["eventrosync.access", "profiles.delete"]);
+  await page
+    .getByRole("button", { name: "Review sync and data quality" })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Blocked records" }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText("Example Member", { exact: true }))
+    .toBeVisible();
+  expect(mocks.get).toHaveBeenCalledWith("/eventrosyncblocks", {
+    params: { resource: "profiles" },
+  });
+  await page.getByRole("button", { name: "Allow reimport" }).click();
+  await expect.element(page.getByText("No blocked records.")).toBeVisible();
+  expect(mocks.delete).toHaveBeenCalledWith("/eventrosyncblocks/31");
+});
+
+test("keeps the blocked-records tab unavailable with only edit permission", async () => {
+  mocks.get.mockResolvedValue({ data: [] });
+  render();
+  await page
+    .getByRole("button", { name: "Review sync and data quality" })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Field review" }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("tab", { name: "Blocked records" }))
+    .not.toBeInTheDocument();
 });
