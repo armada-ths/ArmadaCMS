@@ -81,7 +81,7 @@ function SortableRow({
         opacity: isDragging ? 0.5 : 1,
       }}
     >
-      <Stack direction="row" alignItems="center" gap={1}>
+      <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
         {!disabled && (
           <IconButton
             ref={setActivatorNodeRef}
@@ -203,7 +203,7 @@ export function LoungeItemList() {
       >
         Arrange categories and items to set their order on the order page.
       </Typography>
-      <Stack direction="row" gap={2} sx={{ mb: 2 }}>
+      <Stack direction="row" sx={{ gap: 2, mb: 2 }}>
         <Typography variant="h5" sx={{ flex: 1 }}>
           Lounge catalogue
         </Typography>
@@ -256,7 +256,7 @@ export function LoungeItemList() {
                   disabled={!edit || mutation.isPending}
                   label={entry.name}
                 >
-                  <Stack direction="row" alignItems="center">
+                  <Stack direction="row" sx={{ alignItems: "center" }}>
                     <Typography variant="h6" sx={{ flex: 1 }}>
                       {entry.name}
                     </Typography>
@@ -292,8 +292,7 @@ export function LoungeItemList() {
                         <RecordContextProvider value={item}>
                           <Stack
                             direction="row"
-                            alignItems="center"
-                            flexWrap="wrap"
+                            sx={{ alignItems: "center", flexWrap: "wrap" }}
                           >
                             <Typography sx={{ flex: 1 }}>
                               {item.name}
