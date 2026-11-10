@@ -15,11 +15,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-var loungeSortColumns = map[string]string{
-	"id": "id", "name": "name", "sortOrder": "sort_order", "soldOut": "sold_out",
-}
 
 // GetLoungeItems lists the complete catalogue unless a range is specified.
 // @Summary List lounge items
@@ -32,17 +29,33 @@ var loungeSortColumns = map[string]string{
 // @Router /lounge-items [get]
 func GetLoungeItems(w http.ResponseWriter, r *http.Request) {
 	params, _ := utils.ParseListParams(r.URL.Query())
-	column, direction := "sort_order", "ASC"
+	column := clause.Column{Name: "sort_order"}
+	descending := false
 	if raw := r.URL.Query().Get("sort"); raw != "" {
 		var sort []string
 		if json.Unmarshal([]byte(raw), &sort) != nil || len(sort) != 2 {
 			http.Error(w, "Invalid sort", http.StatusBadRequest)
 			return
 		}
-		var ok bool
-		column, ok = loungeSortColumns[sort[0]]
-		direction = sort[1]
-		if !ok || (direction != "ASC" && direction != "DESC") {
+		switch sort[0] {
+		case "id":
+			column = clause.Column{Name: "id"}
+		case "name":
+			column = clause.Column{Name: "name"}
+		case "sortOrder":
+			column = clause.Column{Name: "sort_order"}
+		case "soldOut":
+			column = clause.Column{Name: "sold_out"}
+		default:
+			http.Error(w, "Invalid sort", http.StatusBadRequest)
+			return
+		}
+		switch sort[1] {
+		case "ASC":
+			descending = false
+		case "DESC":
+			descending = true
+		default:
 			http.Error(w, "Invalid sort", http.StatusBadRequest)
 			return
 		}
@@ -99,7 +112,10 @@ func GetLoungeItems(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "List failed", http.StatusInternalServerError)
 		return
 	}
-	query = query.Order(column + " " + direction).Order("id ASC")
+	query = query.Order(clause.OrderByColumn{
+		Column: column,
+		Desc:   descending,
+	}).Order("id ASC")
 	if r.URL.Query().Has("range") {
 		query = query.Offset(start).Limit(params.Range[1] - start + 1)
 	}
@@ -119,7 +135,7 @@ func GetLoungeItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadLoungeItem(w http.ResponseWriter, r *http.Request) (*models.LoungeItem, bool) {
-	id, err := strconv.ParseUint(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseUint(mux.Vars(r)["id"], 10, strconv.IntSize)
 	if err != nil || id == 0 {
 		http.Error(w, "Invalid item ID", http.StatusBadRequest)
 		return nil, false
@@ -171,7 +187,7 @@ func applyLoungeFields(values url.Values, item *models.LoungeItem) (map[string]a
 			updates[field.column] = *field.target
 		}
 		if values.Has("categoryId") {
-			value, err := strconv.ParseUint(values.Get("categoryId"), 10, 64)
+			value, err := strconv.ParseUint(values.Get("categoryId"), 10, strconv.IntSize)
 			if err != nil || value == 0 || value > 9007199254740991 {
 				return nil, errors.New("categoryId must be a positive safe integer")
 			}

@@ -181,7 +181,7 @@ func SubmitLoungeOrder(w http.ResponseWriter, r *http.Request) {
 		order = models.LoungeOrder{CompanyID: company.ID, CompanyName: company.Name, IsTest: test, Status: "pending", DeliveryStatus: "pending", IdempotencyKey: input.IdempotencyKey, Fingerprint: fingerprint, Lines: []models.LoungeOrderLine{}}
 		seen := map[uint]bool{}
 		for position, line := range input.Items {
-			id, err := strconv.ParseUint(line.ID, 10, 64)
+			id, err := strconv.ParseUint(line.ID, 10, strconv.IntSize)
 			if err != nil || id == 0 || id > 9007199254740991 || line.Quantity <= 0 || line.Quantity > 9007199254740991 || seen[uint(id)] {
 				return loungeOrderError("invalid_order")
 			}
