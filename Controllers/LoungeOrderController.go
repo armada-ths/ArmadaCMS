@@ -228,7 +228,7 @@ func createWithAuditTx(tx *gorm.DB, r *http.Request, order *models.LoungeOrder) 
 func updateLoungeOrderWithAudit(tx *gorm.DB, r *http.Request, before models.LoungeOrder, after *models.LoungeOrder, updates map[string]any) error {
 	return updateWithAuditInTransaction(tx, r, "lounge-orders", after.ID, before, after, func(tx *gorm.DB) error {
 		return tx.Model(after).Updates(updates).Error
-	})
+	}, nil)
 }
 
 func loadServiceOrder(tx *gorm.DB, r *http.Request, test bool, order *models.LoungeOrder) error {
