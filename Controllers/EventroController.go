@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"ArmadaCMS/main/audit"
-	"ArmadaCMS/main/internal/eventrocategories"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -273,41 +272,23 @@ func mapEventroToExhibitor(e eventroExhibitorResponse) models.Exhibitor {
 
 	// Join all locations into a single cities string
 	var cities *string
-	if len(normalizedEventroLabels(e.Catalogue.Locations)) > 0 {
-		joined := strings.Join(normalizedEventroLabels(e.Catalogue.Locations), ", ")
+	if locations := normalizedEventroLocations(e.Catalogue.Locations); len(locations) > 0 {
+		joined := strings.Join(locations, ", ")
 		cities = &joined
 	}
 
-	// Normalize and classify related entities before sync ownership comparison.
-	categories := eventrocategories.NormalizeCatalogue(eventrocategories.Catalogue{
-		Industries:    e.Catalogue.Industries,
-		Employments:   e.Catalogue.Employments,
-		FieldsOfStudy: e.Catalogue.Educations,
-	})
 	industries := make([]models.Industry, 0, len(e.Catalogue.Industries))
-	for _, i := range categories.Industries {
-		name := strings.TrimSpace(i)
-		if name == "" {
-			continue
-		}
+	for _, name := range sortedEventroCategoryLabels(e.Catalogue.Industries) {
 		industries = append(industries, models.Industry{Name: name})
 	}
 
 	employments := make([]models.Employment, 0, len(e.Catalogue.Employments))
-	for _, emp := range categories.Employments {
-		name := strings.TrimSpace(emp)
-		if name == "" {
-			continue
-		}
+	for _, name := range sortedEventroCategoryLabels(e.Catalogue.Employments) {
 		employments = append(employments, models.Employment{Name: name})
 	}
 
 	programs := make([]models.Program, 0, len(e.Catalogue.Educations))
-	for _, edu := range categories.FieldsOfStudy {
-		name := strings.TrimSpace(edu)
-		if name == "" {
-			continue
-		}
+	for _, name := range sortedEventroCategoryLabels(e.Catalogue.Educations) {
 		programs = append(programs, models.Program{Name: name})
 	}
 

@@ -341,7 +341,7 @@ func TestEventroCategoryBlocksDatabaseFlow(t *testing.T) {
 		Organization: eventroOrg{Name: "Example exhibitor"},
 		Catalogue: eventroCatalogue{
 			Industries:  []string{"Technology"},
-			Employments: []string{"summer internship"},
+			Employments: []string{"Summer internship"},
 			Educations:  []string{"Embedded Systems", "Technology"},
 		},
 	}
@@ -394,8 +394,7 @@ func TestEventroCategoryBlocksDatabaseFlow(t *testing.T) {
 		t.Fatalf("stale category review: %d %s", response.Code, response.Body)
 	}
 
-	incoming.Catalogue.Industries = []string{" TECHNOLOGY ", "Automation"}
-	incoming.Catalogue.Employments = []string{"Summer Internship positions"}
+	incoming.Catalogue.Industries = []string{"Technology", "technology", "Automation"}
 	for range 2 {
 		sync(incoming)
 	}
@@ -407,7 +406,7 @@ func TestEventroCategoryBlocksDatabaseFlow(t *testing.T) {
 		if err := eventroReviewQuery(database, "exhibitors").Where("eventro_id = ?", key).First(&current).Error; err != nil {
 			t.Fatal(err)
 		}
-		if len(current.Industries) != 1 || current.Industries[0].Name != "Automation" ||
+		if !sameEventroValue(exhibitorSyncValues(current)["industries"], []byte(`["Automation","technology"]`)) ||
 			len(current.Employments) != 0 ||
 			len(current.Programs) != 1 || current.Programs[0].Name != "Technology" {
 			t.Fatalf("unexpected categories for %s: %+v, %+v, %+v", key, current.Industries, current.Employments, current.Programs)
@@ -434,7 +433,7 @@ func TestEventroCategoryBlocksDatabaseFlow(t *testing.T) {
 	response = eventroBlockTestRequest(t, list.ServeHTTP, http.MethodGet, "/eventrosyncblocks?resource=employments", "", permissions)
 	var blocks []models.EventroSyncBlock
 	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &blocks) != nil ||
-		len(blocks) != 1 || blocks[0].EventroKey != "summer internship" {
+		len(blocks) != 1 || blocks[0].EventroKey != "Summer internship" {
 		t.Fatalf("list category blocks: %d %s", response.Code, response.Body)
 	}
 	id := getResourceID(&blocks[0])

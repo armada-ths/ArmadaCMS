@@ -71,8 +71,7 @@ func blockDeletedEventroRecord(tx *gorm.DB, r *http.Request, resource string, en
 	}
 	isCategory := slices.Contains(eventroCategoryResources, resource)
 	if isCategory {
-		normalized := eventroCategoryBlockKey(label)
-		key = &normalized
+		key = &label
 	}
 	if key == nil || strings.TrimSpace(*key) == "" {
 		return nil

@@ -113,7 +113,7 @@ func TestEventroThumbnailAndCategoryCorrections(t *testing.T) {
 	if got.LogoThumbnail != nil || *got.LogoFreesizeUrl != manual {
 		t.Fatal("manual logo mixed with Eventro thumbnail")
 	}
-	if !reflect.DeepEqual(normalizedEventroLabels([]string{" Stockholm ", "Stockholm", "", "Göteborg"}), []string{"Göteborg", "Stockholm"}) {
+	if !reflect.DeepEqual(normalizedEventroLocations([]string{" Stockholm ", "Stockholm", "", "Göteborg"}), []string{"Göteborg", "Stockholm"}) {
 		t.Fatal("locations not normalized")
 	}
 }

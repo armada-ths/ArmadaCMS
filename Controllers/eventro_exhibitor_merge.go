@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -15,7 +16,7 @@ type eventroLogoValue struct {
 	Thumbnail *string `json:"thumbnail"`
 }
 
-func normalizedEventroLabels(values []string) []string {
+func normalizedEventroLocations(values []string) []string {
 	result := []string{}
 	seen := map[string]bool{}
 	for _, value := range values {
@@ -28,6 +29,18 @@ func normalizedEventroLabels(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// Sort and deduplicate exact labels for order-independent field comparisons.
+func sortedEventroCategoryLabels(values []string) []string {
+	labels := make([]string, 0, len(values))
+	for _, label := range values {
+		if strings.TrimSpace(label) != "" {
+			labels = append(labels, label)
+		}
+	}
+	slices.Sort(labels)
+	return slices.Compact(labels)
 }
 
 func exhibitorSyncValues(e models.Exhibitor) map[string]json.RawMessage {
@@ -44,8 +57,8 @@ func exhibitorSyncValues(e models.Exhibitor) map[string]json.RawMessage {
 	values := map[string]any{
 		"name": e.Name, "tier": e.Tier, "companyWebsite": e.CompanyWebsite,
 		"about": e.About, "logo": eventroLogoValue{e.LogoFreesizeUrl, e.LogoThumbnail},
-		"cities": e.Cities, "industries": normalizedEventroLabels(industries),
-		"employments": normalizedEventroLabels(employments), "programs": normalizedEventroLabels(programs),
+		"cities": e.Cities, "industries": sortedEventroCategoryLabels(industries),
+		"employments": sortedEventroCategoryLabels(employments), "programs": sortedEventroCategoryLabels(programs),
 	}
 	result := map[string]json.RawMessage{}
 	for key, value := range values {

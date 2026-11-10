@@ -4,7 +4,7 @@ Exhibitors, events, member profiles, fair dates, recruitment periods and recruit
 
 For each record and mapped field, the backend stores the latest Eventro value in the private `eventro_sync_states` table. When the current CMS value equals that baseline, a new Eventro value is applied. When the CMS value differs, the CMS correction is retained. A manual editor save automatically acknowledges the changed field as CMS-owned and clears its current conflict. Review reads never manufacture conflicts from CMS-only differences. Only a subsequent sync with a changed Eventro value can reopen that conflict. Choosing **Keep CMS** explicitly retains CMS ownership and acknowledges the current Eventro version. Acknowledged differences disappear from review; a row remains only if it has other unresolved differences or data-quality issues. A later Eventro change requires review again. Choosing **Use Eventro** applies that value and resumes synchronization for the field.
 
-Existing records have no trustworthy import baseline. Their non-empty differences are preserved and presented for review on the first sync. Missing fields can be filled. Explicit CMS clearing after a baseline exists is also a correction. Category relationships are compared by normalized names, independent of database IDs or list ordering. A logo and its thumbnail are reviewed together.
+Existing records have no trustworthy import baseline. Their non-empty differences are preserved and presented for review on the first sync. Missing fields can be filled. Explicit CMS clearing after a baseline exists is also a correction. Category relationships are compared by exact names, independent of database IDs or list ordering. A logo and its thumbnail are reviewed together.
 
 The dashboard's **Review sync and data quality** dialog selects a resource and shows CMS/Eventro values for unresolved differences, data-quality warnings and links to the normal editor. Exhibitors additionally report missing profile data and products without a package mapping. Decisions require both `eventrosync.access` and the resource's `.edit` permission. If either value has changed since the review loaded, the decision fails with HTTP 409; refresh before deciding again. Import metadata, decisions and content changes are audited transactionally. Metadata is never returned by public resource endpoints, and its table has no grants for Supabase client roles.
 
@@ -16,13 +16,11 @@ Deleting an Eventro-linked record in the CMS also blocks future imports of its E
 
 The **Blocked records** tab under **Review sync and data quality** is available to users with Eventro sync access and delete permission for the selected resource. **Allow reimport** lets the next sync create a fresh record from Eventro. Period and role blocks are managed separately. Both blocking and allowing reimport are audited.
 
-Deleting an industry, employment type or field of study globally also blocks its normalized label in that category type. Eventro applies alias mapping before checking the block. Other categories on the same exhibitor remain eligible for synchronization. Category blocks can be lifted from the same tab.
+Deleting an industry, employment type or field of study globally blocks that exact label within its category type. Other labels on the same exhibitor remain eligible for synchronization. Category blocks can be lifted from the same tab.
 
-## Category normalization
+## Exhibitor categories
 
-Exhibitor industries, employment types and fields of study are normalized before field ownership comparison and category persistence using `internal/eventrocategories/mapping.csv`. The CSV is embedded in the backend binary. Matching ignores case and redundant whitespace; aliases that resolve to the same category are deduplicated within their category type. Unknown labels are retained. The `Review` column is retained as mapping metadata and does not change the specified normalized value. Known employment programmes misplaced under fields of study (`Graduate programme` and `Summer Internship programme`, including their `program` spelling) are moved to employment types before deduplication. Locations are unaffected.
-
-Mapping changes take effect on the next exhibitor sync. Existing field ownership and conflict review still apply: manual CMS corrections and untracked historical differences are preserved. Normalization does not delete existing category records or change unrelated CMS-managed relationships. The public website derives its filter choices from the categories referenced by the current exhibitor payload, so historical unused taxonomy rows are not offered as filter options.
+Categories keep the labels and types supplied by Eventro. Blank labels are ignored and identical labels within the same type are imported once. The public website derives its filter choices from the categories referenced by the current exhibitor payload.
 
 ## Package mapping
 
