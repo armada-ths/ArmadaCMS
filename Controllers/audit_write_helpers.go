@@ -62,13 +62,6 @@ func createWithAuditInTransaction[T any](tx *gorm.DB, r *http.Request, resourceT
 	return audit.LogCreate(tx, r, resourceType, getResourceID(entity), entity)
 }
 
-func updateWithAuditInTransaction[T any](tx *gorm.DB, r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error) error {
-	if err := mutate(tx); err != nil {
-		return err
-	}
-	return audit.LogUpdate(tx, r, resourceType, resourceID, before, after)
-}
-
 func updateWithAudit[T any](r *http.Request, resourceType string, resourceID any, before any, after *T, mutate func(tx *gorm.DB) error, reload func(tx *gorm.DB) error, revalidateTags ...string) error {
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		return updateWithAuditInTransaction(tx, r, resourceType, resourceID, before, after, mutate, reload)
