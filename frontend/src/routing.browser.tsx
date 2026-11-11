@@ -77,3 +77,15 @@ test("redirects the root to the admin and preserves its prefix during navigation
     .toBeVisible();
   expect(router.state.location.pathname).toBe("/admin/translations");
 });
+
+test("offers a dashboard link when the URL does not match a route", async () => {
+  render("/exhibitors/4592");
+  await expect
+    .element(page.getByRole("heading", { name: "Page not found" }))
+    .toBeVisible();
+  await page.getByRole("link", { name: "Back to dashboard" }).click();
+  await expect
+    .element(page.getByRole("link", { name: "Open translations" }))
+    .toBeVisible();
+  expect(router.state.location.pathname).toBe("/admin");
+});
