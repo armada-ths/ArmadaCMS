@@ -3322,7 +3322,7 @@ paths:
   /lounge-orders:
     get:
       parameters:
-      - description: Company, category, item, status, isTest
+      - description: Company, category, item, status
         in: query
         name: filter
         type: string

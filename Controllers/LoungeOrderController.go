@@ -41,6 +41,14 @@ func (e loungeOrderError) Error() string { return string(e) }
 
 var loungeUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
+func loungeTestEnvironment() bool {
+	return os.Getenv("LOUNGE_ORDER_ENVIRONMENT") != "production"
+}
+
+func loungeOrdersInEnvironment(query *gorm.DB) *gorm.DB {
+	return query.Where("lounge_orders.is_test = ?", loungeTestEnvironment())
+}
+
 func loungeService(w http.ResponseWriter, r *http.Request) (bool, bool) {
 	live, test := os.Getenv("LOUNGE_ORDER_SUBMISSION_SECRET"), os.Getenv("LOUNGE_ORDER_TEST_SUBMISSION_SECRET")
 	w.Header().Set("Cache-Control", "no-store")
@@ -54,11 +62,13 @@ func loungeService(w http.ResponseWriter, r *http.Request) (bool, bool) {
 		writeJSONResponse(w, 401, map[string]string{"errorCode": "access_required"})
 		return false, false
 	}
-	if live != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(live)) == 1 {
-		return false, true
+	isTest := loungeTestEnvironment()
+	secret := live
+	if isTest {
+		secret = test
 	}
-	if test != "" && test != live && subtle.ConstantTimeCompare([]byte(provided), []byte(test)) == 1 {
-		return true, true
+	if secret != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(secret)) == 1 {
+		return isTest, true
 	}
 	writeJSONResponse(w, 401, map[string]string{"errorCode": "access_required"})
 	return false, false
@@ -256,7 +266,7 @@ func updateLoungeOrderWithAudit(tx *gorm.DB, r *http.Request, before models.Loun
 }
 
 func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
-	query := db.DB.Model(&models.LoungeOrder{})
+	query := loungeOrdersInEnvironment(db.DB.Model(&models.LoungeOrder{}))
 	filter := map[string]any{}
 	if raw := r.URL.Query().Get("filter"); raw != "" {
 		decoder := json.NewDecoder(strings.NewReader(raw))
@@ -268,8 +278,10 @@ func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
 			return nil, nil, errors.New("invalid filter")
 		}
 	}
+	// Ignore the former environment filter in saved list URLs.
+	delete(filter, "isTest")
 	for key := range filter {
-		if key != "companyId" && key != "categoryId" && key != "itemId" && key != "status" && key != "isTest" {
+		if key != "companyId" && key != "categoryId" && key != "itemId" && key != "status" {
 			return nil, nil, errors.New("unsupported filter")
 		}
 	}
@@ -282,15 +294,6 @@ func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
 			filter[key] = id
 		}
 	}
-	test := false
-	if value, exists := filter["isTest"]; exists {
-		parsed, ok := value.(bool)
-		if !ok {
-			return nil, nil, errors.New("invalid test filter")
-		}
-		test = parsed
-	}
-	query = query.Where("is_test = ?", test)
 	if status, exists := filter["status"]; exists {
 		if status != "pending" && status != "completed" {
 			return nil, nil, errors.New("invalid status")
@@ -317,7 +320,7 @@ func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
 // ListLoungeOrders lists private orders with historical filters.
 // @Summary List lounge orders
 // @Tags lounge-orders
-// @Param filter query string false "Company, category, item, status, isTest"
+// @Param filter query string false "Company, category, item, status"
 // @Success 200 {array} models.LoungeOrder
 // @Security BearerAuth
 // @Router /lounge-orders [get]
@@ -380,7 +383,7 @@ func GetLoungeOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var order models.LoungeOrder
-	if err := db.DB.Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).First(&order, id).Error; err != nil {
+	if err := loungeOrdersInEnvironment(db.DB).Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).First(&order, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			http.Error(w, "Order not found", 404)
 		} else {
@@ -424,13 +427,17 @@ func UpdateLoungeOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	var order models.LoungeOrder
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Lines").First(&order, id).Error; err != nil {
+		if err := loungeOrdersInEnvironment(tx).Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Lines").First(&order, id).Error; err != nil {
 			return err
 		}
 		before := order
 		order.Status = input.Status
 		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"status": input.Status})
 	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		loungeError(w, err)
 		return
@@ -495,7 +502,14 @@ func LoungeOrderFilterOptions(w http.ResponseWriter, r *http.Request) {
 		{"lounge_order_lines", "category_id", "category_name", &categories},
 		{"lounge_order_lines", "item_id", "item_name", &items},
 	} {
-		if err := db.DB.Table(spec.table).Select(spec.id + " AS id, MAX(" + spec.name + ") AS name").Group(spec.id).Order("name").Scan(spec.target).Error; err != nil {
+		query := db.DB.Table(spec.table)
+		if spec.table == "lounge_orders" {
+			query = loungeOrdersInEnvironment(query)
+		} else {
+			orders := loungeOrdersInEnvironment(db.DB.Model(&models.LoungeOrder{})).Select("id")
+			query = query.Where("order_id IN (?)", orders)
+		}
+		if err := query.Select(spec.id + " AS id, MAX(" + spec.name + ") AS name").Group(spec.id).Order("name").Scan(spec.target).Error; err != nil {
 			loungeError(w, err)
 			return
 		}

@@ -19,7 +19,7 @@ The Order app reads the public catalogue. Order details and totals require CMS p
 
 ## Order handling
 
-**Lounge orders** shows saved orders with the company, items, and categories recorded at submission. Filter by company, category, item, fulfilment status, or real/test orders. Real orders are shown by default. Quantity totals cover all matching order lines across pages.
+**Lounge orders** shows saved orders with the company, items, and categories recorded at submission. Filter by company, category, item, or fulfilment status. Production shows real orders, and staging and local development show test orders. Quantity totals cover all matching order lines across pages.
 
 CMS saves an order and its pending Slack notification in the same transaction. Cloud Scheduler dispatches pending notifications every minute. From the order detail, staff can queue a retry after a failure or an unknown outcome. Retrying an unknown outcome can duplicate the Slack message while preserving a single order record.
 

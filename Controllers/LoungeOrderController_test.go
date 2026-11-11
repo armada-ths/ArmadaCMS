@@ -50,6 +50,7 @@ func loungeTestDatabase(t *testing.T) (*gorm.DB, uint, uint, uint) {
 	if err := connection.Exec("UPDATE lounge_catalogue_state SET revision = 0 WHERE id = 1").Error; err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("LOUNGE_ORDER_ENVIRONMENT", "staging")
 	t.Setenv("LOUNGE_ORDER_SUBMISSION_SECRET", "live-service")
 	t.Setenv("LOUNGE_ORDER_TEST_SUBMISSION_SECRET", "test-service")
 	category := models.LoungeCategory{Name: "Drinks"}
@@ -313,6 +314,18 @@ func TestLoungeValidationAndTotals(t *testing.T) {
 		t.Fatal("sold-out item accepted")
 	}
 	connection.Model(&models.LoungeItem{}).Where("id = ?", item).Update("sold_out", false)
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "live-service", 0); response.Code != 401 {
+		t.Fatalf("staging accepted production credentials: %s", response.Body)
+	}
+	staged := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0)
+	var testOrder models.LoungeOrder
+	if staged.Code != 201 || json.Unmarshal(staged.Body.Bytes(), &testOrder) != nil || !testOrder.IsTest {
+		t.Fatalf("staging submit: %s", staged.Body)
+	}
+	if err := connection.Model(&testOrder).Update("company_name", "Staging-only company").Error; err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LOUNGE_ORDER_ENVIRONMENT", "production")
 	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "live-service", 0)
 	if response.Code != 201 {
 		t.Fatalf("live submit: %s", response.Body)
@@ -320,7 +333,26 @@ func TestLoungeValidationAndTotals(t *testing.T) {
 	var order models.LoungeOrder
 	_ = json.Unmarshal(response.Body.Bytes(), &order)
 	input["idempotencyKey"] = "00000000-0000-4000-8000-000000000004"
-	loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0)
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); response.Code != 401 {
+		t.Fatalf("production accepted staging credentials: %s", response.Body)
+	}
+	for _, response := range []*httptest.ResponseRecorder{
+		loungeRequestTest(GetLoungeOrder, "GET", "/order", nil, "", testOrder.ID),
+		loungeRequestTest(UpdateLoungeOrder, "PUT", "/order", map[string]string{"status": "completed"}, "", testOrder.ID),
+		loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", testOrder.ID),
+	} {
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("cross-environment order accessible: %d %s", response.Code, response.Body)
+		}
+	}
+	filters := loungeRequestTest(LoungeOrderFilterOptions, "GET", "/filter-options", nil, "", 0)
+	if filters.Code != 200 || strings.Contains(filters.Body.String(), "Staging-only company") {
+		t.Fatalf("production filter options exposed staging data: %s", filters.Body)
+	}
+	list := loungeRequestTest(ListLoungeOrders, "GET", "/orders?filter="+url.QueryEscape(`{"isTest":true}`), nil, "", 0)
+	if list.Code != 200 || strings.Contains(list.Body.String(), "Staging-only company") || !strings.Contains(list.Body.String(), "Gold AB") {
+		t.Fatalf("environment override affected production order list: %s", list.Body)
+	}
 	totals := loungeRequestTest(LoungeOrderTotals, "GET", "/totals", nil, "", 0)
 	if totals.Code != 200 || !strings.Contains(totals.Body.String(), `"quantity":"2"`) {
 		t.Fatalf("test/live totals incorrect: %s", totals.Body)
@@ -391,6 +423,7 @@ func TestLoungeAuditFailureRollsBackOrder(t *testing.T) {
 
 func TestLoungeFiltersMatchTheSameLineAndTotalsIgnorePagination(t *testing.T) {
 	connection, company, categoryID, item := loungeTestDatabase(t)
+	t.Setenv("LOUNGE_ORDER_ENVIRONMENT", "production")
 	second := models.LoungeCategory{Name: "Snacks"}
 	if err := connection.Create(&second).Error; err != nil {
 		t.Fatal(err)

@@ -3583,7 +3583,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Company, category, item, status, isTest",
+                        "description": "Company, category, item, status",
                         "name": "filter",
                         "in": "query"
                     }

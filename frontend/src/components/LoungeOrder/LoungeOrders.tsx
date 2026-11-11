@@ -4,7 +4,6 @@ import {
   Datagrid,
   TextField,
   DateField,
-  BooleanField,
   ShowButton,
   Show,
   TopToolbar,
@@ -42,7 +41,6 @@ interface OrderRecord {
   status: string;
   deliveryStatus: string;
   deliveryRetryRequested?: boolean;
-  isTest: boolean;
 }
 interface FilterOptions {
   companies: { id: number; name: string }[];
@@ -123,7 +121,7 @@ function OrderTotals() {
     });
   }
   return (
-    <Box sx={{ my: 2 }}>
+    <Box sx={{ px: { xs: 2, sm: 3 }, py: 2.5 }}>
       <Typography variant="h6">
         Quantity totals (all matching orders)
       </Typography>
@@ -345,7 +343,8 @@ export function LoungeOrderList() {
       )}
       <List
         sort={{ field: "id", order: "DESC" }}
-        filterDefaultValues={{ isTest: false }}
+        empty={false}
+        storeKey="lounge-orders-current-environment"
         filters={[
           <SelectInput
             key="company"
@@ -382,17 +381,6 @@ export function LoungeOrderList() {
             choices={statuses}
             alwaysOn
           />,
-          <SelectInput
-            key="test"
-            source="isTest"
-            label="Environment"
-            {...emptyFilterOption}
-            choices={[
-              { id: false, name: "Real orders" },
-              { id: true, name: "Test orders" },
-            ]}
-            alwaysOn
-          />,
         ]}
       >
         <OrderTotals />
@@ -401,7 +389,6 @@ export function LoungeOrderList() {
           <TextField source="companyName" label="Company" />
           <DateField source="createdAt" showTime />
           <OrderStatusField source="status" />
-          <BooleanField source="isTest" label="Test" />
           <OrderStatusField
             source="deliveryStatus"
             label="Slack notification"
@@ -459,7 +446,6 @@ export function LoungeOrderDetails() {
         <NumberField source="id" label="Reference" />
         <TextField source="companyName" label="Company at submission" />
         <DateField source="createdAt" showTime />
-        <BooleanField source="isTest" label="Test order" />
         <OrderStatusField source="status" />
         <OrderStatusField source="deliveryStatus" label="Slack notification" />
         <TextField source="deliveryError" label="Notification error" />

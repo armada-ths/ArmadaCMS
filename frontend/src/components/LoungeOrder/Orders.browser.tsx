@@ -95,7 +95,7 @@ test("totals cover the full dataset with exact large quantities and historical f
   await vi.waitFor(() =>
     expect(getList).toHaveBeenCalledWith(
       "lounge-orders",
-      expect.objectContaining({ filter: { isTest: false } }),
+      expect.objectContaining({ filter: {} }),
     ),
   );
   await page.getByRole("combobox", { name: /^Company/ }).click();
@@ -103,7 +103,7 @@ test("totals cover the full dataset with exact large quantities and historical f
   await vi.waitFor(() =>
     expect(getList).toHaveBeenLastCalledWith(
       "lounge-orders",
-      expect.objectContaining({ filter: { isTest: false, companyId: 1 } }),
+      expect.objectContaining({ filter: { companyId: 1 } }),
     ),
   );
   await vi.waitFor(() =>
@@ -113,14 +113,9 @@ test("totals cover the full dataset with exact large quantities and historical f
       ),
     ).toBe(true),
   );
-  await page.getByRole("combobox", { name: /Environment/ }).click();
-  await page.getByRole("option", { name: "Test orders" }).click();
-  await vi.waitFor(() =>
-    expect(getList).toHaveBeenLastCalledWith(
-      "lounge-orders",
-      expect.objectContaining({ filter: { isTest: true, companyId: 1 } }),
-    ),
-  );
+  await expect
+    .element(page.getByRole("combobox", { name: /Environment/ }))
+    .not.toBeInTheDocument();
 });
 test("totals nest item quantities under their category total", async () => {
   state.request.mockImplementation(async (path: string) => {
@@ -201,7 +196,7 @@ test("empty filters show (none) and clearing a company removes its filter", asyn
   await vi.waitFor(() =>
     expect(getList).toHaveBeenLastCalledWith(
       "lounge-orders",
-      expect.objectContaining({ filter: { isTest: false, companyId: 1 } }),
+      expect.objectContaining({ filter: { companyId: 1 } }),
     ),
   );
   await page.getByRole("combobox", { name: /^Company/ }).click();
@@ -211,13 +206,9 @@ test("empty filters show (none) and clearing a company removes its filter", asyn
   await vi.waitFor(() =>
     expect(getList).toHaveBeenLastCalledWith(
       "lounge-orders",
-      expect.objectContaining({ filter: { isTest: false } }),
+      expect.objectContaining({ filter: {} }),
     ),
   );
-  await page.getByRole("combobox", { name: /Environment/ }).click();
-  await expect
-    .element(page.getByRole("option", { name: "ra.action.clear_input_value" }))
-    .toBeVisible();
 });
 
 test("statuses have consistent semantic colours in filters and order controls", async () => {
