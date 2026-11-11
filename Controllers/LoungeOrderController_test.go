@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -271,26 +273,25 @@ func TestLoungeConcurrentSubmissionAndClaims(t *testing.T) {
 	if len(orders) != 1 {
 		t.Fatal("duplicate orders")
 	}
-	claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "test-service", orders[0].ID)
-	var granted struct {
-		Claimed bool   `json:"claimed"`
-		Token   string `json:"claimToken"`
+	var calls atomic.Int32
+	t.Setenv("SLACK_ORDER_TEST_HOOK_URL", "https://hooks.slack.com/services/fixture/test/key")
+	client := &http.Client{Transport: loungeTestTransport(func(_ *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		return loungeSlackResponse(http.StatusBadRequest), nil
+	})}
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			errs <- dispatchLoungeOrders(httptest.NewRequest(http.MethodPost, "/dispatch", nil), client)
+		}()
 	}
-	_ = json.Unmarshal(claim.Body.Bytes(), &granted)
-	if !granted.Claimed || granted.Token == "" {
-		t.Fatalf("claim failed: %s", claim.Body)
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
 	}
-	second := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "test-service", orders[0].ID)
-	if !strings.Contains(second.Body.String(), `"claimed":false`) {
-		t.Fatal("duplicate delivery claim")
-	}
-	live := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "live-service", orders[0].ID)
-	if live.Code == 200 {
-		t.Fatal("live credential accessed test order")
-	}
-	report := loungeRequestTest(ReportLoungeDelivery, "POST", "/delivery", map[string]any{"claimToken": granted.Token, "status": "failed", "error": "slack_rejected"}, "test-service", orders[0].ID)
-	if report.Code != 200 {
-		t.Fatalf("report failed: %s", report.Body)
+	if calls.Load() != 1 {
+		t.Fatalf("sent %d notifications for one order", calls.Load())
 	}
 	var updated models.LoungeOrder
 	connection.First(&updated, orders[0].ID)
@@ -475,69 +476,53 @@ func TestLoungeInvalidResourceIDsAreRejected(t *testing.T) {
 	}
 }
 
-func TestLoungeRetryPreservesFailureAndUsesTestOrigin(t *testing.T) {
+type loungeTestTransport func(*http.Request) (*http.Response, error)
+
+func (transport loungeTestTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return transport(r)
+}
+
+func loungeSlackResponse(status int) *http.Response {
+	return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(""))}
+}
+
+func TestLoungeRetryQueuesWithoutClearingUnknownDelivery(t *testing.T) {
 	connection, company, _, item := loungeTestDatabase(t)
-	t.Setenv("K_SERVICE", "")
-	t.Setenv("ORDER_INTERNAL_TEST_URL", "")
-	t.Setenv("ORDER_INTERNAL_TEST_SECRET", "test-retry")
+	testHook := "https://hooks.slack.com/services/fixture/test/key"
+	t.Setenv("SLACK_ORDER_TEST_HOOK_URL", testHook)
+	t.Setenv("SLACK_ORDER_HOOK_URL", "https://hooks.slack.com/services/fixture/live/key")
 	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", loungeInput(company, item, "00000000-0000-4000-8000-000000000009"), "test-service", 0)
 	var order models.LoungeOrder
 	if response.Code != 201 || json.Unmarshal(response.Body.Bytes(), &order) != nil {
 		t.Fatalf("submission failed: %s", response.Body)
 	}
-	if err := connection.Model(&order).Update("delivery_status", "failed").Error; err != nil {
-		t.Fatal(err)
-	}
-	response = loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID)
-	if response.Code != 503 {
-		t.Fatalf("missing retry config was accepted: %s", response.Body)
-	}
-	if err := connection.First(&order, order.ID).Error; err != nil || order.DeliveryStatus != "failed" {
-		t.Fatal("missing retry configuration cleared the recorded failure")
-	}
-	calls := make(chan map[string]any, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/internal/order-delivery" || r.Header.Get("Authorization") != "Bearer test-retry" {
-			http.Error(w, "Invalid retry request", 400)
-			return
-		}
-		var input map[string]any
-		if json.NewDecoder(r.Body).Decode(&input) != nil {
-			http.Error(w, "Invalid retry body", 400)
-			return
-		}
-		calls <- input
-		claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{"retry": true}, "test-service", order.ID)
-		var granted struct {
-			Claimed bool   `json:"claimed"`
-			Token   string `json:"claimToken"`
-		}
-		if claim.Code != 200 || json.Unmarshal(claim.Body.Bytes(), &granted) != nil || !granted.Claimed {
-			http.Error(w, "Retry claim failed", 500)
-			return
-		}
-		report := loungeRequestTest(ReportLoungeDelivery, "POST", "/delivery", map[string]any{"claimToken": granted.Token, "status": "sent"}, "test-service", order.ID)
-		w.WriteHeader(report.Code)
-	}))
-	defer server.Close()
-	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
-	defer unavailable.Close()
-	t.Setenv("ORDER_INTERNAL_TEST_URL", unavailable.URL)
-	response = loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID)
-	if response.Code != http.StatusBadGateway {
-		t.Fatalf("unavailable delivery response: %d %s", response.Code, response.Body)
-	}
-	if err := connection.First(&order, order.ID).Error; err != nil || order.DeliveryStatus != "failed" {
-		t.Fatal("unavailable Order app cleared the recorded failure")
-	}
-
 	if err := connection.Model(&order).Updates(map[string]any{
-		"delivery_status":  "sending",
-		"claim_expires_at": time.Now().Add(-time.Minute),
+		"delivery_status": "sending", "claim_expires_at": time.Now().Add(-time.Minute),
 	}).Error; err != nil {
 		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	client := &http.Client{Transport: loungeTestTransport(func(request *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		var payload struct{ Text string }
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			return nil, err
+		}
+		if request.URL.String() != testHook || !strings.Contains(payload.Text, "[STAGING TEST]") ||
+			!strings.Contains(payload.Text, "Gold AB") || !strings.Contains(payload.Text, "- Coffee x 2") {
+			return nil, fmt.Errorf("incorrect notification destination or text: %s", payload.Text)
+		}
+		return loungeSlackResponse(http.StatusOK), nil
+	})}
+	run := func() {
+		t.Helper()
+		if err := dispatchLoungeOrders(httptest.NewRequest(http.MethodPost, "/dispatch", nil), client); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run()
+	if calls.Load() != 0 {
+		t.Fatal("expired claim was retried automatically")
 	}
 	for _, response := range []*httptest.ResponseRecorder{
 		loungeRequestTest(ListLoungeOrders, "GET", "/orders?filter="+url.QueryEscape(`{"isTest":true}`), nil, "", 0),
@@ -547,20 +532,47 @@ func TestLoungeRetryPreservesFailureAndUsesTestOrigin(t *testing.T) {
 			t.Fatalf("expired delivery displayed incorrectly: %d %s", response.Code, response.Body)
 		}
 	}
-	t.Setenv("ORDER_INTERNAL_TEST_URL", server.URL)
-	t.Setenv("ORDER_INTERNAL_URL", "https://must-not-call.invalid")
 	response = loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID)
-	if response.Code != 200 {
-		t.Fatalf("test retry failed: %d %s", response.Code, response.Body)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("retry was not queued: %d %s", response.Code, response.Body)
 	}
-	input := <-calls
-	if input["isTest"] != true || input["orderId"] != float64(order.ID) {
-		t.Fatalf("wrong retry environment: %+v", input)
+	if err := connection.First(&order, order.ID).Error; err != nil ||
+		!order.DeliveryRetryRequested || loungeDeliveryStatus(order, time.Now()) != "unknown" {
+		t.Fatal("queued retry cleared the earlier delivery state")
 	}
-	if err := connection.First(&order, order.ID).Error; err != nil || order.DeliveryStatus != "sent" {
-		t.Fatal("retry did not record successful delivery")
+	run()
+	if calls.Load() != 1 {
+		t.Fatal("queued retry was not dispatched")
 	}
-	if repeated := loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID); repeated.Code != 409 {
+	if err := connection.First(&order, order.ID).Error; err != nil ||
+		order.DeliveryStatus != "sent" || order.DeliveryRetryRequested {
+		t.Fatal("worker did not record the successful retry")
+	}
+	if repeated := loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID); repeated.Code != http.StatusConflict {
 		t.Fatal("retry of delivered notification was accepted")
+	}
+}
+
+func TestLoungeSlackEnvironmentIsolation(t *testing.T) {
+	live := "https://hooks.slack.com/services/fixture/live/key"
+	t.Setenv("SLACK_ORDER_HOOK_URL", live)
+	client := &http.Client{Transport: loungeTestTransport(func(request *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected outbound Slack request to %s", request.URL.Host)
+		return nil, nil
+	})}
+	for _, webhook := range []string{"", live, "https://example.com/services/test"} {
+		t.Setenv("SLACK_ORDER_TEST_HOOK_URL", webhook)
+		status, reason := sendLoungeSlack(t.Context(), client, models.LoungeOrder{IsTest: true})
+		if status != "failed" || reason != "not_configured" {
+			t.Fatalf("unexpected outcome: %s %s", status, reason)
+		}
+	}
+	t.Setenv("SLACK_ORDER_TEST_HOOK_URL", "https://hooks.slack.com/services/fixture/test/key")
+	client.Transport = loungeTestTransport(func(_ *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("simulated timeout")
+	})
+	status, reason := sendLoungeSlack(t.Context(), client, models.LoungeOrder{IsTest: true})
+	if status != "unknown" || reason != "slack_unreachable" {
+		t.Fatalf("timeout was not marked unknown: %s %s", status, reason)
 	}
 }

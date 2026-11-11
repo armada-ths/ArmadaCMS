@@ -10,19 +10,20 @@ type LoungeCategory struct {
 }
 
 type LoungeOrder struct {
-	ID             uint              `gorm:"primaryKey" json:"id"`
-	CreatedAt      time.Time         `json:"createdAt"`
-	CompanyID      uint              `json:"companyId"`
-	CompanyName    string            `json:"companyName"`
-	IsTest         bool              `json:"isTest"`
-	Status         string            `json:"status"`
-	IdempotencyKey string            `json:"-"`
-	Fingerprint    string            `json:"-"`
-	DeliveryStatus string            `json:"deliveryStatus"`
-	DeliveryError  string            `json:"deliveryError"`
-	ClaimToken     string            `json:"-"`
-	ClaimExpiresAt *time.Time        `json:"-"`
-	Lines          []LoungeOrderLine `gorm:"foreignKey:OrderID" json:"lines"`
+	ID                     uint              `gorm:"primaryKey" json:"id"`
+	CreatedAt              time.Time         `json:"createdAt"`
+	CompanyID              uint              `json:"companyId"`
+	CompanyName            string            `json:"companyName"`
+	IsTest                 bool              `json:"isTest"`
+	Status                 string            `json:"status"`
+	IdempotencyKey         string            `json:"-"`
+	Fingerprint            string            `json:"-"`
+	DeliveryStatus         string            `json:"deliveryStatus"`
+	DeliveryRetryRequested bool              `json:"deliveryRetryRequested"`
+	DeliveryError          string            `json:"deliveryError"`
+	ClaimToken             string            `json:"-"`
+	ClaimExpiresAt         *time.Time        `json:"-"`
+	Lines                  []LoungeOrderLine `gorm:"foreignKey:OrderID" json:"lines"`
 }
 
 type LoungeOrderLine struct {

@@ -83,21 +83,9 @@ Backend API and admin dashboard for [THS Armada](https://armada.nu). Provides RE
 
 Stop the backend and Supabase with `./scripts/dev-down.ps1`; local data is preserved. See [development scripts](scripts/README.md#local-development) for local photo behavior and optional database import.
 
-## Lounge menu
+## Lounge orders
 
-Manage the exhibitor lounge menu under **Fair & events > Lounge catalogue**. Create English/Swedish categories, then add items with a required category, localized names/descriptions, and an optional maximum quantity per order. Saving an item returns to the refreshed catalogue overview; **Back to catalogue** leaves the add/edit screen without saving. Drag category/item handles (or use Space and arrow keys) to set their display order on the order page; items can move between categories. Numeric display-order fields and pictures are no longer used. Deleting a category also deletes its items after confirmation; saved orders are preserved. The **Mark sold out / Mark available** button changes availability without deleting the item.
-
-Grant `lounge.view`, `lounge.create`, `lounge.edit`, and `lounge.delete` as appropriate. This shared permission group governs both catalogue and order management; view allows order inspection, edit allows availability/status changes and notification retries, and delete allows catalogue deletion, not order-history deletion. Replace old `lounge-items.*` grants deliberately; existing roles are not automatically expanded. Category/item GETs are public; order reads are admin-only.
-
-The category migration intentionally discards existing lounge items so the catalogue starts empty; uploaded storage objects are left untouched. HoSS must enter categories and approve this year's menu before the Order app is released. Only Gold exhibitors can order. The Order app uses no-store requests and refreshes while open; it does not depend on Web cache revalidation. There are no prices or inventory counts.
-
-**Lounge orders** lists saved orders with immutable company/item/category names from submission time. Filter by company, category, item, status, and real/test environment; unused filter choices show **(none)**. Totals are grouped by category, with each category's total above its item quantities, and count matching lines across the full filtered dataset, not just the displayed page. Real orders are shown by default. Details show the full breakdown beside the order information, with **Back to all orders** navigation; staff can mark orders pending/completed without editing their lines. Status badges are yellow/green respectively.
-
-Order persistence is authoritative. Slack delivery stays in Order, with its separate outcome tracked in CMS. Retry failed/interrupted notifications from order details. An unknown outcome may already have reached Slack; explicitly retrying can produce a duplicate Slack message, but never a duplicate order. Orders themselves are not subject to audit-log retention.
-
-For local development, set matching live/test submission secrets in CMS and Order. Configure `ORDER_INTERNAL_URL` / `ORDER_INTERNAL_SECRET` for real retries and `ORDER_INTERNAL_TEST_URL` / `ORDER_INTERNAL_TEST_SECRET` for test retries; origins point to the corresponding Order app, without an API suffix. The local Docker backend reaches Order at `http://host.docker.internal:8002`; hosted retries require HTTPS. Live/test submission secrets must differ. Missing retry configuration is reported explicitly.
-
-From `frontend/`, run `pnpm exec vitest run --config vitest.lounge.config.ts` for catalogue/order browser tests, alongside catalogue, multipart, and navigation unit tests. Backend lounge integration tests require the normal Go/libvips environment and `LOUNGE_TEST_DSN` pointing to an isolated migrated database named `lounge_plan_test`; never point it at the running development database.
+Manage the exhibitor menu under **Fair & events > Lounge catalogue**, and review saved orders under **Lounge orders**. Set the opening hours and ordering cutoff under **Fair dates**. See the [lounge guide](docs/lounge-orders.md) for permissions, Slack delivery, and local testing.
 
 ## Database migrations
 

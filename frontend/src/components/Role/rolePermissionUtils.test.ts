@@ -51,10 +51,11 @@ describe("guest photo role permissions", () => {
     ).toEqual([]);
     expect(RESOURCE_ACTION_OVERRIDES).toEqual([
       {
-        id: "lounge",
-        name: "Lounge catalogue and orders",
+        id: "lounge-catalogue",
+        name: "Lounge catalogue",
         actions: ["view", "create", "edit", "delete"],
       },
+      { id: "lounge-orders", name: "Lounge orders", actions: ["view", "edit"] },
       { id: "auditlogs", name: "Audit logs", actions: ["view"] },
       {
         id: "eventphotos",
@@ -70,6 +71,12 @@ describe("guest photo role permissions", () => {
   });
 
   it("offers only supported actions for API-only resources", () => {
+    expect(
+      getPermissionActionChoices("lounge-catalogue").map(({ id }) => id),
+    ).toEqual(["*", "view", "create", "edit", "delete"]);
+    expect(
+      getPermissionActionChoices("lounge-orders").map(({ id }) => id),
+    ).toEqual(["*", "view", "edit"]);
     expect(getPermissionActionChoices("auditlogs").map(({ id }) => id)).toEqual(
       ["*", "view"],
     );

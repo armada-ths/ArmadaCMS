@@ -94,6 +94,17 @@ describe("navigation catalog", () => {
     ]);
   });
 
+  it.each([
+    ["lounge-catalogue.view", "lounge-items"],
+    ["lounge-orders.view", "lounge-orders"],
+  ])(
+    "shows only the matching lounge menu link for %s",
+    async (permission, resource) => {
+      const links = getResourceLinks(await accessibleNavigation([permission]));
+      expect(links.map((link) => link.resource)).toEqual([resource]);
+    },
+  );
+
   it("does not show list links for create-only permissions", async () => {
     expect(await accessibleNavigation(["industries.create"])).toEqual([
       NAVIGATION[0],

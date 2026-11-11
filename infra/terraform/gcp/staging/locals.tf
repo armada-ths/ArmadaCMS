@@ -40,10 +40,11 @@ locals {
 
   # Secret IDs are prefixed with name_prefix to avoid colliding with production
   # secrets in the same GCP project.
+  lounge_dispatch_url = "https://staging.cms.armada.nu/api/v1/internal/lounge-orders/dispatch"
+
   lounge_secret_env_vars = {
-    ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET = "${var.name_prefix}-ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET"
-    LOUNGE_ORDER_TEST_SUBMISSION_SECRET      = "${var.name_prefix}-LOUNGE_ORDER_TEST_SUBMISSION_SECRET"
-    ORDER_INTERNAL_TEST_SECRET               = "${var.name_prefix}-ORDER_INTERNAL_TEST_SECRET"
+    SLACK_ORDER_TEST_HOOK_URL           = "${var.name_prefix}-SLACK_ORDER_TEST_HOOK_URL"
+    LOUNGE_ORDER_TEST_SUBMISSION_SECRET = "${var.name_prefix}-LOUNGE_ORDER_TEST_SUBMISSION_SECRET"
   }
 
   secret_env_vars = merge(local.lounge_secret_env_vars, {
@@ -68,7 +69,8 @@ locals {
   # the same generic S3 env vars in local and hosted environments. Photo bucket
   # fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = merge({
-    ORDER_INTERNAL_TEST_URL              = "https://staging.order.armada.nu"
+    LOUNGE_DISPATCH_AUDIENCE             = var.enable_lounge_orders ? local.lounge_dispatch_url : ""
+    LOUNGE_DISPATCH_SERVICE_ACCOUNT      = var.enable_lounge_orders ? local.photo_worker_identity : ""
     DB_HOST                              = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
     DB_PORT                              = "5432"
     DB_USER                              = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])

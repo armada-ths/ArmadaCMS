@@ -54,10 +54,11 @@ export const PERMISSION_ACTIONS = [
 /** Restrict resource choices to actions that the API actually accepts. */
 export const RESOURCE_ACTION_OVERRIDES = [
   {
-    id: "lounge",
-    name: "Lounge catalogue and orders",
+    id: "lounge-catalogue",
+    name: "Lounge catalogue",
     actions: ["view", "create", "edit", "delete"],
   },
+  { id: "lounge-orders", name: "Lounge orders", actions: ["view", "edit"] },
   { id: "auditlogs", name: "Audit logs", actions: ["view"] },
   {
     id: "eventphotos",
@@ -217,10 +218,7 @@ export const useResourceChoices = () => {
   const resourceDefinitions = useResourceDefinitions();
   const registeredResources = Object.entries(resourceDefinitions)
     .filter(
-      ([resource]) =>
-        !["lounge-items", "lounge-categories", "lounge-orders"].includes(
-          resource,
-        ),
+      ([resource]) => !["lounge-items", "lounge-categories"].includes(resource),
     )
     .map(([resource, definition]) => ({
       id: resource,

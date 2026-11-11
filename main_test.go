@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ArmadaCMS/main/utils"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,6 +24,8 @@ func TestLocalPhotosCORS(t *testing.T) {
 }
 
 func TestLoungeOrdersRequireAuthentication(t *testing.T) {
+	t.Setenv("LOUNGE_DISPATCH_AUDIENCE", "https://cms.example.test/api/v1/internal/lounge-orders/dispatch")
+	t.Setenv("LOUNGE_DISPATCH_SERVICE_ACCOUNT", "scheduler@example.test")
 	t.Setenv("LOUNGE_ORDER_SUBMISSION_SECRET", "test-live")
 	t.Setenv("LOUNGE_ORDER_TEST_SUBMISSION_SECRET", "test-preview")
 	handler := CreateMuxClient()
@@ -36,12 +39,47 @@ func TestLoungeOrdersRequireAuthentication(t *testing.T) {
 			t.Fatalf("%s leaked without authentication: %d", path, response.Code)
 		}
 	}
-	for _, path := range []string{"/api/v1/lounge-orders/submit", "/api/v1/lounge-orders/1/claim", "/api/v1/lounge-orders/1/delivery", "/api/v1/lounge-orders/1/retry"} {
+	for _, path := range []string{"/api/v1/lounge-orders/submit", "/api/v1/internal/lounge-orders/dispatch", "/api/v1/lounge-orders/1/retry"} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("%s accepted without authentication: %d", path, response.Code)
 		}
+	}
+}
+
+func TestLoungePermissionsAreIndependent(t *testing.T) {
+	t.Setenv("jwtsecret_laganda", strings.Repeat("s", 32))
+	handler := CreateMuxClient()
+	for _, test := range []struct {
+		permission, method, path string
+	}{
+		{"lounge-catalogue.*", http.MethodGet, "/api/v1/lounge-orders"},
+		{"lounge-catalogue.*", http.MethodGet, "/api/v1/lounge-orders/1"},
+		{"lounge-catalogue.*", http.MethodGet, "/api/v1/lounge-orders/totals"},
+		{"lounge-catalogue.*", http.MethodGet, "/api/v1/lounge-orders/filter-options"},
+		{"lounge-catalogue.*", http.MethodPut, "/api/v1/lounge-orders/1"},
+		{"lounge-catalogue.*", http.MethodPost, "/api/v1/lounge-orders/1/retry"},
+		{"lounge-orders.*", http.MethodPost, "/api/v1/lounge-items"},
+		{"lounge-orders.*", http.MethodPut, "/api/v1/lounge-items/1"},
+		{"lounge-orders.*", http.MethodDelete, "/api/v1/lounge-categories/1"},
+		{"lounge-orders.*", http.MethodPut, "/api/v1/lounge-catalogue"},
+		{"lounge-orders.view", http.MethodPut, "/api/v1/lounge-orders/1"},
+		{"lounge-orders.view", http.MethodPost, "/api/v1/lounge-orders/1/retry"},
+	} {
+		t.Run(test.permission+" "+test.method+" "+test.path, func(t *testing.T) {
+			token, err := utils.GenerateAccessToken(1, nil, []string{test.permission})
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(test.method, test.path, nil)
+			request.Header.Set("Authorization", "Bearer "+token)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("expected forbidden, got %d", response.Code)
+			}
+		})
 	}
 }
 

@@ -3036,6 +3036,24 @@ const docTemplate = `{
                 }
             }
         },
+        "/internal/lounge-orders/dispatch": {
+            "post": {
+                "security": [
+                    {
+                        "SchedulerOIDC": []
+                    }
+                ],
+                "tags": [
+                    "lounge-orders"
+                ],
+                "summary": "Dispatch pending lounge Slack notifications",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/internal/photos/dispatch": {
             "post": {
                 "security": [
@@ -3763,93 +3781,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/lounge-orders/{id}/claim": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lounge-orders"
-                ],
-                "summary": "Claim lounge notification delivery",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Allow an explicit retry of failed or unknown delivery",
-                        "name": "body",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.loungeDeliveryClaim"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/lounge-orders/{id}/delivery": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lounge-orders"
-                ],
-                "summary": "Report lounge notification outcome",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Claim and notification outcome",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.loungeDeliveryReport"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/lounge-orders/{id}/retry": {
             "post": {
                 "security": [
@@ -3860,7 +3791,7 @@ const docTemplate = `{
                 "tags": [
                     "lounge-orders"
                 ],
-                "summary": "Retry lounge Slack notification",
+                "summary": "Queue a lounge Slack notification retry",
                 "parameters": [
                     {
                         "type": "integer",
@@ -3871,11 +3802,13 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
                         }
                     }
                 }
@@ -6435,28 +6368,6 @@ const docTemplate = `{
                 }
             }
         },
-        "controllers.loungeDeliveryClaim": {
-            "type": "object",
-            "properties": {
-                "retry": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "controllers.loungeDeliveryReport": {
-            "type": "object",
-            "properties": {
-                "claimToken": {
-                    "type": "string"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
         "controllers.loungeOrderStatus": {
             "type": "object",
             "properties": {
@@ -7196,6 +7107,9 @@ const docTemplate = `{
                 },
                 "deliveryError": {
                     "type": "string"
+                },
+                "deliveryRetryRequested": {
+                    "type": "boolean"
                 },
                 "deliveryStatus": {
                     "type": "string"

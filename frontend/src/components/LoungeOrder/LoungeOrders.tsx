@@ -41,6 +41,7 @@ interface OrderRecord {
   id: number;
   status: string;
   deliveryStatus: string;
+  deliveryRetryRequested?: boolean;
   isTest: boolean;
 }
 interface FilterOptions {
@@ -235,7 +236,7 @@ export function LoungeOrderActions() {
     mutationFn: () => loungeRequest(`lounge-orders/${order?.id}/retry`, "POST"),
     onSuccess: () => {
       setConfirm(false);
-      notify("Notification retry processed. Check its delivery status.", {
+      notify("Slack notification retry queued.", {
         type: "info",
       });
       reload();
@@ -280,8 +281,14 @@ export function LoungeOrderActions() {
           </MenuItem>
         ))}
       </Select>
-      {order.deliveryStatus !== "sent" &&
-        order.deliveryStatus !== "sending" && (
+      {order.deliveryRetryRequested && (
+        <Typography role="status" sx={{ alignSelf: "center" }}>
+          Slack retry queued
+        </Typography>
+      )}
+      {!order.deliveryRetryRequested &&
+        (order.deliveryStatus === "failed" ||
+          order.deliveryStatus === "unknown") && (
           <Button
             disabled={retry.isPending || isPending}
             onClick={() => setConfirm(true)}
@@ -408,7 +415,19 @@ export function LoungeOrderList() {
 
 export function LoungeOrderShow() {
   return (
-    <Show actions={<LoungeOrderShowActions />}>
+    <Show<OrderRecord>
+      actions={<LoungeOrderShowActions />}
+      queryOptions={{
+        refetchInterval: ({ state }) => {
+          const order = state.data;
+          return order?.deliveryRetryRequested ||
+            order?.deliveryStatus === "pending" ||
+            order?.deliveryStatus === "sending"
+            ? 5000
+            : false;
+        },
+      }}
+    >
       <LoungeOrderDetails />
     </Show>
   );

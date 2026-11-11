@@ -160,20 +160,6 @@ definitions:
       nameSv:
         type: string
     type: object
-  controllers.loungeDeliveryClaim:
-    properties:
-      retry:
-        type: boolean
-    type: object
-  controllers.loungeDeliveryReport:
-    properties:
-      claimToken:
-        type: string
-      error:
-        type: string
-      status:
-        type: string
-    type: object
   controllers.loungeOrderStatus:
     properties:
       status:
@@ -663,6 +649,8 @@ definitions:
         type: string
       deliveryError:
         type: string
+      deliveryRetryRequested:
+        type: boolean
       deliveryStatus:
         type: string
       id:
@@ -2999,6 +2987,16 @@ paths:
       summary: Update industry
       tags:
       - industries
+  /internal/lounge-orders/dispatch:
+    post:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - SchedulerOIDC: []
+      summary: Dispatch pending lounge Slack notifications
+      tags:
+      - lounge-orders
   /internal/photos/dispatch:
     post:
       responses:
@@ -3383,60 +3381,6 @@ paths:
       summary: Change lounge order status
       tags:
       - lounge-orders
-  /lounge-orders/{id}/claim:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Allow an explicit retry of failed or unknown delivery
-        in: body
-        name: body
-        schema:
-          $ref: '#/definitions/controllers.loungeDeliveryClaim'
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Claim lounge notification delivery
-      tags:
-      - lounge-orders
-  /lounge-orders/{id}/delivery:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Claim and notification outcome
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.loungeDeliveryReport'
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: boolean
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Report lounge notification outcome
-      tags:
-      - lounge-orders
   /lounge-orders/{id}/retry:
     post:
       parameters:
@@ -3446,14 +3390,15 @@ paths:
         required: true
         type: integer
       responses:
-        "200":
-          description: OK
+        "202":
+          description: Accepted
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: boolean
             type: object
       security:
       - BearerAuth: []
-      summary: Retry lounge Slack notification
+      summary: Queue a lounge Slack notification retry
       tags:
       - lounge-orders
   /lounge-orders/availability:

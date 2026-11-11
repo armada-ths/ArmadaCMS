@@ -83,7 +83,7 @@ variable "revalidation_url" {
 }
 
 variable "enable_lounge_orders" {
-  description = "Inject the lounge submission and notification retry credentials into Cloud Run."
+  description = "Enable the lounge submission credentials and scheduled Slack delivery."
   type        = bool
   default     = false
 }

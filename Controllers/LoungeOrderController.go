@@ -4,27 +4,22 @@ import (
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
-	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	_ "time/tzdata"
-
-	"github.com/gorilla/mux"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type loungeSubmission struct {
@@ -34,16 +29,6 @@ type loungeSubmission struct {
 		ID       string `json:"id"`
 		Quantity int64  `json:"quantity"`
 	} `json:"items"`
-}
-
-type loungeDeliveryClaim struct {
-	Retry bool `json:"retry"`
-}
-
-type loungeDeliveryReport struct {
-	ClaimToken string `json:"claimToken"`
-	Status     string `json:"status"`
-	Error      string `json:"error"`
 }
 
 type loungeOrderStatus struct {
@@ -268,119 +253,6 @@ func updateLoungeOrderWithAudit(tx *gorm.DB, r *http.Request, before models.Loun
 	return updateWithAuditInTransaction(tx, r, "lounge-orders", after.ID, before, after, func(tx *gorm.DB) error {
 		return tx.Model(after).Updates(updates).Error
 	}, nil)
-}
-
-func loadServiceOrder(tx *gorm.DB, r *http.Request, test bool, order *models.LoungeOrder) error {
-	id, err := strconv.ParseUint(mux.Vars(r)["id"], 10, 64)
-	if err != nil || id == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND is_test = ?", id, test).Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).First(order).Error
-}
-
-// ClaimLoungeDelivery grants a bounded exclusive Slack delivery claim.
-// @Summary Claim lounge notification delivery
-// @Tags lounge-orders
-// @Accept json
-// @Param id path int true "Order ID"
-// @Param body body loungeDeliveryClaim false "Allow an explicit retry of failed or unknown delivery"
-// @Success 200 {object} map[string]interface{}
-// @Security BearerAuth
-// @Router /lounge-orders/{id}/claim [post]
-func ClaimLoungeDelivery(w http.ResponseWriter, r *http.Request) {
-	test, ok := loungeService(w, r)
-	if !ok {
-		return
-	}
-	var order models.LoungeOrder
-	var input loungeDeliveryClaim
-	if r.ContentLength != 0 && !decodeLoungeJSON(w, r, &input) {
-		return
-	}
-	claimed := false
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := loadServiceOrder(tx, r, test, &order); err != nil {
-			return err
-		}
-		before := order
-		status := loungeDeliveryStatus(order, time.Now())
-		retryable := input.Retry && (status == "failed" || status == "unknown")
-		if status != "pending" && !retryable {
-			return nil
-		}
-		token := make([]byte, 32)
-		if _, err := rand.Read(token); err != nil {
-			return err
-		}
-		order.ClaimToken = hex.EncodeToString(token)
-		expires := time.Now().Add(time.Minute)
-		order.ClaimExpiresAt, order.DeliveryStatus, order.DeliveryError = &expires, "sending", ""
-		claimed = true
-		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"claim_token": order.ClaimToken, "claim_expires_at": expires, "delivery_status": "sending", "delivery_error": ""})
-	})
-	if err != nil {
-		loungeError(w, err)
-		return
-	}
-	if !claimed {
-		writeJSONResponse(w, 200, map[string]any{"claimed": false})
-		return
-	}
-	writeJSONResponse(w, 200, map[string]any{"claimed": true, "claimToken": order.ClaimToken, "order": order})
-}
-
-// ReportLoungeDelivery persists the outcome of a claimed notification.
-// @Summary Report lounge notification outcome
-// @Tags lounge-orders
-// @Accept json
-// @Param id path int true "Order ID"
-// @Param body body loungeDeliveryReport true "Claim and notification outcome"
-// @Success 200 {object} map[string]bool
-// @Security BearerAuth
-// @Router /lounge-orders/{id}/delivery [post]
-func ReportLoungeDelivery(w http.ResponseWriter, r *http.Request) {
-	test, ok := loungeService(w, r)
-	if !ok {
-		return
-	}
-	var input loungeDeliveryReport
-	if !decodeLoungeJSON(w, r, &input) {
-		return
-	}
-	if (input.Status != "sent" && input.Status != "failed" && input.Status != "unknown") || (input.Error != "" && input.Error != "not_configured" && input.Error != "slack_rejected" && input.Error != "slack_timeout") {
-		http.Error(w, "Invalid delivery status", 400)
-		return
-	}
-	conflict := false
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		var order models.LoungeOrder
-		if err := loadServiceOrder(tx, r, test, &order); err != nil {
-			return err
-		}
-		if order.ClaimToken == "" || subtle.ConstantTimeCompare([]byte(input.ClaimToken), []byte(order.ClaimToken)) != 1 {
-			conflict = true
-			return errors.New("delivery claim changed")
-		}
-		if order.DeliveryStatus != "sending" && order.DeliveryStatus != "unknown" {
-			if order.DeliveryStatus == input.Status && order.DeliveryError == input.Error {
-				return nil
-			}
-			conflict = true
-			return errors.New("delivery outcome already recorded")
-		}
-		before := order
-		order.DeliveryStatus, order.DeliveryError = input.Status, input.Error
-		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"delivery_status": input.Status, "delivery_error": input.Error, "claim_expires_at": nil})
-	})
-	if conflict {
-		http.Error(w, "Delivery claim changed", http.StatusConflict)
-		return
-	}
-	if err != nil {
-		loungeError(w, err)
-		return
-	}
-	writeJSONResponse(w, 200, map[string]bool{"success": true})
 }
 
 func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
@@ -629,65 +501,4 @@ func LoungeOrderFilterOptions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSONResponse(w, 200, map[string]any{"companies": companies, "categories": categories, "items": items})
-}
-
-// RetryLoungeDelivery explicitly retries a failed or ambiguous notification.
-// @Summary Retry lounge Slack notification
-// @Tags lounge-orders
-// @Param id path int true "Order ID"
-// @Success 200 {object} map[string]interface{}
-// @Security BearerAuth
-// @Router /lounge-orders/{id}/retry [post]
-func RetryLoungeDelivery(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	id, ok := loungePathID(w, r)
-	if !ok {
-		return
-	}
-	var order models.LoungeOrder
-	if err := db.DB.First(&order, id).Error; err != nil {
-		loungeError(w, err)
-		return
-	}
-	status := loungeDeliveryStatus(order, time.Now())
-	if status == "sent" || status == "sending" {
-		http.Error(w, "Notification already sent or currently sending", http.StatusConflict)
-		return
-	}
-	origin, secret := os.Getenv("ORDER_INTERNAL_URL"), os.Getenv("ORDER_INTERNAL_SECRET")
-	if order.IsTest {
-		origin, secret = os.Getenv("ORDER_INTERNAL_TEST_URL"), os.Getenv("ORDER_INTERNAL_TEST_SECRET")
-	}
-	address, err := url.Parse(origin)
-	local := address != nil && os.Getenv("K_SERVICE") == "" && (address.Hostname() == "localhost" || address.Hostname() == "127.0.0.1" || address.Hostname() == "host.docker.internal")
-	if err != nil || address.Host == "" || secret == "" || (address.Scheme != "https" && (address.Scheme != "http" || !local)) {
-		http.Error(w, "Notification retry is not configured", http.StatusServiceUnavailable)
-		return
-	}
-	body, _ := json.Marshal(map[string]any{"orderId": order.ID, "isTest": order.IsTest})
-	request, err := http.NewRequestWithContext(r.Context(), "POST", strings.TrimRight(origin, "/")+"/api/internal/order-delivery", bytes.NewReader(body))
-	if err != nil {
-		loungeError(w, err)
-		return
-	}
-	request.Header.Set("Authorization", "Bearer "+secret)
-	request.Header.Set("Content-Type", "application/json")
-	if order.IsTest && address.Scheme == "https" {
-		if bypass := os.Getenv("ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET"); bypass != "" {
-			request.Header.Set("x-vercel-protection-bypass", bypass)
-		}
-	}
-	client := &http.Client{Timeout: 35 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request)
-	if err != nil {
-		log.Printf("lounge retry unavailable for order %d", order.ID)
-		http.Error(w, "Notification outcome unavailable; refresh order before retrying", http.StatusBadGateway)
-		return
-	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		http.Error(w, "Notification retry failed; refresh order details", http.StatusBadGateway)
-		return
-	}
-	writeJSONResponse(w, 200, map[string]bool{"success": true})
 }
