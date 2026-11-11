@@ -9,9 +9,10 @@ runs:
       run: |
         # shellcheck source=/dev/null
         source /etc/os-release
-        fingerprint=$(cat "$GITHUB_ACTION_PATH/action.yml" "$GITHUB_ACTION_PATH/install.sh" | sha256sum | cut -d ' ' -f 1)
-        # Refresh weekly; never restore packages across runner images or script changes.
-        prefix="libvips-apt-v1-${VERSION_ID}-$(dpkg --print-architecture)-${ImageVersion:?}-$fingerprint"
+        # Retain the existing archive namespace across installer changes. Change
+        # the schema version if the cached package set or archive layout changes.
+        archive_id=6ff4d4dc94482b3e34f55b90aafa68592bb031e8e04100e1b60b9597ab841708
+        prefix="libvips-apt-v1-${VERSION_ID}-$(dpkg --print-architecture)-${ImageVersion:?}-$archive_id"
         echo "key=$prefix-$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
         echo "prefix=$prefix-" >> "$GITHUB_OUTPUT"
         echo "path=$RUNNER_TEMP/libvips-apt-cache" >> "$GITHUB_OUTPUT"
