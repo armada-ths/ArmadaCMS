@@ -1038,6 +1038,13 @@ const docTemplate = `{
                         "name": "fairId",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Include exhibitor categories",
+                        "name": "syncCategories",
+                        "in": "query"
                     }
                 ],
                 "responses": {

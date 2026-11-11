@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"slices"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -203,7 +202,7 @@ func writeGroupedDeleteResponseWithAudit[T any](w http.ResponseWriter, r *http.R
 
 func loadRecordForAuditedDelete(tx *gorm.DB, resource, id string, entity any, buildQuery func(*gorm.DB) *gorm.DB) error {
 	query := tx
-	if _, synced := eventroResourceSpecs[resource]; synced || slices.Contains(eventroCategoryResources, resource) {
+	if _, synced := eventroResourceSpecs[resource]; synced {
 		if err := lockEventroSyncDomain(tx, resource); err != nil {
 			return err
 		}

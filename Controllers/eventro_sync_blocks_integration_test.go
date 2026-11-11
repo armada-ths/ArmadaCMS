@@ -5,7 +5,6 @@ import (
 	"ArmadaCMS/main/db"
 	"ArmadaCMS/main/models"
 	"ArmadaCMS/main/utils"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -45,7 +44,7 @@ func TestEventroSyncBlocksDatabaseFlow(t *testing.T) {
 			sync := func(key string) (bool, error) {
 				switch test.resource {
 				case "exhibitors":
-					created, _, err := syncEventroExhibitorWithAudit(syncRequest, eventroExhibitorResponse{ID: key, Organization: eventroOrg{Name: label}}, "fixture")
+					created, _, err := syncEventroExhibitorWithAudit(syncRequest, eventroExhibitorResponse{ID: key, Organization: eventroOrg{Name: label}}, "fixture", true)
 					return created, err
 				case "fairdates":
 					stats, err := syncFairDateConfigWithAudit(syncRequest, models.FairDateConfig{EventroID: &key, Description: label})
@@ -333,119 +332,55 @@ func TestEventroSyncBlockConcurrentDelete(t *testing.T) {
 	}
 }
 
-func TestEventroCategoryBlocksDatabaseFlow(t *testing.T) {
+func TestEventroExhibitorCategoryToggleDatabaseFlow(t *testing.T) {
 	database := eventroSyncTestDatabase(t)
 	request := httptest.NewRequest(http.MethodGet, "/eventroexhibitors?fairId=fixture", nil)
 	incoming := eventroExhibitorResponse{
-		ID:           "category-test-exhibitor",
-		Organization: eventroOrg{Name: "Example exhibitor"},
+		ID:           "category-toggle",
+		Organization: eventroOrg{Name: "Initial exhibitor"},
 		Catalogue: eventroCatalogue{
-			Industries:  []string{"Technology"},
-			Employments: []string{"Summer internship"},
-			Educations:  []string{"Embedded Systems", "Technology"},
+			Industries:  []string{"Original industry"},
+			Employments: []string{"Original employment"},
+			Educations:  []string{"Original programme"},
 		},
 	}
-	sync := func(source eventroExhibitorResponse) {
+	sync := func(include bool) {
 		t.Helper()
-		if _, _, err := syncEventroExhibitorWithAudit(request, source, "fixture"); err != nil {
+		if _, _, err := syncEventroExhibitorWithAudit(request, incoming, "fixture", include); err != nil {
 			t.Fatal(err)
 		}
 	}
-	sync(incoming)
-	var exhibitor models.Exhibitor
-	if err := database.Where("eventro_id = ?", incoming.ID).First(&exhibitor).Error; err != nil {
-		t.Fatal(err)
-	}
-	for _, test := range []struct {
-		resource, label string
-		category        any
-		handler         http.HandlerFunc
-	}{
-		{"industries", "Technology", &models.Industry{}, DeleteIndustry},
-		{"employments", "Summer internship", &models.Employment{}, DeleteEmployment},
-		{"programs", "Embedded Systems", &models.Program{}, DeleteProgram},
-	} {
-		if err := database.Where("name = ?", test.label).First(test.category).Error; err != nil {
-			t.Fatal(err)
-		}
-		response := eventroBlockTestRequest(t, test.handler, http.MethodDelete, "/"+test.resource, getResourceID(test.category), nil)
-		if response.Code != http.StatusNoContent {
-			t.Fatalf("delete %s: %d %s", test.resource, response.Code, response.Body)
-		}
-	}
-
-	// A review loaded before the global deletion must fail even before the next sync.
-	decision, err := json.Marshal(EventroReviewDecision{
-		Resource: "exhibitors", RecordID: exhibitor.ID, Field: "industries",
-		Choice: "eventro", CMS: []string{}, Eventro: []string{"Technology"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	review := httptest.NewRequest(http.MethodPost, "/eventrosyncreview", bytes.NewReader(decision))
-	token, err := utils.GenerateAccessToken(0, nil, []string{"eventrosync.access", "exhibitors.edit"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	review.Header.Set("Authorization", "Bearer "+token)
-	response := httptest.NewRecorder()
-	auth.Middleware(auth.RequirePermission("eventrosync.access", ResolveEventroSyncReview)).ServeHTTP(response, review)
-	if response.Code != http.StatusConflict {
-		t.Fatalf("stale category review: %d %s", response.Code, response.Body)
-	}
-
-	incoming.Catalogue.Industries = []string{"Technology", "technology", "Automation"}
-	for range 2 {
-		sync(incoming)
-	}
-	another := incoming
-	another.ID = "category-test-new"
-	sync(another)
-	for _, key := range []string{incoming.ID, another.ID} {
+	read := func() models.Exhibitor {
+		t.Helper()
 		var current models.Exhibitor
-		if err := eventroReviewQuery(database, "exhibitors").Where("eventro_id = ?", key).First(&current).Error; err != nil {
+		if err := eventroReviewQuery(database, "exhibitors").Where("eventro_id = ?", incoming.ID).First(&current).Error; err != nil {
 			t.Fatal(err)
 		}
-		if !sameEventroValue(exhibitorSyncValues(current)["industries"], []byte(`["Automation","technology"]`)) ||
-			len(current.Employments) != 0 ||
-			len(current.Programs) != 1 || current.Programs[0].Name != "Technology" {
-			t.Fatalf("unexpected categories for %s: %+v, %+v, %+v", key, current.Industries, current.Employments, current.Programs)
-		}
+		return current
 	}
-	for _, table := range []string{"industries", "employments", "programs"} {
-		var count int64
-		if err := database.Table(table).Where("name IN ?", []string{"Technology", "Summer internship", "Embedded Systems"}).
-			Count(&count).Error; err != nil {
-			t.Fatal(err)
-		}
-		expected := int64(0)
-		if table == "programs" {
-			expected = 1 // The industry block does not apply to the programme with the same label.
-		}
-		if count != expected {
-			t.Fatalf("unexpected taxonomy rows for %s: %d", table, count)
-		}
+	sync(false)
+	current := read()
+	if len(current.Industries)+len(current.Employments)+len(current.Programs) != 0 {
+		t.Fatal("new exhibitor gained categories while the toggle was off")
 	}
-
-	list := auth.Middleware(auth.RequirePermission("eventrosync.access", ListEventroSyncBlocks))
-	unblock := auth.Middleware(auth.RequirePermission("eventrosync.access", DeleteEventroSyncBlock))
-	permissions := []string{"eventrosync.access", "employments.delete"}
-	response = eventroBlockTestRequest(t, list.ServeHTTP, http.MethodGet, "/eventrosyncblocks?resource=employments", "", permissions)
-	var blocks []models.EventroSyncBlock
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &blocks) != nil ||
-		len(blocks) != 1 || blocks[0].EventroKey != "Summer internship" {
-		t.Fatalf("list category blocks: %d %s", response.Code, response.Body)
+	sync(true)
+	incoming.Organization.Name = "Updated exhibitor"
+	incoming.Catalogue = eventroCatalogue{Industries: []string{"New industry"}}
+	sync(false)
+	current = read()
+	if current.Name != incoming.Organization.Name ||
+		len(current.Industries) != 1 || current.Industries[0].Name != "Original industry" ||
+		len(current.Employments) != 1 || len(current.Programs) != 1 {
+		t.Fatalf("sync with categories off: %+v", current)
 	}
-	id := getResourceID(&blocks[0])
-	response = eventroBlockTestRequest(t, unblock.ServeHTTP, http.MethodDelete, "/eventrosyncblocks/"+id, id, permissions)
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("unblock category: %d %s", response.Code, response.Body)
+	var count int64
+	if err := database.Model(&models.Industry{}).Where("name = ?", "New industry").Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("sync with categories off created a taxonomy row: count=%d err=%v", count, err)
 	}
-	sync(incoming)
-	if err := eventroReviewQuery(database, "exhibitors").First(&exhibitor, exhibitor.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if len(exhibitor.Employments) != 1 || exhibitor.Employments[0].Name != "Summer internship" {
-		t.Fatalf("unblocked category was not imported: %+v", exhibitor.Employments)
+	sync(true)
+	current = read()
+	if len(current.Industries) != 1 || current.Industries[0].Name != "New industry" ||
+		len(current.Employments)+len(current.Programs) != 0 {
+		t.Fatalf("category sync did not resume: %+v", current)
 	}
 }

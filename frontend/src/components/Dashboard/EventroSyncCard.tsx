@@ -13,10 +13,12 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
   Stack,
+  Switch,
   Typography,
 } from "@mui/material";
 import { Sync } from "@mui/icons-material";
@@ -68,15 +70,20 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
   );
   const [fairInstances, setFairInstances] = useState<EventroFair[]>([]);
   const [selectedFairId, setSelectedFairId] = useState("");
+  const [syncCategories, setSyncCategories] = useState(false);
   const [loadingFairs, setLoadingFairs] = useState(false);
 
   if (!hasPerm(perms, "eventrosync.access")) return null;
 
-  const handleSync = async (name: string, path: string, fairId?: string) => {
+  const handleSync = async (
+    name: string,
+    path: string,
+    params?: { fairId: string; syncCategories?: boolean },
+  ) => {
     setSyncing(name);
     try {
       const response = await axiosInstance.get<string>(path, {
-        params: fairId ? { fairId } : undefined,
+        params,
         responseType: "text",
       });
       notify(`${name}: ${response.data}`, {
@@ -92,6 +99,7 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
   const promptForFair = async (endpoint: EventroEndpoint) => {
     setSelectingFor(endpoint);
     setSelectedFairId("");
+    setSyncCategories(false);
     setFairInstances([]);
     setLoadingFairs(true);
 
@@ -127,7 +135,10 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
     const endpoint = selectingFor;
     const fairId = selectedFairId;
     setSelectingFor(null);
-    void handleSync(endpoint.name, endpoint.path, fairId);
+    void handleSync(endpoint.name, endpoint.path, {
+      fairId,
+      ...(endpoint.path === "/eventroexhibitors" ? { syncCategories } : {}),
+    });
   };
 
   return (
@@ -212,6 +223,17 @@ export const EventroSyncCard = ({ perms }: { perms: string[] }) => {
                 ))}
               </Select>
             </FormControl>
+          )}
+          {selectingFor?.path === "/eventroexhibitors" && !loadingFairs && (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={syncCategories}
+                  onChange={(_, checked) => setSyncCategories(checked)}
+                />
+              }
+              label="Sync exhibitor categories"
+            />
           )}
         </DialogContent>
         <DialogActions>

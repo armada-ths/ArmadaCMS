@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BasenameContextProvider } from "react-admin";
 import { MemoryRouter } from "react-router-dom";
+import { EventroSyncCard } from "./EventroSyncCard";
 import { EventroSyncReview } from "./EventroSyncReview";
 
 const mocks = vi.hoisted(() => ({
@@ -196,4 +197,48 @@ test("keeps the blocked-records tab unavailable with only edit permission", asyn
   await expect
     .element(page.getByRole("tab", { name: "Blocked records" }))
     .not.toBeInTheDocument();
+});
+
+test("exhibitor sync sends the category choice and defaults it to off", async () => {
+  mocks.get.mockImplementation(async (path: string) => ({
+    data:
+      path === "/eventrofairs"
+        ? {
+            fairInstances: [
+              {
+                id: "fair-1",
+                name: "Armada",
+                startDate: "2026-11-17",
+                endDate: "2026-11-18",
+              },
+            ],
+          }
+        : "Sync completed",
+  }));
+  root.render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <EventroSyncCard perms={["eventrosync.access"]} />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+
+  for (const syncCategories of [true, false]) {
+    await page
+      .getByRole("button", { name: "Sync Exhibitors", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog");
+    const toggle = dialog.getByLabelText("Sync exhibitor categories");
+    await expect.element(toggle).not.toBeChecked();
+    if (syncCategories) await toggle.click();
+    await dialog.getByRole("combobox", { name: "Fair instance" }).click();
+    await page.getByRole("option", { name: /Armada/ }).click();
+    await dialog.getByRole("button", { name: "Sync Exhibitors" }).click();
+    await vi.waitFor(() =>
+      expect(mocks.get).toHaveBeenCalledWith("/eventroexhibitors", {
+        params: { fairId: "fair-1", syncCategories },
+        responseType: "text",
+      }),
+    );
+  }
 });

@@ -16,11 +16,9 @@ Deleting an Eventro-linked record in the CMS also blocks future imports of its E
 
 The **Blocked records** tab under **Review sync and data quality** is available to users with Eventro sync access and delete permission for the selected resource. **Allow reimport** lets the next sync create a fresh record from Eventro. Period and role blocks are managed separately. Both blocking and allowing reimport are audited.
 
-Deleting an industry, employment type or field of study globally blocks that exact label within its category type. Other labels on the same exhibitor remain eligible for synchronization. Category blocks can be lifted from the same tab.
-
 ## Exhibitor categories
 
-Categories keep the labels and types supplied by Eventro. Blank labels are ignored and identical labels within the same type are imported once. The public website derives its filter choices from the categories referenced by the current exhibitor payload.
+Enable **Sync exhibitor categories** in the exhibitor sync dialog to import industries, employment types and fields of study. The dialog defaults to off. A sync with categories off preserves existing category assignments and review state, and creates new exhibitors without categories. Categories keep the labels and types supplied by Eventro. Blank labels are ignored and identical labels within the same type are imported once. The public website derives its filter choices from the categories referenced by the current exhibitor payload.
 
 ## Package mapping
 

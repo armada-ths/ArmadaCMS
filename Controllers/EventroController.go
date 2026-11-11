@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,7 @@ type eventroCatalogue struct {
 // @Tags eventro
 // @Produce json
 // @Param fairId query string true "Eventro fair instance ID"
+// @Param syncCategories query bool false "Include exhibitor categories" default(true)
 // @Success 200 {array} models.Exhibitor
 // @Failure 400 {string} string "fairId query parameter is required"
 // @Failure 500 {string} string "Failed to fetch from Eventro"
@@ -63,6 +65,15 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	fairID, ok := requireEventroFairID(w, r)
 	if !ok {
 		return
+	}
+	syncCategories := true
+	if r.URL.Query().Has("syncCategories") {
+		value, err := strconv.ParseBool(r.URL.Query().Get("syncCategories"))
+		if err != nil {
+			http.Error(w, "syncCategories must be a boolean", http.StatusBadRequest)
+			return
+		}
+		syncCategories = value
 	}
 	baseURL := fmt.Sprintf("https://app.eventro.se/api/v1/fairs/%s/exhibitors/", url.PathEscape(fairID))
 
@@ -83,7 +94,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	unchanged := 0
 	skipped := 0
 	failed := 0
-	group, err := startAuditGroup(r, "sync", "exhibitors", fairID, map[string]any{"source": "eventro", "status": "running"})
+	group, err := startAuditGroup(r, "sync", "exhibitors", fairID, map[string]any{"source": "eventro", "status": "running", "syncCategories": syncCategories})
 	if err != nil {
 		http.Error(w, "failed to start audit log", http.StatusInternalServerError)
 		return
@@ -91,7 +102,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	childRequest := audit.WithParent(r, group.ID)
 
 	for _, e := range allExhibitors {
-		created, changed, err := syncEventroExhibitorWithAudit(childRequest, e, fairID)
+		created, changed, err := syncEventroExhibitorWithAudit(childRequest, e, fairID, syncCategories)
 		if errors.Is(err, errEventroSyncSkipped) {
 			skipped++
 			continue
@@ -111,7 +122,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := auditGroupStatus(inserted+updated+unchanged+skipped, failed)
-	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "unchanged": unchanged, "skipped": skipped, "failed": failed}); err != nil {
+	if err := finalizeAuditGroup(group.ID, status, map[string]any{"source": "eventro", "inserted": inserted, "updated": updated, "unchanged": unchanged, "skipped": skipped, "failed": failed, "syncCategories": syncCategories}); err != nil {
 		http.Error(w, "failed to finalize audit log", http.StatusInternalServerError)
 		return
 	}
@@ -125,7 +136,7 @@ func FetchExhibitorsEventro(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Sync completed — inserted: %d, updated: %d, unchanged: %d, skipped: %d, failed: %d", inserted, updated, unchanged, skipped, failed)
 }
 
-func syncEventroExhibitorWithAudit(r *http.Request, e eventroExhibitorResponse, fairID string) (bool, bool, error) {
+func syncEventroExhibitorWithAudit(r *http.Request, e eventroExhibitorResponse, fairID string, syncCategories bool) (bool, bool, error) {
 	ex := mapEventroToExhibitor(e)
 	tier, unmapped := mappedEventroTier(e.OrderedProducts)
 	ex.Tier = tier
@@ -133,9 +144,6 @@ func syncEventroExhibitorWithAudit(r *http.Request, e eventroExhibitorResponse, 
 	changed := false
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := beginEventroImport(tx, "exhibitors", strings.TrimSpace(e.ID)); err != nil {
-			return err
-		}
-		if err := filterBlockedEventroCategories(tx, &ex); err != nil {
 			return err
 		}
 		var before models.Exhibitor
@@ -152,7 +160,7 @@ func syncEventroExhibitorWithAudit(r *http.Request, e eventroExhibitorResponse, 
 		}
 		stateBefore, _ := json.Marshal(state)
 		state.FairID, state.UnmappedProducts = fairID, unmapped
-		ex = mergeEventroExhibitor(before, ex, &state, findErr == gorm.ErrRecordNotFound)
+		ex = mergeEventroExhibitor(before, ex, &state, findErr == gorm.ErrRecordNotFound, syncCategories)
 		result := tx.Session(&gorm.Session{FullSaveAssociations: false, SkipHooks: true}).
 			Omit("Industries", "Industries.*", "Employments", "Employments.*", "Programs", "Programs.*").
 			Clauses(clause.OnConflict{
@@ -174,8 +182,10 @@ func syncEventroExhibitorWithAudit(r *http.Request, e eventroExhibitorResponse, 
 			return err
 		}
 		ex.ID = persisted.ID
-		if err := persistEventroExhibitorCategories(tx, r, &ex, before); err != nil {
-			return err
+		if syncCategories {
+			if err := persistEventroExhibitorCategories(tx, r, &ex, before); err != nil {
+				return err
+			}
 		}
 		state.RecordID = ex.ID
 		if err := tx.Save(&state).Error; err != nil {

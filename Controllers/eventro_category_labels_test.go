@@ -26,13 +26,13 @@ func TestEventroCategoriesKeepSourceLabels(t *testing.T) {
 	current := incoming
 	current.Industries = []models.Industry{{Name: "Consulting & Advisory"}}
 	state := models.EventroSyncState{Source: exhibitorSyncValues(current)}
-	merged := mergeEventroExhibitor(current, incoming, &state, false)
+	merged := mergeEventroExhibitor(current, incoming, &state, false, true)
 	if !reflect.DeepEqual(merged.Industries, incoming.Industries) || state.Overrides["industries"] {
 		t.Fatal("source labels were not imported into an Eventro-owned field")
 	}
 
 	current.Industries = []models.Industry{{Name: "CMS correction"}}
-	merged = mergeEventroExhibitor(current, incoming, &state, false)
+	merged = mergeEventroExhibitor(current, incoming, &state, false, true)
 	if !reflect.DeepEqual(merged.Industries, current.Industries) || !state.Overrides["industries"] {
 		t.Fatal("source labels overwrote a manual CMS correction")
 	}

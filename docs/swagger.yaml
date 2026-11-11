@@ -1548,6 +1548,11 @@ paths:
         name: fairId
         required: true
         type: string
+      - default: true
+        description: Include exhibitor categories
+        in: query
+        name: syncCategories
+        type: boolean
       produces:
       - application/json
       responses:

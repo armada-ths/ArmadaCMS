@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ func acknowledgeEventroCMSEdits(tx *gorm.DB, r *http.Request, resource string, b
 	if err != nil {
 		return err
 	}
-	state, err := loadEventroSyncState(tx.Clauses(clause.Locking{Strength: "UPDATE"}), resource, uint(id))
+	state, err := loadEventroSyncState(tx, resource, uint(id))
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func eventroStructValues(entity any, fields []string) map[string]json.RawMessage
 	return result
 }
 
-func mergeEventroValues(current, source map[string]json.RawMessage, state *models.EventroSyncState, isNew bool) map[string]json.RawMessage {
+func mergeEventroValues(current, source map[string]json.RawMessage, state *models.EventroSyncState, isNew bool, preserveOmitted ...string) map[string]json.RawMessage {
 	if state.Source == nil {
 		state.Source = map[string]json.RawMessage{}
 	}
@@ -118,7 +119,7 @@ func mergeEventroValues(current, source map[string]json.RawMessage, state *model
 	// Archived/omitted fields are no longer current source values to offer for review.
 	// Keep ownership so an archived CMS correction stays protected if the field returns.
 	for field := range state.Source {
-		if _, present := source[field]; !present {
+		if _, present := source[field]; !present && !slices.Contains(preserveOmitted, field) {
 			delete(state.Source, field)
 			delete(state.Conflicts, field)
 		}

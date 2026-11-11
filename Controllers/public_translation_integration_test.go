@@ -307,7 +307,7 @@ func TestEventroTranslationPreservation(t *testing.T) {
 		}
 		incoming := models.Exhibitor{Name: "English company", About: utils.StringPtr("Changed source"), Industries: []models.Industry{{Name: "Technology"}}, Employments: []models.Employment{{Name: "Internship"}}, Programs: []models.Program{{Name: "Physics"}}}
 		state := models.EventroSyncState{Source: exhibitorSyncValues(existing)}
-		merged := mergeEventroExhibitor(existing, incoming, &state, false)
+		merged := mergeEventroExhibitor(existing, incoming, &state, false, true)
 		request := httptest.NewRequest(http.MethodGet, "/eventroexhibitors", nil)
 		if err := persistEventroExhibitorCategories(database, request, &merged, existing); err != nil {
 			t.Fatal(err)

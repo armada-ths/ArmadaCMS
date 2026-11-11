@@ -81,7 +81,7 @@ func emptyEventroValue(value json.RawMessage) bool {
 
 // mergeEventroExhibitor advances the source baseline while retaining explicit CMS ownership.
 // Unknown historical differences are treated as CMS corrections on first import.
-func mergeEventroExhibitor(current, incoming models.Exhibitor, state *models.EventroSyncState, isNew bool) models.Exhibitor {
+func mergeEventroExhibitor(current, incoming models.Exhibitor, state *models.EventroSyncState, isNew, syncCategories bool) models.Exhibitor {
 	merged := current
 	// Adding a thumbnail for the same original does not replace a CMS correction.
 	if current.LogoThumbnail == nil && current.LogoFreesizeUrl != nil && incoming.LogoFreesizeUrl != nil && *current.LogoFreesizeUrl == *incoming.LogoFreesizeUrl {
@@ -95,7 +95,15 @@ func mergeEventroExhibitor(current, incoming models.Exhibitor, state *models.Eve
 	if incoming.Tier == nil {
 		delete(source, "tier")
 	}
-	for field := range mergeEventroValues(cms, source, state, isNew) {
+	var preserveOmitted []string
+	if !syncCategories {
+		preserveOmitted = []string{"industries", "employments", "programs"}
+		for _, field := range preserveOmitted {
+			delete(source, field)
+			copyEventroExhibitorField(&merged, current, field)
+		}
+	}
+	for field := range mergeEventroValues(cms, source, state, isNew, preserveOmitted...) {
 		copyEventroExhibitorField(&merged, incoming, field)
 	}
 	return merged

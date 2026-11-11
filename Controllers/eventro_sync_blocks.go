@@ -7,7 +7,6 @@ import (
 	"ArmadaCMS/main/models"
 	"errors"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -24,8 +23,6 @@ func lockEventroSyncDomain(tx *gorm.DB, resource string) error {
 	switch {
 	case resource == "recruitmentperiods", resource == "recruitmentroles":
 		resource = "recruitment"
-	case slices.Contains(eventroCategoryResources, resource):
-		resource = "exhibitors"
 	}
 	return tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "eventro:sync-domain:"+resource).Error
 }
@@ -62,16 +59,6 @@ func blockDeletedEventroRecord(tx *gorm.DB, r *http.Request, resource string, en
 		key, label = row.EventroID, row.Name
 	case *models.RecruitmentRole:
 		key, label = row.EventroRoleID, row.Name
-	case *models.Industry:
-		label = row.Name
-	case *models.Employment:
-		label = row.Name
-	case *models.Program:
-		label = row.Name
-	}
-	isCategory := slices.Contains(eventroCategoryResources, resource)
-	if isCategory {
-		key = &label
 	}
 	if key == nil || strings.TrimSpace(*key) == "" {
 		return nil
@@ -84,13 +71,7 @@ func blockDeletedEventroRecord(tx *gorm.DB, r *http.Request, resource string, en
 	if result.Error != nil || result.RowsAffected == 0 {
 		return result.Error
 	}
-	if err := audit.LogCreate(tx, r, "eventro_sync_blocks", block.ID, &block); err != nil {
-		return err
-	}
-	if isCategory {
-		return forgetDeletedEventroCategory(tx, r, resource, *key)
-	}
-	return nil
+	return audit.LogCreate(tx, r, "eventro_sync_blocks", block.ID, &block)
 }
 
 // ListEventroSyncBlocks lists source records excluded from synchronization.
@@ -105,7 +86,7 @@ func blockDeletedEventroRecord(tx *gorm.DB, r *http.Request, resource string, en
 // @Router /eventrosyncblocks [get]
 func ListEventroSyncBlocks(w http.ResponseWriter, r *http.Request) {
 	resource := r.URL.Query().Get("resource")
-	if _, valid := eventroResourceSpecs[resource]; !valid && !slices.Contains(eventroCategoryResources, resource) {
+	if _, valid := eventroResourceSpecs[resource]; !valid {
 		http.Error(w, "Invalid resource", http.StatusBadRequest)
 		return
 	}

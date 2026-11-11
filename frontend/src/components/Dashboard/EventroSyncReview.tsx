@@ -31,13 +31,6 @@ const resources = [
   ["recruitmentroles", "Recruitment roles"],
 ] as const;
 
-const blockableResources = [
-  ...resources,
-  ["industries", "Industries"],
-  ["employments", "Employment types"],
-  ["programs", "Fields of study"],
-] as const;
-
 const fieldLabels: Record<string, string> = {
   name: "Name",
   tier: "Package",
@@ -116,7 +109,7 @@ export function EventroSyncReview({
 }) {
   const [open, setOpen] = useState(false);
   const available = resources.filter(([key]) => hasPerm(perms, `${key}.edit`));
-  const blockResources = blockableResources.filter(([key]) =>
+  const blockResources = resources.filter(([key]) =>
     hasPerm(perms, key + ".delete"),
   );
   const [reviewResource, setReviewResource] = useState<string>("");
