@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var errEventroSyncSkipped = errors.New("Eventro record skipped")
+var errEventroSyncSkipped = errors.New("skipped Eventro record")
 
 // Acquire before reading the block or locking a CMS row. Recruitment imports and
 // grouped deletes share a lock because deleting a period also removes its roles.

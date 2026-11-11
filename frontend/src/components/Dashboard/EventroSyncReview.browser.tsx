@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BasenameContextProvider } from "react-admin";
 import { MemoryRouter } from "react-router-dom";
 import { EventroSyncReview } from "./EventroSyncReview";
 
@@ -14,7 +15,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../context/axiosInstance", () => ({
   default: { get: mocks.get, post: mocks.post, delete: mocks.delete },
 }));
-vi.mock("react-admin", () => ({ useNotify: () => mocks.notify }));
+vi.mock("react-admin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-admin")>()),
+  useNotify: () => mocks.notify,
+}));
 
 let container: HTMLDivElement, root: Root, client: QueryClient;
 beforeEach(() => {
@@ -37,7 +41,9 @@ function render(perms = ["eventrosync.access", "profiles.edit"]) {
   root.render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <EventroSyncReview perms={perms} syncVersion={null} />
+        <BasenameContextProvider basename="/admin">
+          <EventroSyncReview perms={perms} syncVersion={null} />
+        </BasenameContextProvider>
       </QueryClientProvider>
     </MemoryRouter>,
   );
@@ -74,6 +80,9 @@ test("reviews and applies one field with both expected values", async () => {
   await expect
     .element(page.getByText("Eventro title", { exact: true }))
     .toBeVisible();
+  await expect
+    .element(page.getByRole("link", { name: "Member Example" }))
+    .toHaveAttribute("href", "/admin/profiles/7");
   await page.getByRole("button", { name: "Use Eventro" }).click();
   await vi.waitFor(() =>
     expect(mocks.post).toHaveBeenCalledWith("/eventrosyncreview", {

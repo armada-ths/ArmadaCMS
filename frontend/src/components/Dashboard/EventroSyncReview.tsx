@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNotify } from "react-admin";
+import { useCreatePath, useNotify } from "react-admin";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
@@ -135,6 +135,7 @@ export function EventroSyncReview({
     ? blockResource
     : (blockResources[0]?.[0] ?? "");
   const [saving, setSaving] = useState(false);
+  const createPath = useCreatePath();
   const notify = useNotify();
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -390,7 +391,11 @@ export function EventroSyncReview({
                   >
                     <Button
                       component={RouterLink}
-                      to={`/${row.resource}/${row.id}`}
+                      to={createPath({
+                        type: "edit",
+                        resource: row.resource,
+                        id: row.id,
+                      })}
                       disabled={saving}
                     >
                       {row.name || `Record ${row.id}`}
