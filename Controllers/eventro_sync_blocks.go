@@ -20,8 +20,8 @@ var errEventroSyncSkipped = errors.New("skipped Eventro record")
 // Acquire before reading the block or locking a CMS row. Recruitment imports and
 // grouped deletes share a lock because deleting a period also removes its roles.
 func lockEventroSyncDomain(tx *gorm.DB, resource string) error {
-	switch {
-	case resource == "recruitmentperiods", resource == "recruitmentroles":
+	switch resource {
+	case "recruitmentperiods", "recruitmentroles":
 		resource = "recruitment"
 	}
 	return tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "eventro:sync-domain:"+resource).Error
