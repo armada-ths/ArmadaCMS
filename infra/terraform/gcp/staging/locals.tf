@@ -69,6 +69,7 @@ locals {
   # the same generic S3 env vars in local and hosted environments. Photo bucket
   # fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = merge({
+    LOUNGE_ORDER_ENVIRONMENT             = "staging"
     LOUNGE_DISPATCH_AUDIENCE             = var.enable_lounge_orders ? local.lounge_dispatch_url : ""
     LOUNGE_DISPATCH_SERVICE_ACCOUNT      = var.enable_lounge_orders ? local.photo_worker_identity : ""
     DB_HOST                              = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])

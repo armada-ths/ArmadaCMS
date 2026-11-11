@@ -70,7 +70,7 @@ func dispatchLoungeOrders(r *http.Request, client *http.Client) error {
 	defer cancel()
 	r = r.WithContext(ctx)
 	var ids []uint
-	if err := db.DB.WithContext(ctx).Model(&models.LoungeOrder{}).
+	if err := loungeOrdersInEnvironment(db.DB.WithContext(ctx).Model(&models.LoungeOrder{})).
 		Where(loungeQueueCondition).Order("id").Limit(32).Pluck("id", &ids).Error; err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func dispatchLoungeOrders(r *http.Request, client *http.Client) error {
 func dispatchLoungeOrder(r *http.Request, client *http.Client, id uint) error {
 	var order models.LoungeOrder
 	err := db.DB.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("id = ?", id).Where(loungeQueueCondition).
+		if err := loungeOrdersInEnvironment(tx).Where("id = ?", id).Where(loungeQueueCondition).
 			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 			Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).
 			First(&order).Error; err != nil {
@@ -216,7 +216,7 @@ func RetryLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 	var conflict bool
 	err := db.DB.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
 		var order models.LoungeOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, id).Error; err != nil {
+		if err := loungeOrdersInEnvironment(tx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, id).Error; err != nil {
 			return err
 		}
 		status := loungeDeliveryStatus(order, time.Now())
