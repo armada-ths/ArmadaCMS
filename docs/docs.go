@@ -3483,6 +3483,25 @@ const docTemplate = `{
                 }
             }
         },
+        "/lounge-orders/availability": {
+            "get": {
+                "tags": [
+                    "lounge-orders"
+                ],
+                "summary": "Check whether lounge ordering is open",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/lounge-orders/filter-options": {
             "get": {
                 "security": [
@@ -3651,6 +3670,9 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "lounge-orders"
                 ],
@@ -3662,6 +3684,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Allow an explicit retry of failed or unknown delivery",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.loungeDeliveryClaim"
+                        }
                     }
                 ],
                 "responses": {
@@ -6302,6 +6332,14 @@ const docTemplate = `{
                 },
                 "nameSv": {
                     "type": "string"
+                }
+            }
+        },
+        "controllers.loungeDeliveryClaim": {
+            "type": "object",
+            "properties": {
+                "retry": {
+                    "type": "boolean"
                 }
             }
         },

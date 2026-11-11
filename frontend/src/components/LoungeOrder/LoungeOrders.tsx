@@ -55,7 +55,7 @@ interface Total {
   categoryName: string;
   quantity: string;
 }
-const statuses = ["pending", "completed", "cancelled"].map((id) => ({
+const statuses = ["pending", "completed"].map((id) => ({
   id,
   name: id,
 }));
@@ -68,12 +68,7 @@ const emptyFilterOption = {
 };
 
 function OrderStatus({ value }: { value: string }) {
-  const color =
-    value === "completed"
-      ? "success"
-      : value === "cancelled"
-        ? "error"
-        : "warning";
+  const color = value === "completed" ? "success" : "warning";
   return (
     <Chip
       label={value}
@@ -285,14 +280,15 @@ export function LoungeOrderActions() {
           </MenuItem>
         ))}
       </Select>
-      {order.deliveryStatus !== "sent" && (
-        <Button
-          disabled={retry.isPending || isPending}
-          onClick={() => setConfirm(true)}
-        >
-          Retry Slack notification
-        </Button>
-      )}
+      {order.deliveryStatus !== "sent" &&
+        order.deliveryStatus !== "sending" && (
+          <Button
+            disabled={retry.isPending || isPending}
+            onClick={() => setConfirm(true)}
+          >
+            Retry Slack notification
+          </Button>
+        )}
       <Dialog
         open={confirm}
         onClose={() => !retry.isPending && setConfirm(false)}
@@ -377,7 +373,6 @@ export function LoungeOrderList() {
               <OrderStatus value={choice.id} />
             )}
             choices={statuses}
-            helperText="Cancelled orders excluded unless selected"
             alwaysOn
           />,
           <SelectInput

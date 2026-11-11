@@ -160,6 +160,11 @@ definitions:
       nameSv:
         type: string
     type: object
+  controllers.loungeDeliveryClaim:
+    properties:
+      retry:
+        type: boolean
+    type: object
   controllers.loungeDeliveryReport:
     properties:
       claimToken:
@@ -3283,12 +3288,19 @@ paths:
       - lounge-orders
   /lounge-orders/{id}/claim:
     post:
+      consumes:
+      - application/json
       parameters:
       - description: Order ID
         in: path
         name: id
         required: true
         type: integer
+      - description: Allow an explicit retry of failed or unknown delivery
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/controllers.loungeDeliveryClaim'
       responses:
         "200":
           description: OK
@@ -3345,6 +3357,18 @@ paths:
       security:
       - BearerAuth: []
       summary: Retry lounge Slack notification
+      tags:
+      - lounge-orders
+  /lounge-orders/availability:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Check whether lounge ordering is open
       tags:
       - lounge-orders
   /lounge-orders/filter-options:

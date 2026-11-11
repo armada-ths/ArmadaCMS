@@ -39,7 +39,12 @@ locals {
     ] : [],
   ))
 
-  secret_env_vars = {
+  lounge_secret_env_vars = {
+    LOUNGE_ORDER_SUBMISSION_SECRET = "LOUNGE_ORDER_SUBMISSION_SECRET"
+    ORDER_INTERNAL_SECRET          = "ORDER_INTERNAL_SECRET"
+  }
+
+  secret_env_vars = merge(local.lounge_secret_env_vars, {
     DB_PASSWORD           = "DB_PASSWORD"
     jwtsecret_laganda     = "jwtsecret_laganda"
     EVENTRO_API           = "EVENTRO_API"
@@ -48,7 +53,7 @@ locals {
     AWS_ACCESS_KEY_ID     = "SUPABASE_STORAGE_ACCESS_KEY_ID"
     AWS_SECRET_ACCESS_KEY = "SUPABASE_STORAGE_SECRET_ACCESS_KEY"
     PHOTO_TOKEN_SECRET    = "PHOTO_TOKEN_SECRET"
-  }
+  })
 
   secret_value_keys = toset([
     for key in keys(nonsensitive(var.secret_values)) : key
@@ -58,6 +63,7 @@ locals {
 
   # Photo bucket fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = merge({
+    ORDER_INTERNAL_URL                   = "https://order.armada.nu"
     DB_HOST                              = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_host"])
     DB_PORT                              = "5432"
     DB_USER                              = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["pooler_user"])

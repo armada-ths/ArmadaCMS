@@ -83,6 +83,12 @@ func loungeRequestTest(handler http.HandlerFunc, method, path string, body any, 
 	return response
 }
 
+func submitLoungeOrderDuringFair(w http.ResponseWriter, r *http.Request) {
+	submitLoungeOrder(w, r, func() time.Time {
+		return time.Date(2099, time.November, 17, 11, 0, 0, 0, time.UTC)
+	})
+}
+
 func loungeInput(company, item uint, key string) map[string]any {
 	return map[string]any{"idempotencyKey": key, "exhibitorId": company, "items": []map[string]any{{"id": fmt.Sprint(item), "quantity": 2}}}
 }
@@ -142,16 +148,16 @@ func TestLoungeOpeningBoundaries(t *testing.T) {
 		time string
 		open bool
 	}{
-		{"2026-11-16T12:00:00", true}, {"2026-11-17T15:30:00", true}, {"2026-11-17T15:30:01", false},
+		{"2026-11-16T12:00:00", false}, {"2026-11-17T09:59:59", false}, {"2026-11-17T10:00:00", true}, {"2026-11-17T15:30:00", true}, {"2026-11-17T15:30:01", false},
 		{"2026-11-18T09:59:59", false}, {"2026-11-18T10:00:00", true}, {"2026-11-18T14:30:00", true},
 		{"2026-11-18T14:30:01", false}, {"2026-11-19T10:00:00", false},
 	} {
 		now, _ := time.ParseInLocation("2006-01-02T15:04:05", example.time, zone)
-		if loungeOpen("2026-11-17,2026-11-18", now) != example.open {
+		if loungeOpen([]string{"2026-11-17", "2026-11-18"}, now) != example.open {
 			t.Fatalf("incorrect opening at %s", example.time)
 		}
 	}
-	if loungeOpen("invalid,2026-11-18", time.Now()) || loungeOpen("2026-11-18,2026-11-17", time.Now()) {
+	if loungeOpen([]string{"invalid", "2026-11-18"}, time.Now()) || loungeOpen([]string{"2026-11-18", "2026-11-17"}, time.Now()) {
 		t.Fatal("invalid dates accepted")
 	}
 }
@@ -159,7 +165,7 @@ func TestLoungeOpeningBoundaries(t *testing.T) {
 func TestLoungePersistenceIdempotencyAndHistory(t *testing.T) {
 	connection, company, category, item := loungeTestDatabase(t)
 	input := loungeInput(company, item, "00000000-0000-4000-8000-000000000001")
-	response := loungeRequestTest(SubmitLoungeOrder, "POST", "/lounge-orders/submit", input, "test-service", 0)
+	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/lounge-orders/submit", input, "test-service", 0)
 	if response.Code != 201 {
 		t.Fatalf("submit: %d %s", response.Code, response.Body)
 	}
@@ -177,7 +183,7 @@ func TestLoungePersistenceIdempotencyAndHistory(t *testing.T) {
 	if err := connection.Exec("DELETE FROM exhibitors WHERE id = ?", company).Error; err != nil {
 		t.Fatal(err)
 	}
-	again := loungeRequestTest(SubmitLoungeOrder, "POST", "/lounge-orders/submit", input, "test-service", 0)
+	again := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/lounge-orders/submit", input, "test-service", 0)
 	if again.Code != 200 {
 		t.Fatalf("idempotent replay after deletion: %d %s", again.Code, again.Body)
 	}
@@ -192,7 +198,7 @@ func TestLoungePersistenceIdempotencyAndHistory(t *testing.T) {
 		t.Fatal("category deletion left items")
 	}
 	input["items"] = []map[string]any{{"id": fmt.Sprint(item), "quantity": 1}}
-	if changed := loungeRequestTest(SubmitLoungeOrder, "POST", "/lounge-orders/submit", input, "test-service", 0); changed.Code != 400 {
+	if changed := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/lounge-orders/submit", input, "test-service", 0); changed.Code != 400 {
 		t.Fatal("accepted different payload with same key")
 	}
 }
@@ -206,7 +212,7 @@ func TestLoungeConcurrentSubmissionAndClaims(t *testing.T) {
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			results <- loungeRequestTest(SubmitLoungeOrder, "POST", "/lounge-orders/submit", input, "test-service", 0)
+			results <- loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/lounge-orders/submit", input, "test-service", 0)
 		}()
 	}
 	group.Wait()
@@ -221,7 +227,7 @@ func TestLoungeConcurrentSubmissionAndClaims(t *testing.T) {
 	if len(orders) != 1 {
 		t.Fatal("duplicate orders")
 	}
-	claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", nil, "test-service", orders[0].ID)
+	claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "test-service", orders[0].ID)
 	var granted struct {
 		Claimed bool   `json:"claimed"`
 		Token   string `json:"claimToken"`
@@ -230,11 +236,11 @@ func TestLoungeConcurrentSubmissionAndClaims(t *testing.T) {
 	if !granted.Claimed || granted.Token == "" {
 		t.Fatalf("claim failed: %s", claim.Body)
 	}
-	second := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", nil, "test-service", orders[0].ID)
+	second := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "test-service", orders[0].ID)
 	if !strings.Contains(second.Body.String(), `"claimed":false`) {
 		t.Fatal("duplicate delivery claim")
 	}
-	live := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", nil, "live-service", orders[0].ID)
+	live := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{}, "live-service", orders[0].ID)
 	if live.Code == 200 {
 		t.Fatal("live credential accessed test order")
 	}
@@ -252,35 +258,35 @@ func TestLoungeConcurrentSubmissionAndClaims(t *testing.T) {
 func TestLoungeValidationAndTotals(t *testing.T) {
 	connection, company, _, item := loungeTestDatabase(t)
 	input := loungeInput(company, item, "00000000-0000-4000-8000-000000000003")
-	if unauthorized := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "", 0); unauthorized.Code != 401 {
+	if unauthorized := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "", 0); unauthorized.Code != 401 {
 		t.Fatal("unauthenticated submission accepted")
 	}
 	if err := connection.Model(&models.LoungeItem{}).Where("id = ?", item).Update("sold_out", true).Error; err != nil {
 		t.Fatal(err)
 	}
-	if failed := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0); failed.Code != 400 || !strings.Contains(failed.Body.String(), "items_changed") {
+	if failed := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); failed.Code != 400 || !strings.Contains(failed.Body.String(), "items_changed") {
 		t.Fatal("sold-out item accepted")
 	}
 	connection.Model(&models.LoungeItem{}).Where("id = ?", item).Update("sold_out", false)
-	response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "live-service", 0)
+	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "live-service", 0)
 	if response.Code != 201 {
 		t.Fatalf("live submit: %s", response.Body)
 	}
 	var order models.LoungeOrder
 	_ = json.Unmarshal(response.Body.Bytes(), &order)
 	input["idempotencyKey"] = "00000000-0000-4000-8000-000000000004"
-	loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0)
+	loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0)
 	totals := loungeRequestTest(LoungeOrderTotals, "GET", "/totals", nil, "", 0)
 	if totals.Code != 200 || !strings.Contains(totals.Body.String(), `"quantity":"2"`) {
 		t.Fatalf("test/live totals incorrect: %s", totals.Body)
 	}
-	cancelled := loungeRequestTest(UpdateLoungeOrder, "PUT", "/order", map[string]string{"status": "cancelled"}, "", order.ID)
-	if cancelled.Code != 200 {
-		t.Fatalf("status update: %s", cancelled.Body)
+	completed := loungeRequestTest(UpdateLoungeOrder, "PUT", "/order", map[string]string{"status": "completed"}, "", order.ID)
+	if completed.Code != 200 {
+		t.Fatalf("status update: %s", completed.Body)
 	}
-	totals = loungeRequestTest(LoungeOrderTotals, "GET", "/totals", nil, "", 0)
-	if totals.Body.String() != "[]\n" {
-		t.Fatalf("cancelled orders counted: %s", totals.Body)
+	totals = loungeRequestTest(LoungeOrderTotals, "GET", "/totals?filter="+url.QueryEscape(`{"status":"completed"}`), nil, "", 0)
+	if totals.Code != 200 || !strings.Contains(totals.Body.String(), `"quantity":"2"`) {
+		t.Fatalf("completed order missing from totals: %s", totals.Body)
 	}
 }
 
@@ -325,7 +331,7 @@ func TestLoungeAuditFailureRollsBackOrder(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", loungeInput(company, item, "00000000-0000-4000-8000-000000000005"), "test-service", 0)
+	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", loungeInput(company, item, "00000000-0000-4000-8000-000000000005"), "test-service", 0)
 	if response.Code != 503 {
 		t.Fatalf("audit failure was accepted: %d %s", response.Code, response.Body)
 	}
@@ -351,7 +357,7 @@ func TestLoungeFiltersMatchTheSameLineAndTotalsIgnorePagination(t *testing.T) {
 	for _, key := range []string{"00000000-0000-4000-8000-000000000006", "00000000-0000-4000-8000-000000000007"} {
 		input := loungeInput(company, item, key)
 		input["items"] = []map[string]any{{"id": fmt.Sprint(item), "quantity": 2}, {"id": fmt.Sprint(bun.ID), "quantity": 3}}
-		response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "live-service", 0)
+		response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "live-service", 0)
 		if response.Code != 201 {
 			t.Fatalf("fixture submission failed: %s", response.Body)
 		}
@@ -378,32 +384,32 @@ func TestLoungeRejectsInvalidSubmissions(t *testing.T) {
 	for _, quantity := range []any{0, -1, 1.5, 9007199254740992, 4} {
 		input := loungeInput(company, item, "00000000-0000-4000-8000-000000000008")
 		input["items"] = []map[string]any{{"id": fmt.Sprint(item), "quantity": quantity}}
-		response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0)
+		response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0)
 		if response.Code != 400 {
 			t.Fatalf("quantity %v accepted: %d %s", quantity, response.Code, response.Body)
 		}
 	}
 	input := loungeInput(company, item, "00000000-0000-4000-8000-000000000008")
 	input["items"] = []map[string]any{{"id": fmt.Sprint(item), "quantity": 1}, {"id": fmt.Sprint(item), "quantity": 1}}
-	if response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0); response.Code != 400 {
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); response.Code != 400 {
 		t.Fatal("duplicate lines accepted")
 	}
 	input = loungeInput(company, item, "00000000-0000-4000-8000-000000000008")
 	input["items"] = []map[string]any{{"id": "9007199254740991", "quantity": 1}}
-	if response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "items_changed") {
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "items_changed") {
 		t.Fatal("missing item accepted")
 	}
 	input = loungeInput(company, item, "00000000-0000-4000-8000-000000000008")
 	if err := connection.Model(&models.Exhibitor{}).Where("id = ?", company).Update("tier", "Silver").Error; err != nil {
 		t.Fatal(err)
 	}
-	if response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "company_ineligible") {
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "company_ineligible") {
 		t.Fatal("non-Gold company accepted")
 	}
 	if err := connection.Model(&models.FairDateConfig{}).Where("1 = 1").Update("fair_days", "2020-11-17,2020-11-18").Error; err != nil {
 		t.Fatal(err)
 	}
-	if response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "orders_closed") {
+	if response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", input, "test-service", 0); response.Code != 400 || !strings.Contains(response.Body.String(), "orders_closed") {
 		t.Fatal("closed orders accepted")
 	}
 	var count int64
@@ -430,7 +436,7 @@ func TestLoungeRetryPreservesFailureAndUsesTestOrigin(t *testing.T) {
 	t.Setenv("K_SERVICE", "")
 	t.Setenv("ORDER_INTERNAL_TEST_URL", "")
 	t.Setenv("ORDER_INTERNAL_TEST_SECRET", "test-retry")
-	response := loungeRequestTest(SubmitLoungeOrder, "POST", "/submit", loungeInput(company, item, "00000000-0000-4000-8000-000000000009"), "test-service", 0)
+	response := loungeRequestTest(submitLoungeOrderDuringFair, "POST", "/submit", loungeInput(company, item, "00000000-0000-4000-8000-000000000009"), "test-service", 0)
 	var order models.LoungeOrder
 	if response.Code != 201 || json.Unmarshal(response.Body.Bytes(), &order) != nil {
 		t.Fatalf("submission failed: %s", response.Body)
@@ -457,7 +463,7 @@ func TestLoungeRetryPreservesFailureAndUsesTestOrigin(t *testing.T) {
 			return
 		}
 		calls <- input
-		claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", nil, "test-service", order.ID)
+		claim := loungeRequestTest(ClaimLoungeDelivery, "POST", "/claim", map[string]bool{"retry": true}, "test-service", order.ID)
 		var granted struct {
 			Claimed bool   `json:"claimed"`
 			Token   string `json:"claimToken"`
@@ -470,6 +476,33 @@ func TestLoungeRetryPreservesFailureAndUsesTestOrigin(t *testing.T) {
 		w.WriteHeader(report.Code)
 	}))
 	defer server.Close()
+	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer unavailable.Close()
+	t.Setenv("ORDER_INTERNAL_TEST_URL", unavailable.URL)
+	response = loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID)
+	if response.Code != http.StatusBadGateway {
+		t.Fatalf("unavailable delivery response: %d %s", response.Code, response.Body)
+	}
+	if err := connection.First(&order, order.ID).Error; err != nil || order.DeliveryStatus != "failed" {
+		t.Fatal("unavailable Order app cleared the recorded failure")
+	}
+
+	if err := connection.Model(&order).Updates(map[string]any{
+		"delivery_status":  "sending",
+		"claim_expires_at": time.Now().Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, response := range []*httptest.ResponseRecorder{
+		loungeRequestTest(ListLoungeOrders, "GET", "/orders?filter="+url.QueryEscape(`{"isTest":true}`), nil, "", 0),
+		loungeRequestTest(GetLoungeOrder, "GET", "/order", nil, "", order.ID),
+	} {
+		if response.Code != 200 || !strings.Contains(response.Body.String(), `"deliveryStatus":"unknown"`) {
+			t.Fatalf("expired delivery displayed incorrectly: %d %s", response.Code, response.Body)
+		}
+	}
 	t.Setenv("ORDER_INTERNAL_TEST_URL", server.URL)
 	t.Setenv("ORDER_INTERNAL_URL", "https://must-not-call.invalid")
 	response = loungeRequestTest(RetryLoungeDelivery, "POST", "/retry", nil, "", order.ID)

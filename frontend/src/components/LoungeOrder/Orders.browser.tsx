@@ -226,7 +226,6 @@ test("statuses have consistent semantic colours in filters and order controls", 
   for (const [status, color] of [
     ["completed", "Success"],
     ["pending", "Warning"],
-    ["cancelled", "Error"],
   ]) {
     const option = page.getByRole("option", { name: status, exact: true });
     await expect.element(option).toBeVisible();
@@ -257,20 +256,20 @@ test("order details provide a back link to all orders", async () => {
 });
 test("order list uses coloured status badges for every order state", async () => {
   getList.mockResolvedValue({
-    data: ["completed", "pending", "cancelled"].map((status, index) => ({
+    data: ["completed", "pending"].map((status, index) => ({
       id: index + 1,
       companyName: `Company ${index}`,
       status,
       deliveryStatus: "pending",
       isTest: true,
     })),
-    total: 3,
+    total: 2,
   });
   render(<LoungeOrderList />);
   await expect
-    .element(page.getByText("Company 2", { exact: true }))
+    .element(page.getByText("Company 1", { exact: true }))
     .toBeVisible();
-  for (const [index, color] of ["Success", "Warning", "Error"].entries()) {
+  for (const [index, color] of ["Success", "Warning"].entries()) {
     const row = page
       .getByRole("row")
       .filter({ hasText: `Company ${index}` })
@@ -286,7 +285,6 @@ test("order list uses coloured status badges for every order state", async () =>
 test.each([
   ["completed", "Success"],
   ["pending", "Warning"],
-  ["cancelled", "Error"],
 ])(
   "order details and status editor colour %s consistently",
   async (status, color) => {

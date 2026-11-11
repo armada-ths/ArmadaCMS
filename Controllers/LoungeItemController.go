@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -166,10 +165,14 @@ func GetLoungeItemByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func applyLoungeFields(values url.Values, item *models.LoungeItem) (map[string]any, error) {
+// Raw fields preserve the difference between an omitted field and JSON null.
+func applyLoungeFields(fields map[string]json.RawMessage, item *models.LoungeItem) (map[string]any, error) {
 	updates := map[string]any{}
-	if values.Has("name") {
-		item.Name = strings.TrimSpace(values.Get("name"))
+	if raw, ok := fields["name"]; ok {
+		if err := json.Unmarshal(raw, &item.Name); err != nil || string(raw) == "null" {
+			return nil, errors.New("name must be text")
+		}
+		item.Name = strings.TrimSpace(item.Name)
 		updates["name"] = item.Name
 	}
 	for _, field := range []struct {
@@ -180,48 +183,39 @@ func applyLoungeFields(values url.Values, item *models.LoungeItem) (map[string]a
 		{"description", "description", &item.Description},
 		{"descriptionSv", "description_sv", &item.DescriptionSv},
 	} {
-		if values.Has(field.key) {
-			value := values.Get(field.key)
-			*field.target = &value
+		if raw, ok := fields[field.key]; ok {
+			var value *string
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return nil, fmt.Errorf("%s must be text or null", field.key)
+			}
+			*field.target = value
 			NormalizeOptionalStringPointers(field.target)
 			updates[field.column] = *field.target
 		}
-		if values.Has("categoryId") {
-			value, err := strconv.ParseUint(values.Get("categoryId"), 10, strconv.IntSize)
-			if err != nil || value == 0 || value > 9007199254740991 {
-				return nil, errors.New("categoryId must be a positive safe integer")
-			}
-			item.CategoryID = uint(value)
-			updates["category_id"] = item.CategoryID
-		}
 	}
-	if values.Has("sortOrder") {
-		value, err := strconv.ParseInt(values.Get("sortOrder"), 10, 64)
-		if err != nil || value < 0 || value > 9007199254740991 {
-			return nil, errors.New("sortOrder must be a non-negative safe integer")
+	if raw, ok := fields["categoryId"]; ok {
+		var value uint
+		if err := json.Unmarshal(raw, &value); err != nil || value == 0 || value > 9007199254740991 {
+			return nil, errors.New("categoryId must be a positive safe integer")
 		}
-		item.SortOrder = value
-		updates["sort_order"] = value
+		item.CategoryID = value
+		updates["category_id"] = value
 	}
-	if values.Has("maxPerOrder") {
-		if strings.TrimSpace(values.Get("maxPerOrder")) == "" {
-			item.MaxPerOrder = nil
-		} else {
-			value, err := strconv.ParseInt(values.Get("maxPerOrder"), 10, 64)
-			if err != nil || value <= 0 || value > 9007199254740991 {
-				return nil, errors.New("maxPerOrder must be a positive safe integer")
-			}
-			item.MaxPerOrder = &value
+	if raw, ok := fields["maxPerOrder"]; ok {
+		var value *int64
+		if err := json.Unmarshal(raw, &value); err != nil || (value != nil && (*value <= 0 || *value > 9007199254740991)) {
+			return nil, errors.New("maxPerOrder must be a positive safe integer or null")
 		}
-		updates["max_per_order"] = item.MaxPerOrder
+		item.MaxPerOrder = value
+		updates["max_per_order"] = value
 	}
-	if values.Has("soldOut") {
-		value := values.Get("soldOut")
-		if value != "true" && value != "false" {
+	if raw, ok := fields["soldOut"]; ok {
+		var value *bool
+		if err := json.Unmarshal(raw, &value); err != nil || value == nil {
 			return nil, errors.New("soldOut must be true or false")
 		}
-		item.SoldOut = value == "true"
-		updates["sold_out"] = item.SoldOut
+		item.SoldOut = *value
+		updates["sold_out"] = *value
 	}
 	if item.Name == "" {
 		return nil, errors.New("name is required")
@@ -230,40 +224,19 @@ func applyLoungeFields(values url.Values, item *models.LoungeItem) (map[string]a
 }
 
 func parseLoungeMutation(w http.ResponseWriter, r *http.Request, item *models.LoungeItem) (map[string]any, bool) {
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	var fields map[string]json.RawMessage
-	if err := json.NewDecoder(r.Body).Decode(&fields); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if !decodeLoungeJSON(w, r, &fields) {
 		return nil, false
 	}
-	values := url.Values{}
-	for key, raw := range fields {
+	for key := range fields {
 		switch key {
-		case "id", "sortOrder":
-			continue
-		case "name", "nameSv", "description", "descriptionSv":
-			var text *string
-			if json.Unmarshal(raw, &text) != nil {
-				http.Error(w, "Invalid text field", http.StatusBadRequest)
-				return nil, false
-			}
-			value := ""
-			if text != nil {
-				value = *text
-			}
-			values.Set(key, value)
-		case "categoryId", "maxPerOrder", "soldOut":
-			if string(raw) == "null" {
-				values.Set(key, "")
-			} else {
-				values.Set(key, string(raw))
-			}
+		case "id", "sortOrder", "name", "nameSv", "description", "descriptionSv", "categoryId", "maxPerOrder", "soldOut":
 		default:
 			http.Error(w, "Unsupported field", http.StatusBadRequest)
 			return nil, false
 		}
 	}
-	updates, err := applyLoungeFields(values, item)
+	updates, err := applyLoungeFields(fields, item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil, false

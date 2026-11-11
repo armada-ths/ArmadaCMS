@@ -380,6 +380,7 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/lounge-categories", auth.RequirePermission("lounge.create", controllers.CreateLoungeCategory)).Methods("POST")
 	protectedAPI.HandleFunc("/lounge-categories/{id:[0-9]+}", auth.RequirePermission("lounge.edit", controllers.UpdateLoungeCategory)).Methods("PUT")
 	protectedAPI.HandleFunc("/lounge-categories/{id:[0-9]+}", auth.RequirePermission("lounge.delete", controllers.DeleteLoungeCategory)).Methods("DELETE")
+	publicAPI.HandleFunc("/lounge-orders/availability", controllers.GetLoungeOrderAvailability).Methods("GET")
 	publicAPI.HandleFunc("/lounge-orders/submit", controllers.SubmitLoungeOrder).Methods("POST")
 	publicAPI.HandleFunc("/lounge-orders/{id:[0-9]+}/claim", controllers.ClaimLoungeDelivery).Methods("POST")
 	publicAPI.HandleFunc("/lounge-orders/{id:[0-9]+}/delivery", controllers.ReportLoungeDelivery).Methods("POST")

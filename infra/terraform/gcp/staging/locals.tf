@@ -40,7 +40,13 @@ locals {
 
   # Secret IDs are prefixed with name_prefix to avoid colliding with production
   # secrets in the same GCP project.
-  secret_env_vars = {
+  lounge_secret_env_vars = {
+    ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET = "${var.name_prefix}-ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET"
+    LOUNGE_ORDER_TEST_SUBMISSION_SECRET      = "${var.name_prefix}-LOUNGE_ORDER_TEST_SUBMISSION_SECRET"
+    ORDER_INTERNAL_TEST_SECRET               = "${var.name_prefix}-ORDER_INTERNAL_TEST_SECRET"
+  }
+
+  secret_env_vars = merge(local.lounge_secret_env_vars, {
     DB_PASSWORD                     = "${var.name_prefix}-DB_PASSWORD"
     jwtsecret_laganda               = "${var.name_prefix}-jwtsecret_laganda"
     EVENTRO_API                     = "${var.name_prefix}-EVENTRO_API"
@@ -50,7 +56,7 @@ locals {
     AWS_ACCESS_KEY_ID               = "${var.name_prefix}-SUPABASE_STORAGE_ACCESS_KEY_ID"
     AWS_SECRET_ACCESS_KEY           = "${var.name_prefix}-SUPABASE_STORAGE_SECRET_ACCESS_KEY"
     PHOTO_TOKEN_SECRET              = "${var.name_prefix}-PHOTO_TOKEN_SECRET"
-  }
+  })
 
   secret_value_keys = toset([
     for key in keys(nonsensitive(var.secret_values)) : key
@@ -62,6 +68,7 @@ locals {
   # the same generic S3 env vars in local and hosted environments. Photo bucket
   # fallbacks allow PR plans before the Supabase outputs are applied.
   plain_env_vars = merge({
+    ORDER_INTERNAL_TEST_URL              = "https://staging.order.armada.nu"
     DB_HOST                              = trimspace(var.db_host) != "" ? var.db_host : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_host"])
     DB_PORT                              = "5432"
     DB_USER                              = trimspace(var.db_user) != "" ? var.db_user : nonsensitive(data.tfe_outputs.supabase_prod.values["staging_db_user"])

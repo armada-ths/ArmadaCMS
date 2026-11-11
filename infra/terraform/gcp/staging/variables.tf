@@ -82,6 +82,12 @@ variable "revalidation_url" {
   default     = ""
 }
 
+variable "enable_lounge_orders" {
+  description = "Inject the lounge submission and notification retry credentials into Cloud Run."
+  type        = bool
+  default     = false
+}
+
 variable "deploy_cloud_run_service" {
   description = "Whether Terraform should manage the Cloud Run service itself; deployment requires populated secrets and a container image."
   type        = bool

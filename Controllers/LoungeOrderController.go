@@ -36,6 +36,10 @@ type loungeSubmission struct {
 	} `json:"items"`
 }
 
+type loungeDeliveryClaim struct {
+	Retry bool `json:"retry"`
+}
+
 type loungeDeliveryReport struct {
 	ClaimToken string `json:"claimToken"`
 	Status     string `json:"status"`
@@ -75,12 +79,11 @@ func loungeService(w http.ResponseWriter, r *http.Request) (bool, bool) {
 	return false, false
 }
 
-func loungeOpen(days string, now time.Time) bool {
+func loungeOpen(parts []string, now time.Time) bool {
 	zone, err := time.LoadLocation("Europe/Stockholm")
 	if err != nil {
 		return false
 	}
-	parts := strings.Split(days, ",")
 	if len(parts) < 2 {
 		return false
 	}
@@ -101,16 +104,28 @@ func loungeOpen(days string, now time.Time) bool {
 		return false
 	}
 	now = now.In(zone)
-	if now.Before(first) {
-		return true
-	}
 	if now.Format("2006-01-02") == first.Format("2006-01-02") {
-		return !now.After(first.Add(15*time.Hour + 30*time.Minute))
+		return !now.Before(first.Add(10*time.Hour)) && !now.After(first.Add(15*time.Hour+30*time.Minute))
 	}
 	if now.Format("2006-01-02") == second.Format("2006-01-02") {
 		return !now.Before(second.Add(10*time.Hour)) && !now.After(second.Add(14*time.Hour+30*time.Minute))
 	}
 	return false
+}
+
+// GetLoungeOrderAvailability returns the current CMS ordering window.
+// @Summary Check whether lounge ordering is open
+// @Tags lounge-orders
+// @Success 200 {object} map[string]bool
+// @Router /lounge-orders/availability [get]
+func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	var dates models.FairDateConfig
+	if err := db.DB.Order("id DESC").First(&dates).Error; err != nil {
+		writeJSONResponse(w, 503, map[string]string{"errorCode": "availability_unavailable"})
+		return
+	}
+	writeJSONResponse(w, 200, map[string]bool{"open": loungeOpen(dates.ToFairDate().Fair.Days, time.Now())})
 }
 
 // SubmitLoungeOrder persists an authenticated, idempotent order before delivery.
@@ -124,6 +139,10 @@ func loungeOpen(days string, now time.Time) bool {
 // @Security BearerAuth
 // @Router /lounge-orders/submit [post]
 func SubmitLoungeOrder(w http.ResponseWriter, r *http.Request) {
+	submitLoungeOrder(w, r, time.Now)
+}
+
+func submitLoungeOrder(w http.ResponseWriter, r *http.Request, now func() time.Time) {
 	test, ok := loungeService(w, r)
 	if !ok {
 		return
@@ -168,37 +187,53 @@ func SubmitLoungeOrder(w http.ResponseWriter, r *http.Request) {
 			}
 			return err
 		}
-		if !loungeOpen(dates.FairDays, time.Now()) {
+		if !loungeOpen(dates.ToFairDate().Fair.Days, now()) {
 			return loungeOrderError("orders_closed")
 		}
 		var company models.Exhibitor
-		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Where("id = ? AND tier = ?", input.ExhibitorID, "Gold").First(&company).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Where("id = ? AND tier = ?", input.ExhibitorID, models.TierGold).First(&company).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return loungeOrderError("company_ineligible")
 			}
 			return err
 		}
 		order = models.LoungeOrder{CompanyID: company.ID, CompanyName: company.Name, IsTest: test, Status: "pending", DeliveryStatus: "pending", IdempotencyKey: input.IdempotencyKey, Fingerprint: fingerprint, Lines: []models.LoungeOrderLine{}}
-		seen := map[uint]bool{}
-		for position, line := range input.Items {
+		itemIDs := make([]uint, 0, len(input.Items))
+		seen := make(map[uint]bool, len(input.Items))
+		for _, line := range input.Items {
 			id, err := strconv.ParseUint(line.ID, 10, strconv.IntSize)
 			if err != nil || id == 0 || id > 9007199254740991 || line.Quantity <= 0 || line.Quantity > 9007199254740991 || seen[uint(id)] {
 				return loungeOrderError("invalid_order")
 			}
 			seen[uint(id)] = true
-			var item models.LoungeItem
-			if err := tx.First(&item, id).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return loungeOrderError("items_changed")
-				}
-				return err
-			}
-			if item.SoldOut || (item.MaxPerOrder != nil && line.Quantity > *item.MaxPerOrder) {
+			itemIDs = append(itemIDs, uint(id))
+		}
+		var items []models.LoungeItem
+		if err := tx.Where("id IN ?", itemIDs).Find(&items).Error; err != nil {
+			return err
+		}
+		if len(items) != len(itemIDs) {
+			return loungeOrderError("items_changed")
+		}
+		itemsByID := make(map[uint]models.LoungeItem, len(items))
+		categoryIDs := make([]uint, 0, len(items))
+		for _, item := range items {
+			itemsByID[item.ID] = item
+			categoryIDs = append(categoryIDs, item.CategoryID)
+		}
+		var categories []models.LoungeCategory
+		if err := tx.Where("id IN ?", categoryIDs).Find(&categories).Error; err != nil {
+			return err
+		}
+		categoriesByID := make(map[uint]models.LoungeCategory, len(categories))
+		for _, category := range categories {
+			categoriesByID[category.ID] = category
+		}
+		for position, line := range input.Items {
+			item := itemsByID[itemIDs[position]]
+			category, found := categoriesByID[item.CategoryID]
+			if !found || item.SoldOut || (item.MaxPerOrder != nil && line.Quantity > *item.MaxPerOrder) {
 				return loungeOrderError("items_changed")
-			}
-			var category models.LoungeCategory
-			if err := tx.First(&category, item.CategoryID).Error; err != nil {
-				return err
 			}
 			order.Lines = append(order.Lines, models.LoungeOrderLine{ItemID: item.ID, CategoryID: category.ID, ItemName: item.Name, ItemNameSv: item.NameSv, CategoryName: category.Name, CategoryNameSv: category.NameSv, Quantity: line.Quantity, Position: position})
 		}
@@ -242,7 +277,9 @@ func loadServiceOrder(tx *gorm.DB, r *http.Request, test bool, order *models.Lou
 // ClaimLoungeDelivery grants a bounded exclusive Slack delivery claim.
 // @Summary Claim lounge notification delivery
 // @Tags lounge-orders
+// @Accept json
 // @Param id path int true "Order ID"
+// @Param body body loungeDeliveryClaim false "Allow an explicit retry of failed or unknown delivery"
 // @Success 200 {object} map[string]interface{}
 // @Security BearerAuth
 // @Router /lounge-orders/{id}/claim [post]
@@ -252,17 +289,18 @@ func ClaimLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var order models.LoungeOrder
+	var input loungeDeliveryClaim
+	if r.ContentLength != 0 && !decodeLoungeJSON(w, r, &input) {
+		return
+	}
 	claimed := false
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := loadServiceOrder(tx, r, test, &order); err != nil {
 			return err
 		}
 		before := order
-		if order.DeliveryStatus == "sending" && order.ClaimExpiresAt != nil && time.Now().After(*order.ClaimExpiresAt) {
-			order.DeliveryStatus, order.DeliveryError = "unknown", "delivery_interrupted"
-			return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"delivery_status": order.DeliveryStatus, "delivery_error": order.DeliveryError})
-		}
-		if order.DeliveryStatus != "pending" {
+		status := loungeDeliveryStatus(order, time.Now())
+		if status != "pending" && !(input.Retry && (status == "failed" || status == "unknown")) {
 			return nil
 		}
 		token := make([]byte, 32)
@@ -271,9 +309,9 @@ func ClaimLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 		order.ClaimToken = hex.EncodeToString(token)
 		expires := time.Now().Add(time.Minute)
-		order.ClaimExpiresAt, order.DeliveryStatus = &expires, "sending"
+		order.ClaimExpiresAt, order.DeliveryStatus, order.DeliveryError = &expires, "sending", ""
 		claimed = true
-		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"claim_token": order.ClaimToken, "claim_expires_at": expires, "delivery_status": "sending"})
+		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"claim_token": order.ClaimToken, "claim_expires_at": expires, "delivery_status": "sending", "delivery_error": ""})
 	})
 	if err != nil {
 		loungeError(w, err)
@@ -377,12 +415,10 @@ func loungeOrderQuery(r *http.Request) (*gorm.DB, map[string]any, error) {
 	}
 	query = query.Where("is_test = ?", test)
 	if status, exists := filter["status"]; exists {
-		if status != "pending" && status != "completed" && status != "cancelled" {
+		if status != "pending" && status != "completed" {
 			return nil, nil, errors.New("invalid status")
 		}
 		query = query.Where("status = ?", status)
-	} else {
-		query = query.Where("status <> ?", "cancelled")
 	}
 	if company, exists := filter["companyId"]; exists {
 		query = query.Where("company_id = ?", company)
@@ -437,12 +473,19 @@ func ListLoungeOrders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid range", 400)
 		return
 	}
+	if column == "delivery_status" {
+		column = "CASE WHEN delivery_status = 'sending' AND claim_expires_at <= CURRENT_TIMESTAMP THEN 'unknown' ELSE delivery_status END"
+	}
 	if err := query.Order(column+" "+direction).Order("id DESC").Offset(start).Limit(end-start+1).Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).Find(&items).Error; err != nil {
 		loungeError(w, err)
 		return
 	}
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
 	w.Header().Set("Content-Range", fmt.Sprintf("lounge-orders %d-%d/%d", start, start+len(items)-1, total))
+	now := time.Now()
+	for i := range items {
+		items[i].DeliveryStatus = loungeDeliveryStatus(items[i], now)
+	}
 	writeJSONResponse(w, 200, items)
 }
 
@@ -468,10 +511,15 @@ func GetLoungeOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if order.DeliveryStatus == "sending" && order.ClaimExpiresAt != nil && time.Now().After(*order.ClaimExpiresAt) {
-		order.DeliveryStatus = "unknown"
-	}
+	order.DeliveryStatus = loungeDeliveryStatus(order, time.Now())
 	writeJSONResponse(w, 200, order)
+}
+
+func loungeDeliveryStatus(order models.LoungeOrder, now time.Time) string {
+	if order.DeliveryStatus == "sending" && order.ClaimExpiresAt != nil && !order.ClaimExpiresAt.After(now) {
+		return "unknown"
+	}
+	return order.DeliveryStatus
 }
 
 // UpdateLoungeOrder changes operational status, never order lines.
@@ -493,7 +541,7 @@ func UpdateLoungeOrder(w http.ResponseWriter, r *http.Request) {
 	if !decodeLoungeJSON(w, r, &input) {
 		return
 	}
-	if input.Status != "pending" && input.Status != "completed" && input.Status != "cancelled" {
+	if input.Status != "pending" && input.Status != "completed" {
 		http.Error(w, "Invalid order status", 400)
 		return
 	}
@@ -510,6 +558,7 @@ func UpdateLoungeOrder(w http.ResponseWriter, r *http.Request) {
 		loungeError(w, err)
 		return
 	}
+	order.DeliveryStatus = loungeDeliveryStatus(order, time.Now())
 	writeJSONResponse(w, 200, order)
 }
 
@@ -591,41 +640,23 @@ func RetryLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var order models.LoungeOrder
-	conflict := false
-	var origin, secret string
-	unconfigured := false
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, id).Error; err != nil {
-			return err
-		}
-		if order.DeliveryStatus == "sent" || (order.DeliveryStatus == "sending" && order.ClaimExpiresAt != nil && order.ClaimExpiresAt.After(time.Now())) {
-			conflict = true
-			return errors.New("delivery already sent or active")
-		}
-		origin, secret = os.Getenv("ORDER_INTERNAL_URL"), os.Getenv("ORDER_INTERNAL_SECRET")
-		if order.IsTest {
-			origin, secret = os.Getenv("ORDER_INTERNAL_TEST_URL"), os.Getenv("ORDER_INTERNAL_TEST_SECRET")
-		}
-		address, err := url.Parse(origin)
-		local := address != nil && os.Getenv("K_SERVICE") == "" && (address.Hostname() == "localhost" || address.Hostname() == "127.0.0.1" || address.Hostname() == "host.docker.internal")
-		if err != nil || address.Host == "" || secret == "" || (address.Scheme != "https" && (address.Scheme != "http" || !local)) {
-			unconfigured = true
-			return errors.New("notification retry is not configured")
-		}
-		before := order
-		order.DeliveryStatus, order.ClaimToken = "pending", ""
-		return updateLoungeOrderWithAudit(tx, r, before, &order, map[string]any{"delivery_status": "pending", "claim_token": "", "claim_expires_at": nil})
-	})
-	if conflict {
+	if err := db.DB.First(&order, id).Error; err != nil {
+		loungeError(w, err)
+		return
+	}
+	status := loungeDeliveryStatus(order, time.Now())
+	if status == "sent" || status == "sending" {
 		http.Error(w, "Notification already sent or currently sending", http.StatusConflict)
 		return
 	}
-	if unconfigured {
-		http.Error(w, "Notification retry is not configured", http.StatusServiceUnavailable)
-		return
+	origin, secret := os.Getenv("ORDER_INTERNAL_URL"), os.Getenv("ORDER_INTERNAL_SECRET")
+	if order.IsTest {
+		origin, secret = os.Getenv("ORDER_INTERNAL_TEST_URL"), os.Getenv("ORDER_INTERNAL_TEST_SECRET")
 	}
-	if err != nil {
-		loungeError(w, err)
+	address, err := url.Parse(origin)
+	local := address != nil && os.Getenv("K_SERVICE") == "" && (address.Hostname() == "localhost" || address.Hostname() == "127.0.0.1" || address.Hostname() == "host.docker.internal")
+	if err != nil || address.Host == "" || secret == "" || (address.Scheme != "https" && (address.Scheme != "http" || !local)) {
+		http.Error(w, "Notification retry is not configured", http.StatusServiceUnavailable)
 		return
 	}
 	body, _ := json.Marshal(map[string]any{"orderId": order.ID, "isTest": order.IsTest})
@@ -636,6 +667,11 @@ func RetryLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 	request.Header.Set("Authorization", "Bearer "+secret)
 	request.Header.Set("Content-Type", "application/json")
+	if order.IsTest && address.Scheme == "https" {
+		if bypass := os.Getenv("ORDER_INTERNAL_TEST_VERCEL_BYPASS_SECRET"); bypass != "" {
+			request.Header.Set("x-vercel-protection-bypass", bypass)
+		}
+	}
 	client := &http.Client{Timeout: 35 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	response, err := client.Do(request)
 	if err != nil {
