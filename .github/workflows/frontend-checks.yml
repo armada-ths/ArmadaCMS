@@ -133,7 +133,10 @@ jobs:
   test:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    container:
+      # Keep the image version in sync with Playwright in frontend/package.json.
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
     timeout-minutes: 10
     defaults:
       run:
@@ -161,9 +164,6 @@ jobs:
 
       - name: Run tests
         run: pnpm run test
-
-      - name: Install browser for translation review tests
-        run: pnpm exec playwright install --with-deps chromium
 
       - name: Test translation review in Chromium
         run: pnpm exec vitest run --config vitest.browser.config.ts src/routing.browser.tsx src/components/Translations/Translations.browser.tsx
