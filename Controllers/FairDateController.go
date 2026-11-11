@@ -99,6 +99,27 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if minutes := item.LoungeClosingLeadMinutes(); minutes < 0 || minutes > models.MaxLoungeOrderCloseMinutes {
+		http.Error(w, "Lounge order closing lead must be between 0 and 1440 minutes", http.StatusBadRequest)
+		return
+	}
+
+	if item.DayOneOpensAt == "" {
+		item.DayOneOpensAt = "10:00"
+	}
+	if item.DayOneClosesAt == "" {
+		item.DayOneClosesAt = "16:00"
+	}
+	if item.DayTwoOpensAt == "" {
+		item.DayTwoOpensAt = "10:00"
+	}
+	if item.DayTwoClosesAt == "" {
+		item.DayTwoClosesAt = "15:00"
+	}
+	if !validFairOpeningHours(w, item) {
+		return
+	}
+
 	NormalizeOptionalStringPointers(&item.DescriptionSv)
 	item.EventroID = nil
 
@@ -151,6 +172,31 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
+	if raw, exists := updateMap["lounge_order_close_minutes"]; exists {
+		minutes, ok := raw.(float64)
+		if !ok || minutes < 0 || minutes > models.MaxLoungeOrderCloseMinutes || minutes != float64(int(minutes)) {
+			http.Error(w, "Lounge order closing lead must be a whole number between 0 and 1440 minutes", http.StatusBadRequest)
+			return
+		}
+		updateMap["lounge_order_close_minutes"] = int(minutes)
+	}
+
+	next := item
+	for column, target := range map[string]*string{
+		"day_one_opens_at":  &next.DayOneOpensAt,
+		"day_one_closes_at": &next.DayOneClosesAt,
+		"day_two_opens_at":  &next.DayTwoOpensAt,
+		"day_two_closes_at": &next.DayTwoClosesAt,
+	} {
+		if raw, exists := updateMap[column]; exists {
+			value, _ := raw.(string)
+			*target = value
+		}
+	}
+	if !validFairOpeningHours(w, next) {
+		return
+	}
+
 	before := item
 	if err := updateWithAudit(r, "fairdates", id, before, &item, func(tx *gorm.DB) error {
 		return tx.Model(&item).Updates(updateMap).Error
@@ -163,6 +209,16 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
+}
+
+func validFairOpeningHours(w http.ResponseWriter, item models.FairDateConfig) bool {
+	for _, hours := range item.OpeningHours() {
+		if !hours.Valid() {
+			http.Error(w, "Enter opening and closing times as HH:MM with closing after opening", http.StatusBadRequest)
+			return false
+		}
+	}
+	return true
 }
 
 // DeleteFairDateConfig deletes a fair date configuration by ID.

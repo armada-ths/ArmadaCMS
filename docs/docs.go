@@ -6831,6 +6831,12 @@ const docTemplate = `{
                         },
                         "descriptionSv": {
                             "type": "string"
+                        },
+                        "openingHours": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.FairOpeningHours"
+                            }
                         }
                     }
                 },
@@ -6864,6 +6870,18 @@ const docTemplate = `{
         "models.FairDateConfig": {
             "type": "object",
             "properties": {
+                "dayOneClosesAt": {
+                    "type": "string"
+                },
+                "dayOneOpensAt": {
+                    "type": "string"
+                },
+                "dayTwoClosesAt": {
+                    "type": "string"
+                },
+                "dayTwoOpensAt": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -6897,6 +6915,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "irStart": {
+                    "type": "string"
+                },
+                "loungeOrderCloseMinutes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.FairOpeningHours": {
+            "type": "object",
+            "properties": {
+                "closesAt": {
+                    "type": "string"
+                },
+                "opensAt": {
                     "type": "string"
                 }
             }

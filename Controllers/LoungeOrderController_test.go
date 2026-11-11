@@ -142,6 +142,11 @@ func TestLoungeOrderIDFilters(t *testing.T) {
 	}
 }
 
+var loungeTestHours = [2]models.FairOpeningHours{
+	{OpensAt: "10:00", ClosesAt: "16:00"},
+	{OpensAt: "10:00", ClosesAt: "15:00"},
+}
+
 func TestLoungeOpeningBoundaries(t *testing.T) {
 	zone, _ := time.LoadLocation("Europe/Stockholm")
 	for _, example := range []struct {
@@ -153,12 +158,51 @@ func TestLoungeOpeningBoundaries(t *testing.T) {
 		{"2026-11-18T14:30:01", false}, {"2026-11-19T10:00:00", false},
 	} {
 		now, _ := time.ParseInLocation("2006-01-02T15:04:05", example.time, zone)
-		if loungeOpen([]string{"2026-11-17", "2026-11-18"}, now) != example.open {
+		if loungeOpen([]string{"2026-11-17", "2026-11-18"}, loungeTestHours, now, models.DefaultLoungeOrderCloseMinutes) != example.open {
 			t.Fatalf("incorrect opening at %s", example.time)
 		}
 	}
-	if loungeOpen([]string{"invalid", "2026-11-18"}, time.Now()) || loungeOpen([]string{"2026-11-18", "2026-11-17"}, time.Now()) {
+	if loungeOpen([]string{"invalid", "2026-11-18"}, loungeTestHours, time.Now(), models.DefaultLoungeOrderCloseMinutes) || loungeOpen([]string{"2026-11-18", "2026-11-17"}, loungeTestHours, time.Now(), models.DefaultLoungeOrderCloseMinutes) {
 		t.Fatal("invalid dates accepted")
+	}
+}
+
+func TestLoungeConfigurableClosingLead(t *testing.T) {
+	days := []string{"2026-11-17", "2026-11-18"}
+	zone, _ := time.LoadLocation("Europe/Stockholm")
+	for _, example := range []struct {
+		day, hour, minute, lead int
+		open                    bool
+	}{
+		{17, 15, 1, 60, false},
+		{18, 14, 0, 60, true},
+		{18, 14, 1, 60, false},
+		{18, 15, 0, 0, true},
+		{18, 15, 1, 0, false},
+		{18, 10, 0, 300, false},
+	} {
+		now := time.Date(2026, time.November, example.day, example.hour, example.minute, 0, 0, zone)
+		if loungeOpen(days, loungeTestHours, now, example.lead) != example.open {
+			t.Errorf("unexpected availability at %s with %d minutes lead", now, example.lead)
+		}
+	}
+}
+
+func TestLoungeUsesConfiguredFairHours(t *testing.T) {
+	days := []string{"2026-11-17", "2026-11-18"}
+	hours := [2]models.FairOpeningHours{{OpensAt: "11:15", ClosesAt: "17:00"}, {OpensAt: "09:30", ClosesAt: "14:15"}}
+	zone, _ := time.LoadLocation("Europe/Stockholm")
+	for _, example := range []struct {
+		day, hour, minute int
+		open              bool
+	}{
+		{17, 11, 14, false}, {17, 11, 15, true}, {17, 16, 30, true}, {17, 16, 31, false},
+		{18, 9, 29, false}, {18, 9, 30, true}, {18, 13, 45, true}, {18, 13, 46, false},
+	} {
+		now := time.Date(2026, time.November, example.day, example.hour, example.minute, 0, 0, zone)
+		if loungeOpen(days, hours, now, 30) != example.open {
+			t.Errorf("unexpected availability at %s", now)
+		}
 	}
 }
 

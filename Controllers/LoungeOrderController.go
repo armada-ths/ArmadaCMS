@@ -79,7 +79,7 @@ func loungeService(w http.ResponseWriter, r *http.Request) (bool, bool) {
 	return false, false
 }
 
-func loungeOpen(parts []string, now time.Time) bool {
+func loungeOpen(parts []string, hours [2]models.FairOpeningHours, now time.Time, closeMinutes int) bool {
 	zone, err := time.LoadLocation("Europe/Stockholm")
 	if err != nil {
 		return false
@@ -104,11 +104,15 @@ func loungeOpen(parts []string, now time.Time) bool {
 		return false
 	}
 	now = now.In(zone)
-	if now.Format("2006-01-02") == first.Format("2006-01-02") {
-		return !now.Before(first.Add(10*time.Hour)) && !now.After(first.Add(15*time.Hour+30*time.Minute))
-	}
-	if now.Format("2006-01-02") == second.Format("2006-01-02") {
-		return !now.Before(second.Add(10*time.Hour)) && !now.After(second.Add(14*time.Hour+30*time.Minute))
+	lead := time.Duration(closeMinutes) * time.Minute
+	for i, day := range []time.Time{first, second} {
+		if now.Format("2006-01-02") == day.Format("2006-01-02") {
+			date := day.Format("2006-01-02")
+			open, openErr := time.ParseInLocation("2006-01-02 15:04", date+" "+hours[i].OpensAt, zone)
+			close, closeErr := time.ParseInLocation("2006-01-02 15:04", date+" "+hours[i].ClosesAt, zone)
+			cutoff := close.Add(-lead)
+			return openErr == nil && closeErr == nil && cutoff.After(open) && !now.Before(open) && !now.After(cutoff)
+		}
 	}
 	return false
 }
@@ -125,7 +129,7 @@ func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, 503, map[string]string{"errorCode": "availability_unavailable"})
 		return
 	}
-	writeJSONResponse(w, 200, map[string]bool{"open": loungeOpen(dates.ToFairDate().Fair.Days, time.Now())})
+	writeJSONResponse(w, 200, map[string]bool{"open": loungeOpen(dates.ToFairDate().Fair.Days, dates.OpeningHours(), time.Now(), dates.LoungeClosingLeadMinutes())})
 }
 
 // SubmitLoungeOrder persists an authenticated, idempotent order before delivery.
@@ -187,7 +191,7 @@ func submitLoungeOrder(w http.ResponseWriter, r *http.Request, now func() time.T
 			}
 			return err
 		}
-		if !loungeOpen(dates.ToFairDate().Fair.Days, now()) {
+		if !loungeOpen(dates.ToFairDate().Fair.Days, dates.OpeningHours(), now(), dates.LoungeClosingLeadMinutes()) {
 			return loungeOrderError("orders_closed")
 		}
 		var company models.Exhibitor
@@ -300,7 +304,8 @@ func ClaimLoungeDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 		before := order
 		status := loungeDeliveryStatus(order, time.Now())
-		if status != "pending" && !(input.Retry && (status == "failed" || status == "unknown")) {
+		retryable := input.Retry && (status == "failed" || status == "unknown")
+		if status != "pending" && !retryable {
 			return nil
 		}
 		token := make([]byte, 32)

@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { Button, Stack, TextField, Typography } from "@mui/material";
-import { DateInput, SimpleForm, TextInput } from "react-admin";
+import {
+  DateInput,
+  NumberInput,
+  SimpleForm,
+  TextInput,
+  maxValue,
+  minValue,
+  required,
+  regex,
+} from "react-admin";
 import { useController } from "react-hook-form";
 
 const splitFairDays = (value: unknown): string[] => {
@@ -99,6 +108,11 @@ const FairDaysInput = () => {
   );
 };
 
+const fairTimeValidators = [
+  required(),
+  regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, "Enter a time in HH:MM format"),
+];
+
 export const FairDateForm = () => (
   <SimpleForm>
     <TextInput
@@ -114,6 +128,50 @@ export const FairDateForm = () => (
     />
 
     <FairDaysInput />
+    <TextInput
+      source="dayOneOpensAt"
+      label="Day 1 opens"
+      type="time"
+      defaultValue="10:00"
+      validate={fairTimeValidators}
+    />
+    <TextInput
+      source="dayOneClosesAt"
+      label="Day 1 closes"
+      type="time"
+      defaultValue="16:00"
+      validate={fairTimeValidators}
+    />
+    <TextInput
+      source="dayTwoOpensAt"
+      label="Day 2 opens"
+      type="time"
+      defaultValue="10:00"
+      validate={fairTimeValidators}
+    />
+    <TextInput
+      source="dayTwoClosesAt"
+      label="Day 2 closes"
+      type="time"
+      defaultValue="15:00"
+      validate={fairTimeValidators}
+    />
+    <NumberInput
+      source="loungeOrderCloseMinutes"
+      label="Lounge ordering cutoff (minutes before fair closes)"
+      helperText="Applies to both fair days. Enter 0 to accept orders until the fair closes."
+      defaultValue={30}
+      min={0}
+      max={1440}
+      step={1}
+      validate={[
+        required(),
+        minValue(0),
+        maxValue(1440),
+        (value) =>
+          Number.isInteger(value) ? undefined : "Enter a whole number",
+      ]}
+    />
 
     <DateInput
       source="irStart"

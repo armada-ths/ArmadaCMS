@@ -487,6 +487,10 @@ definitions:
             type: string
           descriptionSv:
             type: string
+          openingHours:
+            items:
+              $ref: '#/definitions/models.FairOpeningHours'
+            type: array
         type: object
       fr:
         properties:
@@ -507,6 +511,14 @@ definitions:
     type: object
   models.FairDateConfig:
     properties:
+      dayOneClosesAt:
+        type: string
+      dayOneOpensAt:
+        type: string
+      dayTwoClosesAt:
+        type: string
+      dayTwoOpensAt:
+        type: string
       description:
         type: string
       descriptionSv:
@@ -530,6 +542,15 @@ definitions:
       irEnd:
         type: string
       irStart:
+        type: string
+      loungeOrderCloseMinutes:
+        type: integer
+    type: object
+  models.FairOpeningHours:
+    properties:
+      closesAt:
+        type: string
+      opensAt:
         type: string
     type: object
   models.FeatureFlag:
