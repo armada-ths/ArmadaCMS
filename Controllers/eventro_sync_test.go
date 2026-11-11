@@ -103,17 +103,17 @@ func TestEventroThumbnailAndCategoryCorrections(t *testing.T) {
 	current := models.Exhibitor{LogoFreesizeUrl: &original, Industries: []models.Industry{{ID: 5, Name: "Technology"}}}
 	incoming := models.Exhibitor{LogoFreesizeUrl: &original, LogoThumbnail: &thumb, Industries: []models.Industry{{Name: "Technology"}}}
 	state := models.EventroSyncState{}
-	got := mergeEventroExhibitor(current, incoming, &state, false)
+	got := mergeEventroExhibitor(current, incoming, &state, false, true)
 	if got.LogoThumbnail == nil || *got.LogoThumbnail != thumb || state.Overrides["logo"] || state.Overrides["industries"] {
 		t.Fatal("safe thumbnail addition or name-based category comparison failed")
 	}
 	current = got
 	current.LogoFreesizeUrl, current.LogoThumbnail = &manual, nil
-	got = mergeEventroExhibitor(current, incoming, &state, false)
+	got = mergeEventroExhibitor(current, incoming, &state, false, true)
 	if got.LogoThumbnail != nil || *got.LogoFreesizeUrl != manual {
 		t.Fatal("manual logo mixed with Eventro thumbnail")
 	}
-	if !reflect.DeepEqual(normalizedEventroLabels([]string{" Stockholm ", "Stockholm", "", "Göteborg"}), []string{"Göteborg", "Stockholm"}) {
+	if !reflect.DeepEqual(normalizedEventroLocations([]string{" Stockholm ", "Stockholm", "", "Göteborg"}), []string{"Göteborg", "Stockholm"}) {
 		t.Fatal("locations not normalized")
 	}
 }

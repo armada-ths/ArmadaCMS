@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func eventroSyncTestDatabase(t *testing.T) *gorm.DB {
+func openEventroSyncTestDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := os.Getenv("EVENTRO_SYNC_TEST_DSN")
 	if dsn == "" {
@@ -33,16 +33,22 @@ func eventroSyncTestDatabase(t *testing.T) *gorm.DB {
 	}
 	sqlDB, _ := database.DB()
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := database.AutoMigrate(&models.User{}, &models.Role{}, &models.Profile{}, &models.Event{}, &models.Exhibitor{}, &models.FairDateConfig{}, &models.RecruitmentPeriod{}, &models.RecruitmentRole{}, &models.AuditLog{}, &models.EventroSyncState{}, &models.Blogpost{}, &models.HighlightCard{}, &models.Industry{}, &models.Employment{}, &models.Program{}, &models.Team{}, &models.TimelineEra{}, &models.TimelineEntry{}, &models.PhotoEvent{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.Role{}, &models.Profile{}, &models.Event{}, &models.Exhibitor{}, &models.FairDateConfig{}, &models.RecruitmentPeriod{}, &models.RecruitmentRole{}, &models.AuditLog{}, &models.EventroSyncState{}, &models.EventroSyncBlock{}, &models.Blogpost{}, &models.HighlightCard{}, &models.Industry{}, &models.Employment{}, &models.Program{}, &models.Team{}, &models.TimelineEra{}, &models.TimelineEntry{}, &models.PhotoEvent{}); err != nil {
 		t.Fatal(err)
 	}
+	return database
+}
+
+func eventroSyncTestDatabase(t *testing.T) *gorm.DB {
+	t.Helper()
+	database := openEventroSyncTestDatabase(t)
 	tx := database.Begin()
 	if tx.Error != nil {
 		t.Fatal(tx.Error)
 	}
 	t.Cleanup(func() { _ = tx.Rollback().Error })
 	database = tx
-	if err := database.Exec("TRUNCATE eventro_sync_states, profiles, events, exhibitors, fair_date_configs, recruitment_periods, recruitment_roles, audit_logs, blogposts, highlight_cards, industries, employments, programs, teams, timeline_eras, timeline_entries, photo_events RESTART IDENTITY CASCADE").Error; err != nil {
+	if err := database.Exec("TRUNCATE eventro_sync_blocks, eventro_sync_states, profiles, events, exhibitors, fair_date_configs, recruitment_periods, recruitment_roles, audit_logs, blogposts, highlight_cards, industries, employments, programs, teams, timeline_eras, timeline_entries, photo_events RESTART IDENTITY CASCADE").Error; err != nil {
 		t.Fatal(err)
 	}
 	previous := db.DB

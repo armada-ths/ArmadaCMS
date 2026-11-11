@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type recruitmentPeriodPayload struct {
@@ -222,9 +223,14 @@ func UpdateRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 func DeleteRecruitmentPeriod(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	writeGroupedDeleteResponseWithAudit(w, r, "recruitmentperiods", id, "recruitment period not found", func(tx *gorm.DB) *gorm.DB {
-		return tx.Preload("Roles").Preload("Roles.Team")
+		return tx.Preload("Roles", func(query *gorm.DB) *gorm.DB {
+			return query.Order("id").Clauses(clause.Locking{Strength: "UPDATE"})
+		}).Preload("Roles.Team")
 	}, func(tx *gorm.DB, period *models.RecruitmentPeriod, childRequest *http.Request) error {
 		for i := range period.Roles {
+			if err := blockDeletedEventroRecord(tx, childRequest, "recruitmentroles", &period.Roles[i]); err != nil {
+				return err
+			}
 			if err := tx.Delete(&period.Roles[i]).Error; err != nil {
 				return err
 			}

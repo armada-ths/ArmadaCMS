@@ -345,6 +345,19 @@ definitions:
       productId:
         type: string
     type: object
+  models.EventroSyncBlock:
+    properties:
+      deletedAt:
+        type: string
+      eventroKey:
+        type: string
+      id:
+        type: integer
+      label:
+        type: string
+      resource:
+        type: string
+    type: object
   models.Exhibitor:
     properties:
       about:
@@ -1535,6 +1548,11 @@ paths:
         name: fairId
         required: true
         type: string
+      - default: true
+        description: Include exhibitor categories
+        in: query
+        name: syncCategories
+        type: boolean
       produces:
       - application/json
       responses:
@@ -1647,6 +1665,64 @@ paths:
       security:
       - BearerAuth: []
       summary: Sync recruitment data from Eventro
+      tags:
+      - eventro
+  /eventrosyncblocks:
+    get:
+      parameters:
+      - description: CMS resource
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.EventroSyncBlock'
+            type: array
+        "400":
+          description: Invalid resource
+          schema:
+            type: string
+        "403":
+          description: Insufficient resource permissions
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List blocked Eventro records for a resource
+      tags:
+      - eventro
+  /eventrosyncblocks/{id}:
+    delete:
+      parameters:
+      - description: Block ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid block ID
+          schema:
+            type: string
+        "403":
+          description: Insufficient resource permissions
+          schema:
+            type: string
+        "404":
+          description: Block not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Allow a blocked Eventro record to sync again
       tags:
       - eventro
   /eventrosyncreview:

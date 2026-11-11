@@ -383,6 +383,8 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/eventroexhibitors", auth.RequirePermission("eventrosync.access", controllers.FetchExhibitorsEventro)).Methods("GET")
 	protectedAPI.HandleFunc("/eventrosyncreview", auth.RequirePermission("eventrosync.access", controllers.GetEventroSyncReview)).Methods("GET")
 	protectedAPI.HandleFunc("/eventrosyncreview", auth.RequirePermission("eventrosync.access", controllers.ResolveEventroSyncReview)).Methods("POST")
+	protectedAPI.HandleFunc("/eventrosyncblocks", auth.RequirePermission("eventrosync.access", controllers.ListEventroSyncBlocks)).Methods("GET")
+	protectedAPI.HandleFunc("/eventrosyncblocks/{id}", auth.RequirePermission("eventrosync.access", controllers.DeleteEventroSyncBlock)).Methods("DELETE")
 	protectedAPI.HandleFunc("/eventroevents", auth.RequirePermission("eventrosync.access", controllers.FetchEventsEventro)).Methods("GET")
 	protectedAPI.HandleFunc("/eventrofairdates", auth.RequirePermission("eventrosync.access", controllers.FetchFairDatesEventro)).Methods("GET")
 	protectedAPI.HandleFunc("/eventrofairs", auth.RequirePermission("eventrosync.access", controllers.GetEventroFairs)).Methods("GET")

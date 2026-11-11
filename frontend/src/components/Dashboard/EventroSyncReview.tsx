@@ -14,6 +14,8 @@ import {
   DialogTitle,
   MenuItem,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -84,6 +86,15 @@ type ReviewRow = {
     { productId: string; name: string; displayName: string }[] | null;
 };
 
+type BlockedRecord = {
+  id: number;
+  eventroKey: string;
+  label: string;
+  deletedAt: string;
+};
+
+type ReviewTab = "review" | "blocks";
+
 function displayValue(value: unknown) {
   if (value === null || value === "") return "(empty)";
   return typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -98,16 +109,31 @@ export function EventroSyncReview({
 }) {
   const [open, setOpen] = useState(false);
   const available = resources.filter(([key]) => hasPerm(perms, `${key}.edit`));
-  const [resource, setResource] = useState<string>(
-    available[0]?.[0] ?? "exhibitors",
+  const blockResources = resources.filter(([key]) =>
+    hasPerm(perms, key + ".delete"),
   );
+  const [reviewResource, setReviewResource] = useState<string>("");
+  const [blockResource, setBlockResource] = useState<string>("");
+  const [selectedTab, setSelectedTab] = useState<ReviewTab>("review");
+  const tab =
+    available.length === 0
+      ? "blocks"
+      : blockResources.length === 0
+        ? "review"
+        : selectedTab;
+  const resource = available.some(([key]) => key === reviewResource)
+    ? reviewResource
+    : (available[0]?.[0] ?? "");
+  const blockedResource = blockResources.some(([key]) => key === blockResource)
+    ? blockResource
+    : (blockResources[0]?.[0] ?? "");
   const [saving, setSaving] = useState(false);
   const createPath = useCreatePath();
   const notify = useNotify();
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["eventro-review", resource, syncVersion],
-    enabled: open && syncVersion === null && available.length > 0,
+    enabled: open && tab === "review" && syncVersion === null && !!resource,
     queryFn: async () =>
       (
         await axiosInstance.get<ReviewRow[]>("/eventrosyncreview", {
@@ -115,6 +141,38 @@ export function EventroSyncReview({
         })
       ).data,
   });
+
+  const blocks = useQuery({
+    queryKey: ["eventro-blocks", blockedResource],
+    enabled: open && tab === "blocks" && !!blockedResource,
+    queryFn: async () =>
+      (
+        await axiosInstance.get<BlockedRecord[]>("/eventrosyncblocks", {
+          params: { resource: blockedResource },
+        })
+      ).data,
+  });
+
+  const allowReimport = async (record: BlockedRecord) => {
+    setSaving(true);
+    try {
+      await axiosInstance.delete("/eventrosyncblocks/" + record.id);
+      await queryClient.invalidateQueries({ queryKey: ["eventro-blocks"] });
+      notify("Eventro can import this record on the next sync.", {
+        type: "success",
+      });
+    } catch {
+      await queryClient.invalidateQueries({ queryKey: ["eventro-blocks"] });
+      notify(
+        "Could not allow reimport. The blocked records list was refreshed.",
+        {
+          type: "error",
+        },
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const resolve = async (
     row: ReviewRow,
@@ -149,7 +207,7 @@ export function EventroSyncReview({
     }
   };
 
-  if (available.length === 0) return null;
+  if (available.length === 0 && blockResources.length === 0) return null;
   return (
     <>
       <Button
@@ -168,149 +226,269 @@ export function EventroSyncReview({
       >
         <DialogTitle>Eventro sync and data quality</DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            CMS corrections are preserved. Keep CMS acknowledges a difference;
-            use Eventro applies its current value and resumes synchronization
-            for that field.
-          </Alert>
-          <TextField
-            select
-            label="Resource"
-            value={resource}
-            onChange={(event) => setResource(event.target.value)}
-            disabled={saving}
-            fullWidth
+          <Tabs
+            value={tab}
+            onChange={(_, value: ReviewTab) => setSelectedTab(value)}
+            aria-label="Eventro review views"
             sx={{ mb: 2 }}
           >
-            {available.map(([key, label]) => (
-              <MenuItem key={key} value={key}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button
-            onClick={() => void query.refetch()}
-            disabled={saving || query.isFetching}
-          >
-            Refresh review
-          </Button>
-          {query.isFetching && (
-            <CircularProgress size={20} aria-label="Loading review" />
-          )}
-          {query.isError && (
-            <Alert severity="error">Could not load the review.</Alert>
-          )}
-          {query.isSuccess && query.data.length === 0 && (
-            <Alert severity="success">No items need review.</Alert>
-          )}
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            {(query.data ?? []).map((row) => (
-              <Box
-                key={row.id}
-                sx={{
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  p: 2,
-                }}
+            {available.length > 0 && (
+              <Tab
+                id="eventro-review-tab"
+                aria-controls="eventro-review-panel"
+                value="review"
+                label="Field review"
+                disabled={saving}
+              />
+            )}
+            {blockResources.length > 0 && (
+              <Tab
+                id="eventro-blocks-tab"
+                aria-controls="eventro-blocks-panel"
+                value="blocks"
+                label="Blocked records"
+                disabled={saving}
+              />
+            )}
+          </Tabs>
+          {tab === "blocks" && (
+            <Stack
+              id="eventro-blocks-panel"
+              role="tabpanel"
+              aria-labelledby="eventro-blocks-tab"
+              spacing={2}
+            >
+              <Alert severity="info">
+                Eventro skips these records. Allow reimport to let the next sync
+                create a fresh record from Eventro. Recruitment roles are
+                unblocked separately from their period.
+              </Alert>
+              <TextField
+                select
+                label="Resource"
+                value={blockedResource}
+                onChange={(event) => setBlockResource(event.target.value)}
+                disabled={saving}
+                fullWidth
               >
-                <Button
-                  component={RouterLink}
-                  to={createPath({
-                    type: "edit",
-                    resource: row.resource,
-                    id: row.id,
-                  })}
-                  disabled={saving}
-                >
-                  {row.name || `Record ${row.id}`}
-                </Button>
-                {row.notice && (
-                  <Alert severity="warning" sx={{ mb: 1 }}>
-                    {row.notice}
-                  </Alert>
-                )}
-                <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, mb: 1 }}>
-                  {row.missing.map((field) => (
-                    <Chip
-                      key={field}
-                      label={`Missing: ${fieldLabels[field] ?? field}`}
-                      size="small"
-                      color="warning"
-                    />
-                  ))}
-                </Stack>
-                {!!row.unmappedProducts?.length && (
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Products without a tier mapping (including possible
-                    add-ons):
-                    {row.unmappedProducts.map((product) => (
-                      <Typography key={product.productId} variant="body2">
-                        {product.displayName || product.name} —{" "}
-                        {product.productId}
-                      </Typography>
-                    ))}
-                  </Alert>
-                )}
-                {row.fields.map((field) => (
-                  <Box
-                    key={field.field}
-                    sx={{ borderTop: 1, borderColor: "divider", pt: 2, mt: 2 }}
-                  >
-                    <Typography sx={{ fontWeight: "bold" }}>
-                      {fieldLabels[field.field] ?? field.field} —{" "}
-                      {field.conflict ? "Review needed" : "CMS override"}
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                        gap: 2,
-                        my: 1,
-                      }}
+                {blockResources.map(([key, label]) => (
+                  <MenuItem key={key} value={key}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {blocks.isFetching && (
+                <CircularProgress
+                  size={20}
+                  aria-label="Loading blocked records"
+                />
+              )}
+              {blocks.isError && (
+                <Alert
+                  severity="error"
+                  action={
+                    <Button
+                      color="inherit"
+                      onClick={() => void blocks.refetch()}
                     >
-                      {(
-                        [
-                          ["CMS", field.cms],
-                          ["Eventro", field.eventro],
-                        ] as const
-                      ).map(([label, value]) => (
-                        <Box key={label}>
-                          <Typography variant="caption">{label}</Typography>
-                          <Box
-                            component="pre"
-                            sx={{
-                              whiteSpace: "pre-wrap",
-                              overflowWrap: "anywhere",
-                              m: 0,
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            {displayValue(value)}
-                          </Box>
-                        </Box>
+                      Retry
+                    </Button>
+                  }
+                >
+                  Could not load blocked records.
+                </Alert>
+              )}
+              {blocks.isSuccess && blocks.data.length === 0 && (
+                <Alert severity="success">No blocked records.</Alert>
+              )}
+              {(blocks.data ?? []).map((record) => (
+                <Stack
+                  key={record.id}
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: { sm: "center" },
+                  }}
+                >
+                  <Box sx={{ overflowWrap: "anywhere" }}>
+                    <Typography sx={{ fontWeight: "bold" }}>
+                      {record.label || record.eventroKey}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {record.eventroKey} ·{" "}
+                      {new Date(record.deletedAt).toLocaleString()}
+                    </Typography>
+                  </Box>
+                  <Button
+                    disabled={saving}
+                    onClick={() => void allowReimport(record)}
+                  >
+                    Allow reimport
+                  </Button>
+                </Stack>
+              ))}
+            </Stack>
+          )}
+          {tab === "review" && (
+            <Box
+              id="eventro-review-panel"
+              role="tabpanel"
+              aria-labelledby="eventro-review-tab"
+            >
+              <Alert severity="info" sx={{ mb: 2 }}>
+                CMS corrections are preserved. Keep CMS acknowledges a
+                difference; use Eventro applies its current value and resumes
+                synchronization for that field.
+              </Alert>
+              <TextField
+                select
+                label="Resource"
+                value={resource}
+                onChange={(event) => setReviewResource(event.target.value)}
+                disabled={saving}
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                {available.map(([key, label]) => (
+                  <MenuItem key={key} value={key}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button
+                onClick={() => void query.refetch()}
+                disabled={saving || query.isFetching}
+              >
+                Refresh review
+              </Button>
+              {query.isFetching && (
+                <CircularProgress size={20} aria-label="Loading review" />
+              )}
+              {query.isError && (
+                <Alert severity="error">Could not load the review.</Alert>
+              )}
+              {query.isSuccess && query.data.length === 0 && (
+                <Alert severity="success">No items need review.</Alert>
+              )}
+              <Stack spacing={3} sx={{ mt: 2 }}>
+                {(query.data ?? []).map((row) => (
+                  <Box
+                    key={row.id}
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      p: 2,
+                    }}
+                  >
+                    <Button
+                      component={RouterLink}
+                      to={createPath({
+                        type: "edit",
+                        resource: row.resource,
+                        id: row.id,
+                      })}
+                      disabled={saving}
+                    >
+                      {row.name || `Record ${row.id}`}
+                    </Button>
+                    {row.notice && (
+                      <Alert severity="warning" sx={{ mb: 1 }}>
+                        {row.notice}
+                      </Alert>
+                    )}
+                    <Stack
+                      direction="row"
+                      sx={{ flexWrap: "wrap", gap: 1, mb: 1 }}
+                    >
+                      {row.missing.map((field) => (
+                        <Chip
+                          key={field}
+                          label={`Missing: ${fieldLabels[field] ?? field}`}
+                          size="small"
+                          color="warning"
+                        />
                       ))}
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        disabled={saving}
-                        onClick={() => void resolve(row, field, "cms")}
-                      >
-                        Keep CMS
-                      </Button>
-                      <Button
-                        disabled={saving}
-                        variant="outlined"
-                        onClick={() => void resolve(row, field, "eventro")}
-                      >
-                        Use Eventro
-                      </Button>
                     </Stack>
+                    {!!row.unmappedProducts?.length && (
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        Products without a tier mapping (including possible
+                        add-ons):
+                        {row.unmappedProducts.map((product) => (
+                          <Typography key={product.productId} variant="body2">
+                            {product.displayName || product.name} —{" "}
+                            {product.productId}
+                          </Typography>
+                        ))}
+                      </Alert>
+                    )}
+                    {row.fields.map((field) => (
+                      <Box
+                        key={field.field}
+                        sx={{
+                          borderTop: 1,
+                          borderColor: "divider",
+                          pt: 2,
+                          mt: 2,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: "bold" }}>
+                          {fieldLabels[field.field] ?? field.field} —{" "}
+                          {field.conflict ? "Review needed" : "CMS override"}
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                            gap: 2,
+                            my: 1,
+                          }}
+                        >
+                          {(
+                            [
+                              ["CMS", field.cms],
+                              ["Eventro", field.eventro],
+                            ] as const
+                          ).map(([label, value]) => (
+                            <Box key={label}>
+                              <Typography variant="caption">{label}</Typography>
+                              <Box
+                                component="pre"
+                                sx={{
+                                  whiteSpace: "pre-wrap",
+                                  overflowWrap: "anywhere",
+                                  m: 0,
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                {displayValue(value)}
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            disabled={saving}
+                            onClick={() => void resolve(row, field, "cms")}
+                          >
+                            Keep CMS
+                          </Button>
+                          <Button
+                            disabled={saving}
+                            variant="outlined"
+                            onClick={() => void resolve(row, field, "eventro")}
+                          >
+                            Use Eventro
+                          </Button>
+                        </Stack>
+                      </Box>
+                    ))}
                   </Box>
                 ))}
-              </Box>
-            ))}
-          </Stack>
+              </Stack>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button disabled={saving} onClick={() => setOpen(false)}>
