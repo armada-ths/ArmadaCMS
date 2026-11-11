@@ -60,6 +60,9 @@ var adminClientRouteSegments = map[string]struct{}{
 	"blogposts":          {},
 	"timeline-entries":   {},
 	"timeline-eras":      {},
+	"lounge-items":       {},
+	"lounge-categories":  {},
+	"lounge-orders":      {},
 	"login":              {},
 	"translations":       {},
 }
@@ -364,6 +367,29 @@ func CreateControllers(mux *mux.Router) *mux.Router {
 	protectedAPI.HandleFunc("/blogposts/upload", auth.RequirePermission("blogposts.create", controllers.UploadBlogImage)).Methods("POST")
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.edit", controllers.UpdateBlogpost)).Methods("PUT")
 	protectedAPI.HandleFunc("/blogposts/{id}", auth.RequirePermission("blogposts.delete", controllers.DeleteBlogpost)).Methods("DELETE")
+
+	publicAPI.HandleFunc("/lounge-items", controllers.GetLoungeItems).Methods("GET")
+	publicAPI.HandleFunc("/lounge-items/{id}", controllers.GetLoungeItemByID).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-items", auth.RequirePermission("lounge.create", controllers.CreateLoungeItem)).Methods("POST")
+	protectedAPI.HandleFunc("/lounge-items/{id}", auth.RequirePermission("lounge.edit", controllers.UpdateLoungeItem)).Methods("PUT")
+	protectedAPI.HandleFunc("/lounge-items/{id}", auth.RequirePermission("lounge.delete", controllers.DeleteLoungeItem)).Methods("DELETE")
+	publicAPI.HandleFunc("/lounge-categories", controllers.GetLoungeCategories).Methods("GET")
+	publicAPI.HandleFunc("/lounge-categories/{id:[0-9]+}", controllers.GetLoungeCategory).Methods("GET")
+	publicAPI.HandleFunc("/lounge-catalogue", controllers.GetLoungeCatalogue).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-catalogue", auth.RequirePermission("lounge.edit", controllers.ReorderLoungeCatalogue)).Methods("PUT")
+	protectedAPI.HandleFunc("/lounge-categories", auth.RequirePermission("lounge.create", controllers.CreateLoungeCategory)).Methods("POST")
+	protectedAPI.HandleFunc("/lounge-categories/{id:[0-9]+}", auth.RequirePermission("lounge.edit", controllers.UpdateLoungeCategory)).Methods("PUT")
+	protectedAPI.HandleFunc("/lounge-categories/{id:[0-9]+}", auth.RequirePermission("lounge.delete", controllers.DeleteLoungeCategory)).Methods("DELETE")
+	publicAPI.HandleFunc("/lounge-orders/availability", controllers.GetLoungeOrderAvailability).Methods("GET")
+	publicAPI.HandleFunc("/lounge-orders/submit", controllers.SubmitLoungeOrder).Methods("POST")
+	publicAPI.HandleFunc("/lounge-orders/{id:[0-9]+}/claim", controllers.ClaimLoungeDelivery).Methods("POST")
+	publicAPI.HandleFunc("/lounge-orders/{id:[0-9]+}/delivery", controllers.ReportLoungeDelivery).Methods("POST")
+	protectedAPI.HandleFunc("/lounge-orders", auth.RequirePermission("lounge.view", controllers.ListLoungeOrders)).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-orders/totals", auth.RequirePermission("lounge.view", controllers.LoungeOrderTotals)).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-orders/filter-options", auth.RequirePermission("lounge.view", controllers.LoungeOrderFilterOptions)).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-orders/{id:[0-9]+}", auth.RequirePermission("lounge.view", controllers.GetLoungeOrder)).Methods("GET")
+	protectedAPI.HandleFunc("/lounge-orders/{id:[0-9]+}", auth.RequirePermission("lounge.edit", controllers.UpdateLoungeOrder)).Methods("PUT")
+	protectedAPI.HandleFunc("/lounge-orders/{id:[0-9]+}/retry", auth.RequirePermission("lounge.edit", controllers.RetryLoungeDelivery)).Methods("POST")
 
 	// timeline entries
 	publicAPI.HandleFunc("/timeline-eras", controllers.GetTimelineEras).Methods("GET")

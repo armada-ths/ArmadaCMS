@@ -219,4 +219,6 @@ export const RESOURCE_FILTERS: Record<ResourceName, ResourceFilter[]> = {
   ],
   // Audit logs retain their existing action, resource and username filters.
   auditlogs: [],
+  "lounge-items": [],
+  "lounge-orders": [],
 };

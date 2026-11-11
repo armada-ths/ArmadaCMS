@@ -1,0 +1,353 @@
+package controllers
+
+import (
+	"ArmadaCMS/main/db"
+	"ArmadaCMS/main/models"
+	"ArmadaCMS/main/utils"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gorilla/mux"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+// GetLoungeItems lists the complete catalogue unless a range is specified.
+// @Summary List lounge items
+// @Tags lounge-items
+// @Produce json
+// @Param range query string false "Inclusive pagination range"
+// @Param sort query string false "Field and ASC/DESC direction"
+// @Param filter query string false "Name, soldOut or ID filter"
+// @Success 200 {array} models.LoungeItem
+// @Router /lounge-items [get]
+func GetLoungeItems(w http.ResponseWriter, r *http.Request) {
+	params, _ := utils.ParseListParams(r.URL.Query())
+	column := clause.Column{Name: "sort_order"}
+	descending := false
+	if raw := r.URL.Query().Get("sort"); raw != "" {
+		var sort []string
+		if json.Unmarshal([]byte(raw), &sort) != nil || len(sort) != 2 {
+			http.Error(w, "Invalid sort", http.StatusBadRequest)
+			return
+		}
+		switch sort[0] {
+		case "id":
+			column = clause.Column{Name: "id"}
+		case "name":
+			column = clause.Column{Name: "name"}
+		case "sortOrder":
+			column = clause.Column{Name: "sort_order"}
+		case "soldOut":
+			column = clause.Column{Name: "sold_out"}
+		default:
+			http.Error(w, "Invalid sort", http.StatusBadRequest)
+			return
+		}
+		switch sort[1] {
+		case "ASC":
+			descending = false
+		case "DESC":
+			descending = true
+		default:
+			http.Error(w, "Invalid sort", http.StatusBadRequest)
+			return
+		}
+	}
+	query := db.DB.Model(&models.LoungeItem{})
+	if raw := r.URL.Query().Get("filter"); raw != "" {
+		var filters map[string]json.RawMessage
+		if json.Unmarshal([]byte(raw), &filters) != nil {
+			http.Error(w, "Invalid filter", http.StatusBadRequest)
+			return
+		}
+		for key, value := range filters {
+			switch key {
+			case "name":
+				var name string
+				if json.Unmarshal(value, &name) != nil {
+					http.Error(w, "Invalid name filter", http.StatusBadRequest)
+					return
+				}
+				query = query.Where("name = ?", name)
+			case "soldOut":
+				var soldOut bool
+				if json.Unmarshal(value, &soldOut) != nil {
+					http.Error(w, "Invalid soldOut filter", http.StatusBadRequest)
+					return
+				}
+				query = query.Where("sold_out = ?", soldOut)
+			case "id":
+				var ids []uint
+				if json.Unmarshal(value, &ids) != nil {
+					http.Error(w, "Invalid id filter", http.StatusBadRequest)
+					return
+				}
+				query = query.Where("id IN ?", ids)
+			default:
+				http.Error(w, "Unsupported filter", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+	start := 0
+	if r.URL.Query().Has("range") {
+		var bounds []int
+		if json.Unmarshal([]byte(r.URL.Query().Get("range")), &bounds) != nil ||
+			len(bounds) != 2 || bounds[0] < 0 || bounds[1] < bounds[0] || bounds[1]-bounds[0] >= 1000 {
+			http.Error(w, "Invalid range", http.StatusBadRequest)
+			return
+		}
+		start = params.Range[0]
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		log.Printf("lounge-items count failed: %v", err)
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
+	query = query.Order(clause.OrderByColumn{
+		Column: column,
+		Desc:   descending,
+	}).Order("id ASC")
+	if r.URL.Query().Has("range") {
+		query = query.Offset(start).Limit(params.Range[1] - start + 1)
+	}
+	items := make([]models.LoungeItem, 0)
+	if err := query.Find(&items).Error; err != nil {
+		log.Printf("lounge-items list failed: %v", err)
+		http.Error(w, "List failed", http.StatusInternalServerError)
+		return
+	}
+	end := start
+	if len(items) > 0 {
+		end = start + len(items) - 1
+	}
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Range")
+	w.Header().Set("Content-Range", fmt.Sprintf("lounge-items %d-%d/%d", start, end, total))
+	writeJSONResponse(w, http.StatusOK, items)
+}
+
+func loadLoungeItem(w http.ResponseWriter, r *http.Request) (*models.LoungeItem, bool) {
+	id, err := strconv.ParseUint(mux.Vars(r)["id"], 10, strconv.IntSize)
+	if err != nil || id == 0 {
+		http.Error(w, "Invalid item ID", http.StatusBadRequest)
+		return nil, false
+	}
+	var item models.LoungeItem
+	if err := db.DB.First(&item, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "Lounge item not found", http.StatusNotFound)
+		} else {
+			log.Printf("lounge item lookup failed: %v", err)
+			http.Error(w, "Lookup failed", http.StatusInternalServerError)
+		}
+		return nil, false
+	}
+	return &item, true
+}
+
+// GetLoungeItemByID returns a lounge item.
+// @Summary Get lounge item
+// @Tags lounge-items
+// @Produce json
+// @Param id path int true "Item ID"
+// @Success 200 {object} models.LoungeItem
+// @Router /lounge-items/{id} [get]
+func GetLoungeItemByID(w http.ResponseWriter, r *http.Request) {
+	if item, ok := loadLoungeItem(w, r); ok {
+		writeJSONResponse(w, http.StatusOK, item)
+	}
+}
+
+// Raw fields preserve the difference between an omitted field and JSON null.
+func applyLoungeFields(fields map[string]json.RawMessage, item *models.LoungeItem) (map[string]any, error) {
+	updates := map[string]any{}
+	if raw, ok := fields["name"]; ok {
+		if err := json.Unmarshal(raw, &item.Name); err != nil || string(raw) == "null" {
+			return nil, errors.New("name must be text")
+		}
+		item.Name = strings.TrimSpace(item.Name)
+		updates["name"] = item.Name
+	}
+	for _, field := range []struct {
+		key, column string
+		target      **string
+	}{
+		{"nameSv", "name_sv", &item.NameSv},
+		{"description", "description", &item.Description},
+		{"descriptionSv", "description_sv", &item.DescriptionSv},
+	} {
+		if raw, ok := fields[field.key]; ok {
+			var value *string
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return nil, fmt.Errorf("%s must be text or null", field.key)
+			}
+			*field.target = value
+			NormalizeOptionalStringPointers(field.target)
+			updates[field.column] = *field.target
+		}
+	}
+	if raw, ok := fields["categoryId"]; ok {
+		var value uint
+		if err := json.Unmarshal(raw, &value); err != nil || value == 0 || value > 9007199254740991 {
+			return nil, errors.New("categoryId must be a positive safe integer")
+		}
+		item.CategoryID = value
+		updates["category_id"] = value
+	}
+	if raw, ok := fields["maxPerOrder"]; ok {
+		var value *int64
+		if err := json.Unmarshal(raw, &value); err != nil || (value != nil && (*value <= 0 || *value > 9007199254740991)) {
+			return nil, errors.New("maxPerOrder must be a positive safe integer or null")
+		}
+		item.MaxPerOrder = value
+		updates["max_per_order"] = value
+	}
+	if raw, ok := fields["soldOut"]; ok {
+		var value *bool
+		if err := json.Unmarshal(raw, &value); err != nil || value == nil {
+			return nil, errors.New("soldOut must be true or false")
+		}
+		item.SoldOut = *value
+		updates["sold_out"] = *value
+	}
+	if item.Name == "" {
+		return nil, errors.New("name is required")
+	}
+	return updates, nil
+}
+
+func parseLoungeMutation(w http.ResponseWriter, r *http.Request, item *models.LoungeItem) (map[string]any, bool) {
+	var fields map[string]json.RawMessage
+	if !decodeLoungeJSON(w, r, &fields) {
+		return nil, false
+	}
+	for key := range fields {
+		switch key {
+		case "id", "sortOrder", "name", "nameSv", "description", "descriptionSv", "categoryId", "maxPerOrder", "soldOut":
+		default:
+			http.Error(w, "Unsupported field", http.StatusBadRequest)
+			return nil, false
+		}
+	}
+	updates, err := applyLoungeFields(fields, item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil, false
+	}
+	if item.CategoryID == 0 {
+		http.Error(w, "Category is required", http.StatusBadRequest)
+		return nil, false
+	}
+	var count int64
+	if err := db.DB.Model(&models.LoungeCategory{}).Where("id = ?", item.CategoryID).Count(&count).Error; err != nil {
+		log.Printf("lounge category lookup failed: %v", err)
+		http.Error(w, "Category lookup failed", http.StatusInternalServerError)
+		return nil, false
+	}
+	if count != 1 {
+		http.Error(w, "Category not found", http.StatusBadRequest)
+		return nil, false
+	}
+	return updates, true
+}
+
+// CreateLoungeItem creates a lounge item.
+// @Summary Create lounge item
+// @Tags lounge-items
+// @Accept json
+// @Produce json
+// @Param body body models.LoungeItem true "Categorized item"
+// @Success 201 {object} models.LoungeItem
+// @Security BearerAuth
+// @Router /lounge-items [post]
+func CreateLoungeItem(w http.ResponseWriter, r *http.Request) {
+	var item models.LoungeItem
+	if _, ok := parseLoungeMutation(w, r, &item); !ok {
+		return
+	}
+	if err := createWithAudit(r, "lounge-items", &item, func(tx *gorm.DB) error {
+		if _, err := lockLoungeCatalogue(tx); err != nil {
+			return err
+		}
+		if err := tx.Model(&models.LoungeItem{}).Select("COALESCE(MAX(sort_order), -1) + 1").Where("category_id = ?", item.CategoryID).Scan(&item.SortOrder).Error; err != nil {
+			return err
+		}
+		return tx.Create(&item).Error
+	}, nil); err != nil {
+		log.Printf("lounge item create failed: %v", err)
+		http.Error(w, "Create failed", http.StatusInternalServerError)
+		return
+	}
+	writeCreatedJSONResponse(w, item)
+}
+
+// UpdateLoungeItem applies only supplied fields; empty optional fields clear values.
+// @Summary Update lounge item
+// @Tags lounge-items
+// @Accept json
+// @Produce json
+// @Param id path int true "Item ID"
+// @Param body body models.LoungeItem true "Updated fields"
+// @Success 200 {object} models.LoungeItem
+// @Security BearerAuth
+// @Router /lounge-items/{id} [put]
+func UpdateLoungeItem(w http.ResponseWriter, r *http.Request) {
+	item, ok := loadLoungeItem(w, r)
+	if !ok {
+		return
+	}
+	before := *item
+	updates, ok := parseLoungeMutation(w, r, item)
+	if !ok {
+		return
+	}
+	if len(updates) == 0 {
+		http.Error(w, "No fields supplied", http.StatusBadRequest)
+		return
+	}
+	if err := updateWithAudit(r, "lounge-items", item.ID, before, item, func(tx *gorm.DB) error {
+		if _, err := lockLoungeCatalogue(tx); err != nil {
+			return err
+		}
+		if item.CategoryID != before.CategoryID {
+			var position int64
+			if err := tx.Model(&models.LoungeItem{}).Select("COALESCE(MAX(sort_order), -1) + 1").Where("category_id = ?", item.CategoryID).Scan(&position).Error; err != nil {
+				return err
+			}
+			updates["sort_order"] = position
+		}
+		return tx.Model(item).Updates(updates).Error
+	}, func(tx *gorm.DB) error {
+		return tx.First(item, item.ID).Error
+	}); err != nil {
+		log.Printf("lounge item update failed: %v", err)
+		http.Error(w, "Update failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, item)
+}
+
+// DeleteLoungeItem deletes a lounge item.
+// @Summary Delete lounge item
+// @Tags lounge-items
+// @Param id path int true "Item ID"
+// @Success 204 {string} string "Deleted"
+// @Security BearerAuth
+// @Router /lounge-items/{id} [delete]
+func DeleteLoungeItem(w http.ResponseWriter, r *http.Request) {
+	item, ok := loadLoungeItem(w, r)
+	if !ok {
+		return
+	}
+	writeDeleteResponseWithAudit[models.LoungeItem](w, r, "lounge-items", strconv.FormatUint(uint64(item.ID), 10), "Lounge item not found", nil, func(tx *gorm.DB, _ *models.LoungeItem) error {
+		_, err := lockLoungeCatalogue(tx)
+		return err
+	})
+}

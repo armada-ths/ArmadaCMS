@@ -30,3 +30,5 @@ revalidation_url = "https://armada.nu/api/revalidate"
 
 enable_translation_worker = true
 translation_ai_enabled    = true
+
+enable_lounge_orders = true

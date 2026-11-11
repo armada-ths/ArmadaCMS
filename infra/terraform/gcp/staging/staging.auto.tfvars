@@ -34,3 +34,5 @@ recaptcha_allowed_domains = ["staging.armada.nu", "staging.photos.armada.nu"]
 
 enable_translation_worker = true
 translation_ai_enabled    = true
+
+enable_lounge_orders = true

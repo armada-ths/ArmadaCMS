@@ -50,6 +50,11 @@ describe("guest photo role permissions", () => {
       ),
     ).toEqual([]);
     expect(RESOURCE_ACTION_OVERRIDES).toEqual([
+      {
+        id: "lounge",
+        name: "Lounge catalogue and orders",
+        actions: ["view", "create", "edit", "delete"],
+      },
       { id: "auditlogs", name: "Audit logs", actions: ["view"] },
       {
         id: "eventphotos",

@@ -73,7 +73,10 @@ resource "google_cloud_run_v2_service" "armadacms" {
       }
 
       dynamic "env" {
-        for_each = local.secret_env_vars
+        for_each = {
+          for name, secret_id in local.secret_env_vars : name => secret_id
+          if var.enable_lounge_orders || !contains(keys(local.lounge_secret_env_vars), name)
+        }
         content {
           name = env.key
           value_source {
