@@ -31,6 +31,27 @@ apt_options=(
   -o APT::Update::Error-Mode=any
 )
 
+# Only the current weekly cache can skip the refresh. Older restores can
+# still supply packages to the normal download path.
+if [[ "${VIPS_APT_CACHE_HIT:-}" == true ]]; then
+  shopt -s nullglob
+  cached_packages=("$archives/"*.deb)
+  shopt -u nullglob
+
+  # Explicit local files let APT resolve dependencies without package indexes.
+  # Simulate first so an incomplete cache leaves the runner untouched.
+  if (( ${#cached_packages[@]} > 0 )) && sudo apt-get "${apt_options[@]}" \
+    install --simulate --no-download --no-install-recommends libvips-dev "${cached_packages[@]}"; then
+    sudo apt-get "${apt_options[@]}" \
+      install --no-download -y --no-install-recommends libvips-dev "${cached_packages[@]}"
+    vips_version=$(pkg-config --modversion vips)
+    echo "libvips $vips_version installed from the weekly package cache."
+    exit 0
+  fi
+
+  echo "::warning::The weekly libvips cache could not satisfy dependencies; trying Ubuntu mirrors."
+fi
+
 download_from() {
   local archive=$1 security=$2
   # Isolate sources and indexes from unrelated preinstalled runner repositories.
