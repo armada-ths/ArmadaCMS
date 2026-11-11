@@ -12,11 +12,8 @@ runs:
         platform="${VERSION_ID}-$(dpkg --print-architecture)-${ImageVersion:?}"
         week=$(date -u +%G-W%V)
         prefix="libvips-apt-v2-$platform"
-        # Keep the legacy key until main can restore the versioned weekly cache.
-        legacy_archive_id=6ff4d4dc94482b3e34f55b90aafa68592bb031e8e04100e1b60b9597ab841708
         echo "key=$prefix-$week" >> "$GITHUB_OUTPUT"
         echo "prefix=$prefix-" >> "$GITHUB_OUTPUT"
-        echo "legacy-key=libvips-apt-v1-$platform-$legacy_archive_id-$week" >> "$GITHUB_OUTPUT"
         echo "path=$RUNNER_TEMP/libvips-apt-cache" >> "$GITHUB_OUTPUT"
 
     - name: Restore libvips packages
@@ -25,15 +22,13 @@ runs:
       with:
         path: ${{ steps.cache.outputs.path }}
         key: ${{ steps.cache.outputs.key }}
-        restore-keys: |
-          ${{ steps.cache.outputs.legacy-key }}
-          ${{ steps.cache.outputs.prefix }}
+        restore-keys: ${{ steps.cache.outputs.prefix }}
 
     - name: Download and install libvips
       shell: bash
       env:
         VIPS_APT_CACHE: ${{ steps.cache.outputs.path }}
-        VIPS_APT_CACHE_HIT: ${{ steps.packages.outputs.cache-hit == 'true' || steps.packages.outputs.cache-matched-key == steps.cache.outputs.legacy-key }}
+        VIPS_APT_CACHE_HIT: ${{ steps.packages.outputs.cache-hit }}
       run: bash "$GITHUB_ACTION_PATH/install.sh"
 
     - name: Save libvips packages
