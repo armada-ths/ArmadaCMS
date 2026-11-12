@@ -6,7 +6,7 @@ Under **Fair & events > Lounge catalogue**, manage localized categories and item
 
 Under **Fair dates**, set opening and closing times for each fair day in Stockholm time. Set how many minutes after opening orders start and how many minutes before closing they stop. Both offsets apply to each fair day. Enable **Force lounge ordering open** to accept orders outside the schedule. Orders follow the environment's normal delivery settings. Turn off the override when testing is complete.
 
-Under **Lounge orders**, editors can create or rotate the shareable order link and copy the link or its QR code. Rotation invalidates earlier links, QR codes, and sessions that used them. The URL uses the matching order app for the CMS environment. For local development, set `ORDER_APP_BASE_URL` if the order app uses a different origin from `http://localhost:8002`.
+Under **Lounge orders**, editors can create or rotate the shareable order link and copy the link or its QR code. Ordering requires a current link. Rotation invalidates earlier links, QR codes, and sessions that used them. The URL uses the matching order app for the CMS environment. For local development, set `ORDER_APP_BASE_URL` if the order app uses a different origin from `http://localhost:8002`.
 
 ## Permissions
 

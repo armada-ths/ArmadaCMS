@@ -27,7 +27,7 @@ func (loungeOrderLink) TableName() string {
 }
 
 func (link loungeOrderLink) accepts(provided string) bool {
-	return link.Token == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(link.Token)) == 1
+	return link.Token != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(link.Token)) == 1
 }
 
 func readLoungeOrderLink(query *gorm.DB, lock bool) (loungeOrderLink, error) {

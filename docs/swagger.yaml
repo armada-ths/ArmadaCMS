@@ -3482,9 +3482,10 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: Order link token (required after rotation)
+      - description: Current order link token
         in: header
         name: X-Lounge-Access
+        required: true
         type: string
       - description: Order and idempotency key
         in: body

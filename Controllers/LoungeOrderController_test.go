@@ -22,6 +22,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const loungeTestAccessToken = "lo_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 func loungeTestDatabase(t *testing.T) (*gorm.DB, uint, uint, uint) {
 	t.Helper()
 	dsn := os.Getenv("LOUNGE_TEST_DSN")
@@ -50,7 +52,7 @@ func loungeTestDatabase(t *testing.T) (*gorm.DB, uint, uint, uint) {
 	if err := connection.Exec("UPDATE lounge_catalogue_state SET revision = 0 WHERE id = 1").Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := connection.Exec("UPDATE lounge_order_link_settings SET token = '' WHERE id = 1").Error; err != nil {
+	if err := connection.Exec("UPDATE lounge_order_link_settings SET token = ? WHERE id = 1", loungeTestAccessToken).Error; err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("LOUNGE_ORDER_ENVIRONMENT", "staging")
@@ -81,6 +83,7 @@ func loungeRequestTest(handler http.HandlerFunc, method, path string, body any, 
 	if credential != "" {
 		request.Header.Set("Authorization", "Bearer "+credential)
 	}
+	request.Header.Set(loungeAccessHeader, loungeTestAccessToken)
 	if id != 0 {
 		request = mux.SetURLVars(request, map[string]string{"id": fmt.Sprint(id)})
 	}
@@ -663,6 +666,19 @@ func TestLoungeOrderLinkRotation(t *testing.T) {
 		}
 		return link.Query().Get("access")
 	}
+	if err := connection.Exec("UPDATE lounge_order_link_settings SET token = '' WHERE id = 1").Error; err != nil {
+		t.Fatal(err)
+	}
+	initial := loungeRequestTest(GetLoungeOrderAvailability, http.MethodGet, "/", nil, "", 0)
+	var initialAccess map[string]bool
+	if err := json.Unmarshal(initial.Body.Bytes(), &initialAccess); err != nil || initial.Code != http.StatusOK || initialAccess["accessGranted"] {
+		t.Fatalf("expected access to be denied before creating the first link: %d %s", initial.Code, initial.Body)
+	}
+	withoutLink := loungeRequestTest(submitLoungeOrderDuringFair, http.MethodPost, "/submit",
+		loungeInput(company, item, "00000000-0000-4000-8000-000000000009"), "test-service", 0)
+	if withoutLink.Code != http.StatusUnauthorized {
+		t.Fatalf("expected submission to be denied before creating the first link: %d %s", withoutLink.Code, withoutLink.Body)
+	}
 	first := tokenFrom(loungeRequestTest(RotateLoungeOrderLink, http.MethodPost, "/", nil, "", 0))
 	second := tokenFrom(loungeRequestTest(RotateLoungeOrderLink, http.MethodPost, "/", nil, "", 0))
 	current := tokenFrom(loungeRequestTest(GetLoungeOrderLink, http.MethodGet, "/", nil, "", 0))
@@ -678,7 +694,7 @@ func TestLoungeOrderLinkRotation(t *testing.T) {
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 			t.Fatal(err)
 		}
-		if response.Code != http.StatusOK || !body["managedLink"] || body["accessGranted"] != (token == second) {
+		if response.Code != http.StatusOK || body["accessGranted"] != (token == second) {
 			t.Fatalf("unexpected availability: %d %s", response.Code, response.Body)
 		}
 	}

@@ -137,8 +137,7 @@ func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSONResponse(w, 200, map[string]bool{
 		"open":          loungeOpenForDates(dates, time.Now()),
-		"managedLink":   link.Token != "",
-		"accessGranted": link.Token != "" && link.accepts(r.Header.Get(loungeAccessHeader)),
+		"accessGranted": link.accepts(r.Header.Get(loungeAccessHeader)),
 	})
 }
 
@@ -147,7 +146,7 @@ func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
 // @Tags lounge-orders
 // @Accept json
 // @Produce json
-// @Param X-Lounge-Access header string false "Order link token (required after rotation)"
+// @Param X-Lounge-Access header string true "Current order link token"
 // @Param body body loungeSubmission true "Order and idempotency key"
 // @Success 200 {object} models.LoungeOrder
 // @Success 201 {object} models.LoungeOrder

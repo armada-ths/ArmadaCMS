@@ -3742,9 +3742,10 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Order link token (required after rotation)",
+                        "description": "Current order link token",
                         "name": "X-Lounge-Access",
-                        "in": "header"
+                        "in": "header",
+                        "required": true
                     },
                     {
                         "description": "Order and idempotency key",
