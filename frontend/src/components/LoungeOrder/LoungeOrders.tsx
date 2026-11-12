@@ -35,6 +35,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { yellow } from "@mui/material/colors";
 import { loungeRequest } from "../LoungeItem/catalogue";
+import { LoungeOrderLinkActions } from "./LoungeOrderLinkActions";
 
 interface OrderRecord {
   id: number;
@@ -335,6 +336,7 @@ export function LoungeOrderList() {
     );
   return (
     <>
+      <LoungeOrderLinkActions />
       {options.error && (
         <Alert severity="error">
           Could not load historical filters.{" "}

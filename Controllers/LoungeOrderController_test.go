@@ -50,6 +50,9 @@ func loungeTestDatabase(t *testing.T) (*gorm.DB, uint, uint, uint) {
 	if err := connection.Exec("UPDATE lounge_catalogue_state SET revision = 0 WHERE id = 1").Error; err != nil {
 		t.Fatal(err)
 	}
+	if err := connection.Exec("UPDATE lounge_order_link_settings SET token = '' WHERE id = 1").Error; err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("LOUNGE_ORDER_ENVIRONMENT", "staging")
 	t.Setenv("LOUNGE_ORDER_SUBMISSION_SECRET", "live-service")
 	t.Setenv("LOUNGE_ORDER_TEST_SUBMISSION_SECRET", "test-service")
@@ -161,11 +164,11 @@ func TestLoungeOpeningBoundaries(t *testing.T) {
 		{"2026-11-18T14:30:01", false}, {"2026-11-19T10:00:00", false},
 	} {
 		now, _ := time.ParseInLocation("2006-01-02T15:04:05", example.time, zone)
-		if loungeOpen([]string{"2026-11-17", "2026-11-18"}, loungeTestHours, now, models.DefaultLoungeOrderCloseMinutes) != example.open {
+		if loungeOpen([]string{"2026-11-17", "2026-11-18"}, loungeTestHours, now, 0, models.DefaultLoungeOrderCloseMinutes) != example.open {
 			t.Fatalf("incorrect opening at %s", example.time)
 		}
 	}
-	if loungeOpen([]string{"invalid", "2026-11-18"}, loungeTestHours, time.Now(), models.DefaultLoungeOrderCloseMinutes) || loungeOpen([]string{"2026-11-18", "2026-11-17"}, loungeTestHours, time.Now(), models.DefaultLoungeOrderCloseMinutes) {
+	if loungeOpen([]string{"invalid", "2026-11-18"}, loungeTestHours, time.Now(), 0, models.DefaultLoungeOrderCloseMinutes) || loungeOpen([]string{"2026-11-18", "2026-11-17"}, loungeTestHours, time.Now(), 0, models.DefaultLoungeOrderCloseMinutes) {
 		t.Fatal("invalid dates accepted")
 	}
 }
@@ -185,7 +188,7 @@ func TestLoungeConfigurableClosingLead(t *testing.T) {
 		{18, 10, 0, 300, false},
 	} {
 		now := time.Date(2026, time.November, example.day, example.hour, example.minute, 0, 0, zone)
-		if loungeOpen(days, loungeTestHours, now, example.lead) != example.open {
+		if loungeOpen(days, loungeTestHours, now, 0, example.lead) != example.open {
 			t.Errorf("unexpected availability at %s with %d minutes lead", now, example.lead)
 		}
 	}
@@ -203,7 +206,7 @@ func TestLoungeUsesConfiguredFairHours(t *testing.T) {
 		{18, 9, 29, false}, {18, 9, 30, true}, {18, 13, 45, true}, {18, 13, 46, false},
 	} {
 		now := time.Date(2026, time.November, example.day, example.hour, example.minute, 0, 0, zone)
-		if loungeOpen(days, hours, now, 30) != example.open {
+		if loungeOpen(days, hours, now, 0, 30) != example.open {
 			t.Errorf("unexpected availability at %s", now)
 		}
 	}
@@ -607,5 +610,107 @@ func TestLoungeSlackEnvironmentIsolation(t *testing.T) {
 	status, reason := sendLoungeSlack(t.Context(), client, models.LoungeOrder{IsTest: true})
 	if status != "unknown" || reason != "slack_unreachable" {
 		t.Fatalf("timeout was not marked unknown: %s %s", status, reason)
+	}
+}
+
+func TestLoungeOpeningDelayAndOverride(t *testing.T) {
+	dates := models.FairDateConfig{
+		FairDays:                    "2026-11-17,2026-11-18",
+		DayOneOpensAt:               "10:00",
+		DayOneClosesAt:              "16:00",
+		DayTwoOpensAt:               "10:00",
+		DayTwoClosesAt:              "10:45",
+		LoungeOrderOpenDelayMinutes: 15,
+	}
+	for _, example := range []struct {
+		at   string
+		open bool
+	}{
+		{"2026-11-17T10:14:59+01:00", false},
+		{"2026-11-17T10:15:00+01:00", true},
+		{"2026-11-17T15:30:01+01:00", false},
+		{"2026-11-18T10:15:00+01:00", false},
+	} {
+		now, err := time.Parse(time.RFC3339, example.at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := loungeOpenForDates(dates, now); got != example.open {
+			t.Errorf("at %s, open = %t, want %t", example.at, got, example.open)
+		}
+	}
+	dates.LoungeOrderForceOpen = true
+	if !loungeOpenForDates(dates, time.Time{}) {
+		t.Fatal("override should open orders outside fair dates")
+	}
+}
+
+func TestLoungeOrderLinkRotation(t *testing.T) {
+	connection, company, _, item := loungeTestDatabase(t)
+	t.Setenv("ORDER_APP_BASE_URL", "https://order.example")
+	tokenFrom := func(response *httptest.ResponseRecorder) string {
+		t.Helper()
+		if response.Code != http.StatusOK {
+			t.Fatalf("link response %d: %s", response.Code, response.Body)
+		}
+		var body struct{ URL string }
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		link, err := url.Parse(body.URL)
+		if err != nil || link.Host != "order.example" || link.Query().Get("access") == "" {
+			t.Fatalf("invalid order link: %v", err)
+		}
+		return link.Query().Get("access")
+	}
+	first := tokenFrom(loungeRequestTest(RotateLoungeOrderLink, http.MethodPost, "/", nil, "", 0))
+	second := tokenFrom(loungeRequestTest(RotateLoungeOrderLink, http.MethodPost, "/", nil, "", 0))
+	current := tokenFrom(loungeRequestTest(GetLoungeOrderLink, http.MethodGet, "/", nil, "", 0))
+	if first == second || second != current {
+		t.Fatal("rotation must replace the previous token")
+	}
+	for _, token := range []string{"", first, second} {
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		request.Header.Set(loungeAccessHeader, token)
+		response := httptest.NewRecorder()
+		GetLoungeOrderAvailability(response, request)
+		var body map[string]bool
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if response.Code != http.StatusOK || !body["managedLink"] || body["accessGranted"] != (token == second) {
+			t.Fatalf("unexpected availability: %d %s", response.Code, response.Body)
+		}
+	}
+	input := loungeInput(company, item, "00000000-0000-4000-8000-000000000009")
+	payload, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	submit := func(token string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/submit", bytes.NewReader(payload))
+		request.Header.Set("Authorization", "Bearer test-service")
+		request.Header.Set(loungeAccessHeader, token)
+		response := httptest.NewRecorder()
+		SubmitLoungeOrder(response, request)
+		return response
+	}
+	if response := submit(second); !strings.Contains(response.Body.String(), "orders_closed") {
+		t.Fatalf("expected ordering to be closed: %d %s", response.Code, response.Body)
+	}
+	if err := connection.Model(&models.FairDateConfig{}).Where("1 = 1").Update("lounge_order_force_open", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	if response := submit(second); response.Code != http.StatusCreated {
+		t.Fatalf("expected the override to allow submission: %d %s", response.Code, response.Body)
+	}
+	for _, token := range []string{"", first} {
+		if response := submit(token); response.Code != http.StatusUnauthorized {
+			t.Fatalf("expected access check before idempotency replay: %d %s", response.Code, response.Body)
+		}
+	}
+	qr := loungeRequestTest(GetLoungeOrderQR, http.MethodGet, "/", nil, "", 0)
+	if qr.Code != http.StatusOK || qr.Header().Get("Content-Type") != "image/png" || !bytes.HasPrefix(qr.Body.Bytes(), []byte{137, 80, 78, 71}) {
+		t.Fatalf("expected PNG QR, got %d %s", qr.Code, qr.Header().Get("Content-Type"))
 	}
 }

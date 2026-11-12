@@ -48,6 +48,7 @@ beforeEach(() => {
   getList.mockReset().mockResolvedValue({ data: [], total: 0 });
   update.mockClear();
   state.request.mockReset().mockImplementation(async (path: string) => {
+    if (path === "lounge-orders/link") return { url: "" };
     if (path === "lounge-orders/filter-options")
       return {
         companies: [{ id: 1, name: "Deleted company" }],
@@ -379,4 +380,37 @@ test("notification retry warns about duplicate messages and does not recreate th
     expect(state.request).toHaveBeenCalledWith("lounge-orders/1/retry", "POST"),
   );
   expect(update).not.toHaveBeenCalled();
+});
+
+test("rotates the order link after confirmation and copies the replacement", async () => {
+  const oldUrl = "https://order.example/?access=old";
+  const newUrl = "https://order.example/?access=new";
+  let current = oldUrl;
+  const request = state.request.getMockImplementation();
+  state.request.mockImplementation(async (path: string, method?: string) => {
+    if (path === "lounge-orders/link/rotate" && method === "POST") {
+      current = newUrl;
+      return { url: current };
+    }
+    if (path === "lounge-orders/link") return { url: current };
+    return request?.(path, method);
+  });
+  const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+  try {
+    render(<LoungeOrderList />);
+    await page.getByRole("button", { name: "Rotate order link" }).click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    expect(state.request).not.toHaveBeenCalledWith(
+      "lounge-orders/link/rotate",
+      "POST",
+    );
+    await page
+      .getByRole("button", { name: "Rotate link", exact: true })
+      .click();
+    await expect.element(page.getByText("Order link updated")).toBeVisible();
+    await page.getByRole("button", { name: "Copy order link" }).click();
+    expect(copy).toHaveBeenCalledWith(newUrl);
+  } finally {
+    copy.mockRestore();
+  }
 });
