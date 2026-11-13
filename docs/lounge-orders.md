@@ -4,7 +4,9 @@
 
 Under **Fair & events > Lounge catalogue**, manage localized categories and items, set per-order quantity limits, and mark items sold out. Drag items or use the keyboard to reorder them or move them between categories. Deleting a category removes its catalogue items. Saved orders retain their original item and category details.
 
-Under **Fair dates**, set opening and closing times for each fair day in Stockholm time. The ordering cutoff is the number of minutes before each day closes. A cutoff of 0 keeps ordering open until the fair closes.
+Under **Fair dates**, set opening and closing times for each fair day in Stockholm time. Set how many minutes after opening orders start and how many minutes before closing they stop. Both offsets apply to each fair day. Enable **Force lounge ordering open** to accept orders outside the schedule. Orders follow the environment's normal delivery settings. Turn off the override when testing is complete.
+
+Under **Lounge orders**, editors can create or rotate the shareable order link and copy the link or its QR code. Ordering requires a current link. Rotation invalidates earlier links, QR codes, and sessions that used them. The URL uses the matching order app for the CMS environment. For local development, set `ORDER_APP_BASE_URL` if the order app uses a different origin from `http://localhost:8002`.
 
 ## Permissions
 

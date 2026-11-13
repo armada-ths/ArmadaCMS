@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Stack, TextField, Typography } from "@mui/material";
 import {
+  BooleanInput,
   DateInput,
   NumberInput,
   SimpleForm,
@@ -155,6 +156,28 @@ export const FairDateForm = () => (
       type="time"
       defaultValue="15:00"
       validate={fairTimeValidators}
+    />
+    <NumberInput
+      source="loungeOrderOpenDelayMinutes"
+      label="Lounge ordering delay (minutes after fair opens)"
+      helperText="Applies to both fair days. Enter 0 to open ordering with the fair."
+      defaultValue={0}
+      min={0}
+      max={1440}
+      step={1}
+      validate={[
+        required(),
+        minValue(0),
+        maxValue(1440),
+        (value) =>
+          Number.isInteger(value) ? undefined : "Enter a whole number",
+      ]}
+    />
+    <BooleanInput
+      source="loungeOrderForceOpen"
+      label="Force lounge ordering open"
+      helperText="For testing outside fair hours. Orders use this environment's normal delivery settings."
+      defaultValue={false}
     />
     <NumberInput
       source="loungeOrderCloseMinutes"

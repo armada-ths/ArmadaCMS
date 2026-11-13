@@ -104,6 +104,11 @@ func CreateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if item.LoungeOrderOpenDelayMinutes < 0 || item.LoungeOrderOpenDelayMinutes > models.MaxLoungeOrderCloseMinutes {
+		http.Error(w, "Lounge order opening delay must be between 0 and 1440 minutes", http.StatusBadRequest)
+		return
+	}
+
 	if item.DayOneOpensAt == "" {
 		item.DayOneOpensAt = "10:00"
 	}
@@ -172,13 +177,27 @@ func UpdateFairDateConfig(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
-	if raw, exists := updateMap["lounge_order_close_minutes"]; exists {
+	for column, label := range map[string]string{
+		"lounge_order_close_minutes":      "closing lead",
+		"lounge_order_open_delay_minutes": "opening delay",
+	} {
+		raw, exists := updateMap[column]
+		if !exists {
+			continue
+		}
 		minutes, ok := raw.(float64)
 		if !ok || minutes < 0 || minutes > models.MaxLoungeOrderCloseMinutes || minutes != float64(int(minutes)) {
-			http.Error(w, "Lounge order closing lead must be a whole number between 0 and 1440 minutes", http.StatusBadRequest)
+			http.Error(w, "Lounge order "+label+" must be a whole number between 0 and 1440 minutes", http.StatusBadRequest)
 			return
 		}
-		updateMap["lounge_order_close_minutes"] = int(minutes)
+		updateMap[column] = int(minutes)
+	}
+
+	if raw, exists := updateMap["lounge_order_force_open"]; exists {
+		if _, ok := raw.(bool); !ok {
+			http.Error(w, "Lounge order override must be a boolean", http.StatusBadRequest)
+			return
+		}
 	}
 
 	next := item

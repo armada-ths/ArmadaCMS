@@ -544,6 +544,10 @@ definitions:
         type: string
       loungeOrderCloseMinutes:
         type: integer
+      loungeOrderForceOpen:
+        type: boolean
+      loungeOrderOpenDelayMinutes:
+        type: integer
     type: object
   models.FairOpeningHours:
     properties:
@@ -3403,6 +3407,11 @@ paths:
       - lounge-orders
   /lounge-orders/availability:
     get:
+      parameters:
+      - description: Order link token
+        in: header
+        name: X-Lounge-Access
+        type: string
       responses:
         "200":
           description: OK
@@ -3426,11 +3435,58 @@ paths:
       summary: Lounge historical filter options
       tags:
       - lounge-orders
+  /lounge-orders/link:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get the lounge order link
+      tags:
+      - lounge-orders
+  /lounge-orders/link/qr:
+    get:
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: Get the lounge order QR code
+      tags:
+      - lounge-orders
+  /lounge-orders/link/rotate:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rotate the lounge order link
+      tags:
+      - lounge-orders
   /lounge-orders/submit:
     post:
       consumes:
       - application/json
       parameters:
+      - description: Current order link token
+        in: header
+        name: X-Lounge-Access
+        required: true
+        type: string
       - description: Order and idempotency key
         in: body
         name: body

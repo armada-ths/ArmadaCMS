@@ -11,22 +11,24 @@ const MaxLoungeOrderCloseMinutes = 1440
 // FairDateConfig is the GORM database model for fair date configuration.
 // It stores all dates as flat fields for easy editing in the admin GUI.
 type FairDateConfig struct {
-	ID                      uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
-	DayOneOpensAt           string  `gorm:"not null;default:10:00" json:"dayOneOpensAt"`
-	DayOneClosesAt          string  `gorm:"not null;default:16:00" json:"dayOneClosesAt"`
-	DayTwoOpensAt           string  `gorm:"not null;default:10:00" json:"dayTwoOpensAt"`
-	DayTwoClosesAt          string  `gorm:"not null;default:15:00" json:"dayTwoClosesAt"`
-	LoungeOrderCloseMinutes *int    `gorm:"not null;default:30" json:"loungeOrderCloseMinutes"`
-	EventroID               *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
-	Description             string  `gorm:"column:description;not null" json:"description"`
-	DescriptionSv           *string `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
-	FairDays                string  `gorm:"column:fair_days;not null" json:"fairDays"`            // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
-	IRStart                 string  `gorm:"column:ir_start;not null" json:"irStart"`
-	IREnd                   string  `gorm:"column:ir_end;not null" json:"irEnd"`
-	IRAcceptance            string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
-	FRStart                 string  `gorm:"column:fr_start;not null" json:"frStart"`
-	FREnd                   string  `gorm:"column:fr_end;not null" json:"frEnd"`
-	EventsStart             string  `gorm:"column:events_start;not null" json:"eventsStart"`
+	ID                          uint    `gorm:"primaryKey;autoIncrement;column:id;not null" json:"id"`
+	DayOneOpensAt               string  `gorm:"not null;default:10:00" json:"dayOneOpensAt"`
+	DayOneClosesAt              string  `gorm:"not null;default:16:00" json:"dayOneClosesAt"`
+	DayTwoOpensAt               string  `gorm:"not null;default:10:00" json:"dayTwoOpensAt"`
+	DayTwoClosesAt              string  `gorm:"not null;default:15:00" json:"dayTwoClosesAt"`
+	LoungeOrderCloseMinutes     *int    `gorm:"not null;default:30" json:"loungeOrderCloseMinutes"`
+	LoungeOrderOpenDelayMinutes int     `gorm:"not null;default:0" json:"loungeOrderOpenDelayMinutes"`
+	LoungeOrderForceOpen        bool    `gorm:"not null;default:false" json:"loungeOrderForceOpen"`
+	EventroID                   *string `gorm:"column:eventro_id;uniqueIndex:fair_date_configs_eventro_id_key" json:"eventroId"`
+	Description                 string  `gorm:"column:description;not null" json:"description"`
+	DescriptionSv               *string `gorm:"column:description_sv" json:"descriptionSv,omitempty"` // Nullable: Swedish translation
+	FairDays                    string  `gorm:"column:fair_days;not null" json:"fairDays"`            // Comma-separated dates, e.g. "2026-11-17,2026-11-18"
+	IRStart                     string  `gorm:"column:ir_start;not null" json:"irStart"`
+	IREnd                       string  `gorm:"column:ir_end;not null" json:"irEnd"`
+	IRAcceptance                string  `gorm:"column:ir_acceptance;not null" json:"irAcceptance"`
+	FRStart                     string  `gorm:"column:fr_start;not null" json:"frStart"`
+	FREnd                       string  `gorm:"column:fr_end;not null" json:"frEnd"`
+	EventsStart                 string  `gorm:"column:events_start;not null" json:"eventsStart"`
 }
 
 func (c FairDateConfig) LoungeClosingLeadMinutes() int {

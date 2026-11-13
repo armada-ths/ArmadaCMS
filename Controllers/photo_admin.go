@@ -245,14 +245,17 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "QR configuration missing", 500)
 		return
 	}
-	link := photoEventURL(token, r.URL.Query().Get("locale"))
+	writeLinkQR(w, photoEventURL(token, r.URL.Query().Get("locale")), "armada-event-qr", r.URL.Query().Get("format"))
+}
+
+func writeLinkQR(w http.ResponseWriter, link, filename, format string) {
 	qr, err := qrcode.New(link, qrcode.Medium)
 	if err != nil {
 		http.Error(w, "QR generation failed", 500)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	if r.URL.Query().Get("format") == "svg" {
+	if format == "svg" {
 		bitmap := qr.Bitmap()
 		var svg strings.Builder
 		size := len(bitmap) + 8
@@ -266,7 +269,7 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		}
 		svg.WriteString("</svg>")
 		w.Header().Set("Content-Type", "image/svg+xml")
-		w.Header().Set("Content-Disposition", `attachment; filename="armada-event-qr.svg"`)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.svg"`, filename))
 		_, _ = w.Write([]byte(svg.String()))
 		return
 	}
@@ -276,7 +279,7 @@ func PhotoEventQR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Content-Disposition", `attachment; filename="armada-event-qr.png"`)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.png"`, filename))
 	_, _ = w.Write(png)
 }
 

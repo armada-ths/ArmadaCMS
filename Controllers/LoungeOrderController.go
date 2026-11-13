@@ -74,7 +74,7 @@ func loungeService(w http.ResponseWriter, r *http.Request) (bool, bool) {
 	return false, false
 }
 
-func loungeOpen(parts []string, hours [2]models.FairOpeningHours, now time.Time, closeMinutes int) bool {
+func loungeOpen(parts []string, hours [2]models.FairOpeningHours, now time.Time, openDelayMinutes, closeMinutes int) bool {
 	zone, err := time.LoadLocation("Europe/Stockholm")
 	if err != nil {
 		return false
@@ -105,6 +105,7 @@ func loungeOpen(parts []string, hours [2]models.FairOpeningHours, now time.Time,
 			date := day.Format("2006-01-02")
 			open, openErr := time.ParseInLocation("2006-01-02 15:04", date+" "+hours[i].OpensAt, zone)
 			close, closeErr := time.ParseInLocation("2006-01-02 15:04", date+" "+hours[i].ClosesAt, zone)
+			open = open.Add(time.Duration(openDelayMinutes) * time.Minute)
 			cutoff := close.Add(-lead)
 			return openErr == nil && closeErr == nil && cutoff.After(open) && !now.Before(open) && !now.After(cutoff)
 		}
@@ -112,9 +113,14 @@ func loungeOpen(parts []string, hours [2]models.FairOpeningHours, now time.Time,
 	return false
 }
 
+func loungeOpenForDates(dates models.FairDateConfig, now time.Time) bool {
+	return dates.LoungeOrderForceOpen || loungeOpen(dates.ToFairDate().Fair.Days, dates.OpeningHours(), now, dates.LoungeOrderOpenDelayMinutes, dates.LoungeClosingLeadMinutes())
+}
+
 // GetLoungeOrderAvailability returns the current CMS ordering window.
 // @Summary Check whether lounge ordering is open
 // @Tags lounge-orders
+// @Param X-Lounge-Access header string false "Order link token"
 // @Success 200 {object} map[string]bool
 // @Router /lounge-orders/availability [get]
 func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +130,15 @@ func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, 503, map[string]string{"errorCode": "availability_unavailable"})
 		return
 	}
-	writeJSONResponse(w, 200, map[string]bool{"open": loungeOpen(dates.ToFairDate().Fair.Days, dates.OpeningHours(), time.Now(), dates.LoungeClosingLeadMinutes())})
+	link, err := readLoungeOrderLink(db.DB, false)
+	if err != nil {
+		writeJSONResponse(w, 503, map[string]string{"errorCode": "availability_unavailable"})
+		return
+	}
+	writeJSONResponse(w, 200, map[string]bool{
+		"open":          loungeOpenForDates(dates, time.Now()),
+		"accessGranted": link.accepts(r.Header.Get(loungeAccessHeader)),
+	})
 }
 
 // SubmitLoungeOrder persists an authenticated, idempotent order before delivery.
@@ -132,6 +146,7 @@ func GetLoungeOrderAvailability(w http.ResponseWriter, r *http.Request) {
 // @Tags lounge-orders
 // @Accept json
 // @Produce json
+// @Param X-Lounge-Access header string true "Current order link token"
 // @Param body body loungeSubmission true "Order and idempotency key"
 // @Success 200 {object} models.LoungeOrder
 // @Success 201 {object} models.LoungeOrder
@@ -160,12 +175,19 @@ func submitLoungeOrder(w http.ResponseWriter, r *http.Request, now func() time.T
 	var order models.LoungeOrder
 	var existing bool
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		link, err := readLoungeOrderLink(tx, true)
+		if err != nil {
+			return err
+		}
+		if !link.accepts(r.Header.Get(loungeAccessHeader)) {
+			return loungeOrderError("access_required")
+		}
 		// Serialize identical keys even when no order row exists yet.
 		lockKey := fmt.Sprintf("%t:%s", test, input.IdempotencyKey)
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).Error; err != nil {
 			return err
 		}
-		err := tx.Where("is_test = ? AND idempotency_key = ?", test, input.IdempotencyKey).Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).First(&order).Error
+		err = tx.Where("is_test = ? AND idempotency_key = ?", test, input.IdempotencyKey).Preload("Lines", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).First(&order).Error
 		if err == nil {
 			if order.Fingerprint != fingerprint {
 				return loungeOrderError("invalid_order")
@@ -186,7 +208,7 @@ func submitLoungeOrder(w http.ResponseWriter, r *http.Request, now func() time.T
 			}
 			return err
 		}
-		if !loungeOpen(dates.ToFairDate().Fair.Days, dates.OpeningHours(), now(), dates.LoungeClosingLeadMinutes()) {
+		if !loungeOpenForDates(dates, now()) {
 			return loungeOrderError("orders_closed")
 		}
 		var company models.Exhibitor
@@ -241,7 +263,11 @@ func submitLoungeOrder(w http.ResponseWriter, r *http.Request, now func() time.T
 	if err != nil {
 		var code loungeOrderError
 		if errors.As(err, &code) {
-			writeJSONResponse(w, 400, map[string]string{"errorCode": string(code)})
+			status := http.StatusBadRequest
+			if code == "access_required" {
+				status = http.StatusUnauthorized
+			}
+			writeJSONResponse(w, status, map[string]string{"errorCode": string(code)})
 			return
 		}
 		log.Printf("lounge order persistence failed: %v", err)
