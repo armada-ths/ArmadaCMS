@@ -1,4 +1,5 @@
 import { SimpleForm, TextInput } from "react-admin";
+import { MarkdownInput } from "../shared/MarkdownInput";
 
 export const HighlightCardForm = () => (
   <SimpleForm>
@@ -30,22 +31,16 @@ export const HighlightCardForm = () => (
       fullWidth
     />
 
-    <TextInput
+    <MarkdownInput
       source="description"
-      label="Description"
-      helperText="Main content/body text of the card"
-      multiline
-      rows={4}
-      fullWidth
+      label="Description (Markdown)"
+      enableImageFeatures={false}
     />
 
-    <TextInput
+    <MarkdownInput
       source="descriptionSv"
-      label="Description (Swedish)"
-      helperText="Swedish translation of the main body text (optional)"
-      multiline
-      rows={4}
-      fullWidth
+      label="Description (Swedish, Markdown)"
+      enableImageFeatures={false}
     />
 
     <TextInput
