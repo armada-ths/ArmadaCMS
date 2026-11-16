@@ -6,7 +6,8 @@ export type Photo = {
   uploaded_at: string;
   rejected_delete_at?: string | null;
   can_restore?: boolean;
-  moderation_source?: "manual" | "vision_safe_search" | null;
+  moderation_source?:
+    "manual" | "vision_safe_search" | "automatic_without_safe_search" | null;
   ai_review_status: "not_scanned" | "safe" | "review" | "error";
   ai_likelihoods?: Record<string, string> | null;
 };

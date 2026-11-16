@@ -17,7 +17,7 @@ func lowRiskLikelihoods() map[string]string {
 }
 
 func TestPhotoSafeSearchVerdict(t *testing.T) {
-	if got := PhotoSafeSearchVerdict(lowRiskLikelihoods()); got != "safe" {
+	if got := PhotoSafeSearchVerdict(lowRiskLikelihoods(), "UNLIKELY"); got != "safe" {
 		t.Fatalf("low-risk image verdict = %q", got)
 	}
 	for _, category := range photoVisionCategories {
@@ -25,16 +25,43 @@ func TestPhotoSafeSearchVerdict(t *testing.T) {
 			t.Run(category+"/"+likelihood, func(t *testing.T) {
 				values := lowRiskLikelihoods()
 				values[category] = likelihood
-				if got := PhotoSafeSearchVerdict(values); got != "review" {
+				if got := PhotoSafeSearchVerdict(values, "UNLIKELY"); got != "review" {
 					t.Fatalf("verdict = %q", got)
 				}
 			})
 		}
 		values := lowRiskLikelihoods()
 		delete(values, category)
-		if got := PhotoSafeSearchVerdict(values); got != "review" {
+		if got := PhotoSafeSearchVerdict(values, "UNLIKELY"); got != "review" {
 			t.Fatalf("missing %s verdict = %q", category, got)
 		}
+	}
+}
+
+func TestPhotoSafeSearchVerdictThreshold(t *testing.T) {
+	for _, test := range []struct {
+		threshold, likelihood, want string
+	}{
+		{"VERY_UNLIKELY", "VERY_UNLIKELY", "safe"},
+		{"VERY_UNLIKELY", "UNLIKELY", "review"},
+		{"UNLIKELY", "UNLIKELY", "safe"},
+		{"UNLIKELY", "POSSIBLE", "review"},
+		{"POSSIBLE", "POSSIBLE", "safe"},
+		{"POSSIBLE", "LIKELY", "review"},
+		{"POSSIBLE", "UNKNOWN", "review"},
+		{"POSSIBLE", "UNRECOGNIZED", "review"},
+		{"LIKELY", "VERY_UNLIKELY", "review"},
+	} {
+		t.Run(test.threshold+"/"+test.likelihood, func(t *testing.T) {
+			values := lowRiskLikelihoods()
+			for _, category := range photoVisionCategories {
+				values[category] = "VERY_UNLIKELY"
+			}
+			values["adult"] = test.likelihood
+			if got := PhotoSafeSearchVerdict(values, test.threshold); got != test.want {
+				t.Fatalf("verdict = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 
@@ -68,7 +95,7 @@ func TestPhotoVisionHTTPClient(t *testing.T) {
 	}))
 	defer server.Close()
 	client := photoVisionHTTPClient{client: server.Client(), endpoint: server.URL + "/v1/images:annotate"}
-	result, err := client.analyze(context.Background(), []byte("test-jpeg"))
+	result, err := client.analyze(context.Background(), []byte("test-jpeg"), "UNLIKELY")
 	if err != nil || result.Status != "safe" {
 		t.Fatalf("assessment = %+v, err = %v", result, err)
 	}
@@ -80,7 +107,7 @@ func TestPhotoVisionMissingAssessment(t *testing.T) {
 	}))
 	defer server.Close()
 	client := photoVisionHTTPClient{client: server.Client(), endpoint: server.URL}
-	if _, err := client.analyze(context.Background(), []byte("test-jpeg")); err == nil {
+	if _, err := client.analyze(context.Background(), []byte("test-jpeg"), "UNLIKELY"); err == nil {
 		t.Fatal("Vision error response was accepted")
 	}
 }
@@ -90,7 +117,7 @@ func TestPhotoVisionLocalMock(t *testing.T) {
 	for _, status := range []string{"safe", "review", "error"} {
 		t.Run(status, func(t *testing.T) {
 			t.Setenv("PHOTO_VISION_MOCK_RESULT", status)
-			result, err := AnalyzePhotoSafeSearch(context.Background(), []byte("test-jpeg"))
+			result, err := AnalyzePhotoSafeSearch(context.Background(), []byte("test-jpeg"), "UNLIKELY")
 			if status == "error" {
 				if err == nil {
 					t.Fatal("mock failure was accepted")

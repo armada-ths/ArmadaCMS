@@ -1,6 +1,5 @@
 import { ResourceList } from "../ResourceList";
 import {
-  BooleanInput,
   Create,
   Datagrid,
   DateField,
@@ -10,6 +9,7 @@ import {
   NumberInput,
   required,
   SaveButton,
+  SelectInput,
   SimpleForm,
   TextField,
   TextInput,
@@ -59,6 +59,9 @@ const validateGalleryClose = (value: string, values: PhotoEventDates) =>
 type PhotoEvent = {
   id: number;
   name: string;
+  auto_approve_all_photos?: boolean;
+  auto_approve_safe_photos?: boolean;
+  safe_search_max_likelihood?: string;
   deletion_requested_at: string | null;
   deletion_completed_at: string | null;
 };
@@ -274,58 +277,97 @@ function PhotoEventToolbar() {
   );
 }
 
-const EventForm = ({ editing = false }: { editing?: boolean }) => (
-  <SimpleForm toolbar={editing ? <PhotoEventToolbar /> : undefined}>
-    <TextInput
-      source="name"
-      label="Event name"
-      validate={required()}
-      fullWidth
-    />
-    <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
-    <TextInput source="description" label="Description" multiline fullWidth />
-    <TextInput
-      source="descriptionSv"
-      label="Description (Swedish)"
-      multiline
-      fullWidth
-    />
-    <DateTimeInput
-      source="uploads_open_at"
-      label="Uploads open"
-      parse={toUTCISOString}
-      format={toLocalInputValue}
-      validate={required()}
-    />
-    <DateTimeInput
-      source="uploads_close_at"
-      label="Uploads close"
-      parse={toUTCISOString}
-      format={toLocalInputValue}
-      validate={[required(), validateUploadsClose]}
-    />
-    <DateTimeInput
-      source="gallery_close_at"
-      label="Gallery closes"
-      parse={toUTCISOString}
-      format={toLocalInputValue}
-      validate={[required(), validateGalleryClose]}
-    />
-    <NumberInput
-      source="max_photos_per_guest"
-      label="Photos per guest"
-      min={1}
-      max={25}
-      defaultValue={25}
-    />
-    <BooleanInput
-      source="auto_approve_safe_photos"
-      label="Automatically approve low-risk photos"
-      defaultValue={false}
-      helperText="Google SafeSearch checks explicit content only. It cannot verify event relevance, consent, or suitability for marketing. Uncertain photos still require manual review."
-    />
-  </SimpleForm>
-);
+const photoApprovalChoices = [
+  { id: "manual", name: "Manual review" },
+  { id: "VERY_UNLIKELY", name: "SafeSearch Strict (Very unlikely)" },
+  { id: "UNLIKELY", name: "SafeSearch Standard (Unlikely)" },
+  { id: "POSSIBLE", name: "SafeSearch Relaxed (Possible)" },
+  { id: "all", name: "Approve all photos without SafeSearch" },
+];
+
+const toPhotoEventPayload = ({
+  photo_approval: approval,
+  ...event
+}: PhotoEvent & { photo_approval: string }) => {
+  const useSafeSearch = approval !== "manual" && approval !== "all";
+  return {
+    ...event,
+    auto_approve_all_photos: approval === "all",
+    auto_approve_safe_photos: useSafeSearch,
+    safe_search_max_likelihood: useSafeSearch
+      ? approval
+      : event.safe_search_max_likelihood,
+  };
+};
+
+const EventForm = ({ editing = false }: { editing?: boolean }) => {
+  const event = useRecordContext<PhotoEvent>();
+  let approval = "manual";
+  if (event?.auto_approve_all_photos) {
+    approval = "all";
+  } else if (event?.auto_approve_safe_photos) {
+    approval = event.safe_search_max_likelihood ?? "UNLIKELY";
+  }
+
+  return (
+    <SimpleForm
+      toolbar={editing ? <PhotoEventToolbar /> : undefined}
+      defaultValues={{ photo_approval: approval }}
+    >
+      <TextInput
+        source="name"
+        label="Event name"
+        validate={required()}
+        fullWidth
+      />
+      <TextInput source="nameSv" label="Name (Swedish)" fullWidth />
+      <TextInput source="description" label="Description" multiline fullWidth />
+      <TextInput
+        source="descriptionSv"
+        label="Description (Swedish)"
+        multiline
+        fullWidth
+      />
+      <DateTimeInput
+        source="uploads_open_at"
+        label="Uploads open"
+        parse={toUTCISOString}
+        format={toLocalInputValue}
+        validate={required()}
+      />
+      <DateTimeInput
+        source="uploads_close_at"
+        label="Uploads close"
+        parse={toUTCISOString}
+        format={toLocalInputValue}
+        validate={[required(), validateUploadsClose]}
+      />
+      <DateTimeInput
+        source="gallery_close_at"
+        label="Gallery closes"
+        parse={toUTCISOString}
+        format={toLocalInputValue}
+        validate={[required(), validateGalleryClose]}
+      />
+      <NumberInput
+        source="max_photos_per_guest"
+        label="Photos per guest"
+        min={1}
+        max={25}
+        defaultValue={25}
+      />
+      <SelectInput
+        source="photo_approval"
+        label="Photo approval"
+        choices={photoApprovalChoices}
+        validate={required()}
+        translateChoice={false}
+        helperText="SafeSearch approves a photo only when every category is at or below the selected level. Approving all photos publishes uploads immediately without a content check."
+        fullWidth
+      />
+    </SimpleForm>
+  );
+};
 
 export const PhotoEventList = () => (
   <ResourceList perPage={25} pagination={false}>
@@ -337,12 +379,12 @@ export const PhotoEventList = () => (
   </ResourceList>
 );
 export const PhotoEventCreate = () => (
-  <Create>
+  <Create transform={toPhotoEventPayload}>
     <EventForm />
   </Create>
 );
 export const PhotoEventEdit = () => (
-  <Edit>
+  <Edit transform={toPhotoEventPayload}>
     <EventForm editing />
   </Edit>
 );

@@ -13,7 +13,7 @@ import (
 )
 
 // assessUploadedPhoto never lets an unavailable or uncertain classifier publish a photo.
-func assessUploadedPhoto(ctx context.Context, photo models.EventPhoto, jpeg []byte) string {
+func assessUploadedPhoto(ctx context.Context, photo models.EventPhoto, jpeg []byte, maxLikelihood string) string {
 	started := time.Now()
 	status := "error"
 	var likelihoods map[string]string
@@ -21,7 +21,7 @@ func assessUploadedPhoto(ctx context.Context, photo models.EventPhoto, jpeg []by
 	if err == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = utils.PhotoVisionTimeout(ctx)
-		assessment, assessmentErr := utils.AnalyzePhotoSafeSearch(ctx, analysisImage)
+		assessment, assessmentErr := utils.AnalyzePhotoSafeSearch(ctx, analysisImage, maxLikelihood)
 		cancel()
 		if assessmentErr == nil {
 			status, likelihoods = assessment.Status, assessment.Likelihoods
@@ -47,7 +47,7 @@ func assessUploadedPhoto(ctx context.Context, photo models.EventPhoto, jpeg []by
 	}
 	result := db.DB.Model(&models.EventPhoto{}).
 		Where("id = ? AND event_id = ? AND status = 'pending' AND object_key IS NOT NULL", photo.ID, photo.EventID).
-		Where("EXISTS (SELECT 1 FROM photo_events WHERE id = ? AND auto_approve_safe_photos = true AND deletion_requested_at IS NULL)", photo.EventID).
+		Where("EXISTS (SELECT 1 FROM photo_events WHERE id = ? AND auto_approve_safe_photos = true AND safe_search_max_likelihood = ? AND deletion_requested_at IS NULL)", photo.EventID, maxLikelihood).
 		Updates(fields)
 	if result.Error != nil {
 		log.Printf("photo_ai result=database_error duration_ms=%d", time.Since(started).Milliseconds())

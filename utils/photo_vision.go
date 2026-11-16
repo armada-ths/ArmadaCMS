@@ -30,11 +30,28 @@ type photoVisionHTTPClient struct {
 	endpoint string
 }
 
-// PhotoSafeSearchVerdict accepts only unambiguous low-risk results.
-func PhotoSafeSearchVerdict(likelihoods map[string]string) string {
+var photoVisionLikelihoodRank = map[string]int{
+	"VERY_UNLIKELY": 1,
+	"UNLIKELY":      2,
+	"POSSIBLE":      3,
+	"LIKELY":        4,
+	"VERY_LIKELY":   5,
+}
+
+func ValidPhotoSafeSearchMaxLikelihood(value string) bool {
+	rank := photoVisionLikelihoodRank[value]
+	return rank > 0 && rank <= photoVisionLikelihoodRank["POSSIBLE"]
+}
+
+// PhotoSafeSearchVerdict requires every category to be within the event's threshold.
+func PhotoSafeSearchVerdict(likelihoods map[string]string, maxLikelihood string) string {
+	if !ValidPhotoSafeSearchMaxLikelihood(maxLikelihood) {
+		return "review"
+	}
+	maxRank := photoVisionLikelihoodRank[maxLikelihood]
 	for _, category := range photoVisionCategories {
-		value := likelihoods[category]
-		if value != "VERY_UNLIKELY" && value != "UNLIKELY" {
+		rank := photoVisionLikelihoodRank[likelihoods[category]]
+		if rank == 0 || rank > maxRank {
 			return "review"
 		}
 	}
@@ -43,17 +60,17 @@ func PhotoSafeSearchVerdict(likelihoods map[string]string) string {
 
 // AnalyzePhotoSafeSearch sends only the temporary analysis copy to Google.
 // The local mock is explicit and ignored by Cloud Run.
-func AnalyzePhotoSafeSearch(ctx context.Context, jpeg []byte) (PhotoVisionAssessment, error) {
+func AnalyzePhotoSafeSearch(ctx context.Context, jpeg []byte, maxLikelihood string) (PhotoVisionAssessment, error) {
 	if os.Getenv("K_SERVICE") == "" {
 		switch strings.TrimSpace(os.Getenv("PHOTO_VISION_MOCK_RESULT")) {
 		case "safe":
-			return PhotoVisionAssessment{Status: "safe", Likelihoods: map[string]string{
+			return photoVisionAssessment(maxLikelihood, map[string]string{
 				"adult": "VERY_UNLIKELY", "spoof": "VERY_UNLIKELY", "medical": "VERY_UNLIKELY", "violence": "VERY_UNLIKELY", "racy": "VERY_UNLIKELY",
-			}}, nil
+			}), nil
 		case "review":
-			return PhotoVisionAssessment{Status: "review", Likelihoods: map[string]string{
-				"adult": "POSSIBLE", "spoof": "VERY_UNLIKELY", "medical": "VERY_UNLIKELY", "violence": "VERY_UNLIKELY", "racy": "VERY_UNLIKELY",
-			}}, nil
+			return photoVisionAssessment(maxLikelihood, map[string]string{
+				"adult": "LIKELY", "spoof": "VERY_UNLIKELY", "medical": "VERY_UNLIKELY", "violence": "VERY_UNLIKELY", "racy": "VERY_UNLIKELY",
+			}), nil
 		case "error":
 			return PhotoVisionAssessment{}, errors.New("simulated Vision failure")
 		}
@@ -63,10 +80,10 @@ func AnalyzePhotoSafeSearch(ctx context.Context, jpeg []byte) (PhotoVisionAssess
 		return PhotoVisionAssessment{}, fmt.Errorf("find Vision credentials: %w", err)
 	}
 	httpClient.Timeout = 6 * time.Second
-	return (&photoVisionHTTPClient{client: httpClient, endpoint: photoVisionEndpoint}).analyze(ctx, jpeg)
+	return (&photoVisionHTTPClient{client: httpClient, endpoint: photoVisionEndpoint}).analyze(ctx, jpeg, maxLikelihood)
 }
 
-func (client *photoVisionHTTPClient) analyze(ctx context.Context, jpeg []byte) (PhotoVisionAssessment, error) {
+func (client *photoVisionHTTPClient) analyze(ctx context.Context, jpeg []byte, maxLikelihood string) (PhotoVisionAssessment, error) {
 	if len(jpeg) == 0 || len(jpeg) > 1024*1024 {
 		return PhotoVisionAssessment{}, errors.New("invalid analysis image size")
 	}
@@ -112,7 +129,11 @@ func (client *photoVisionHTTPClient) analyze(ctx context.Context, jpeg []byte) (
 		}
 		likelihoods[category] = value
 	}
-	return PhotoVisionAssessment{Status: PhotoSafeSearchVerdict(likelihoods), Likelihoods: likelihoods}, nil
+	return photoVisionAssessment(maxLikelihood, likelihoods), nil
+}
+
+func photoVisionAssessment(maxLikelihood string, likelihoods map[string]string) PhotoVisionAssessment {
+	return PhotoVisionAssessment{Status: PhotoSafeSearchVerdict(likelihoods, maxLikelihood), Likelihoods: likelihoods}
 }
 
 func PhotoVisionTimeout(ctx context.Context) (context.Context, context.CancelFunc) {

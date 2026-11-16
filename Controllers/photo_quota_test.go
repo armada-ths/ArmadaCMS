@@ -65,7 +65,7 @@ func TestPhotoGuestQuotaLifetimeAndConcurrentUploads(t *testing.T) {
 		t.Fatalf("rejected photo should count: count=%d err=%v", count, err)
 	}
 	second := models.EventPhoto{EventID: event.ID, GuestHash: hash, Status: "pending", ByteSize: 1, Width: 1, Height: 1, UploadedAt: now}
-	if count, err := reservePhotoUpload(&event, &second); err != nil || count != 2 {
+	if count, _, err := reservePhotoUpload(&event, &second); err != nil || count != 2 {
 		t.Fatalf("second upload should fill quota: count=%d err=%v", count, err)
 	}
 	if err := database.Delete(&rejected).Error; err != nil {
@@ -75,8 +75,25 @@ func TestPhotoGuestQuotaLifetimeAndConcurrentUploads(t *testing.T) {
 		t.Fatalf("permanent deletion must not return a slot: count=%d err=%v", count, err)
 	}
 	third := models.EventPhoto{EventID: event.ID, GuestHash: hash, Status: "pending", ByteSize: 1, Width: 1, Height: 1, UploadedAt: now}
-	if _, err := reservePhotoUpload(&event, &third); !errors.Is(err, errPhotoLimitReached) {
+	if _, _, err := reservePhotoUpload(&event, &third); !errors.Is(err, errPhotoLimitReached) {
 		t.Fatalf("third upload should be rejected: %v", err)
+	}
+
+	// An upload already in flight must use the current approval mode.
+	if err := database.Model(&models.PhotoEvent{}).Where("id = ?", event.ID).Update("auto_approve_all_photos", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	unscanned := models.EventPhoto{EventID: event.ID, GuestHash: "another-guest", Status: "pending", ByteSize: 1, Width: 1, Height: 1, UploadedAt: now}
+	if count, _, err := reservePhotoUpload(&event, &unscanned); err != nil || count != 1 {
+		t.Fatalf("automatic approval upload: count=%d err=%v", count, err)
+	}
+	var stored models.EventPhoto
+	if err := database.First(&stored, unscanned.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "approved" || stored.AIReviewStatus != "not_scanned" ||
+		stored.ModeratedAt == nil || stored.ModerationSource == nil || *stored.ModerationSource != "automatic_without_safe_search" {
+		t.Fatalf("unexpected moderation result: %+v", stored)
 	}
 
 	concurrentEvent := models.PhotoEvent{Name: "Concurrent quota test", MaxPhotosPerGuest: 1, UploadsOpenAt: now, UploadsCloseAt: now.Add(time.Hour), GalleryCloseAt: now.Add(2 * time.Hour)}
@@ -94,7 +111,7 @@ func TestPhotoGuestQuotaLifetimeAndConcurrentUploads(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			photo := models.EventPhoto{EventID: concurrentEvent.ID, GuestHash: concurrentHash, Status: "pending", ByteSize: 1, Width: 1, Height: 1, UploadedAt: now}
-			_, err := reservePhotoUpload(&concurrentEvent, &photo)
+			_, _, err := reservePhotoUpload(&concurrentEvent, &photo)
 			results <- err
 		}()
 	}

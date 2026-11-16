@@ -3,21 +3,23 @@ package models
 import "time"
 
 type PhotoEvent struct {
-	NameSv                *string    `gorm:"column:name_sv" json:"nameSv,omitempty"`
-	DescriptionSv         *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"`
-	ID                    uint64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	Name                  string     `gorm:"column:name" json:"name"`
-	Description           string     `gorm:"column:description" json:"description"`
-	UploadsOpenAt         time.Time  `gorm:"column:uploads_open_at" json:"uploads_open_at"`
-	UploadsCloseAt        time.Time  `gorm:"column:uploads_close_at" json:"uploads_close_at"`
-	GalleryCloseAt        time.Time  `gorm:"column:gallery_close_at" json:"gallery_close_at"`
-	DeletionRequestedAt   *time.Time `gorm:"column:deletion_requested_at" json:"deletion_requested_at"`
-	DeletionCompletedAt   *time.Time `gorm:"column:deletion_completed_at" json:"deletion_completed_at"`
-	MaxPhotosPerGuest     int        `gorm:"column:max_photos_per_guest;default:25" json:"max_photos_per_guest"`
-	AutoApproveSafePhotos bool       `gorm:"column:auto_approve_safe_photos;default:false" json:"auto_approve_safe_photos"`
-	TokenVersion          int        `gorm:"column:token_version;default:1" json:"token_version"`
-	CreatedAt             time.Time  `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt             time.Time  `gorm:"column:updated_at" json:"updated_at"`
+	NameSv                  *string    `gorm:"column:name_sv" json:"nameSv,omitempty"`
+	DescriptionSv           *string    `gorm:"column:description_sv" json:"descriptionSv,omitempty"`
+	ID                      uint64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	Name                    string     `gorm:"column:name" json:"name"`
+	Description             string     `gorm:"column:description" json:"description"`
+	UploadsOpenAt           time.Time  `gorm:"column:uploads_open_at" json:"uploads_open_at"`
+	UploadsCloseAt          time.Time  `gorm:"column:uploads_close_at" json:"uploads_close_at"`
+	GalleryCloseAt          time.Time  `gorm:"column:gallery_close_at" json:"gallery_close_at"`
+	DeletionRequestedAt     *time.Time `gorm:"column:deletion_requested_at" json:"deletion_requested_at"`
+	DeletionCompletedAt     *time.Time `gorm:"column:deletion_completed_at" json:"deletion_completed_at"`
+	MaxPhotosPerGuest       int        `gorm:"column:max_photos_per_guest;default:25" json:"max_photos_per_guest"`
+	AutoApproveSafePhotos   bool       `gorm:"column:auto_approve_safe_photos;default:false" json:"auto_approve_safe_photos"`
+	AutoApproveAllPhotos    bool       `gorm:"column:auto_approve_all_photos;default:false" json:"auto_approve_all_photos"`
+	SafeSearchMaxLikelihood string     `gorm:"column:safe_search_max_likelihood;default:UNLIKELY" json:"safe_search_max_likelihood"`
+	TokenVersion            int        `gorm:"column:token_version;default:1" json:"token_version"`
+	CreatedAt               time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt               time.Time  `gorm:"column:updated_at" json:"updated_at"`
 }
 
 type EventPhoto struct {

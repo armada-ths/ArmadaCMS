@@ -30,6 +30,12 @@ func validatePhotoEvent(event models.PhotoEvent) error {
 	if event.MaxPhotosPerGuest < 1 || event.MaxPhotosPerGuest > 25 {
 		return fmt.Errorf("photos per guest must be between 1 and 25")
 	}
+	if event.AutoApproveAllPhotos && event.AutoApproveSafePhotos {
+		return fmt.Errorf("choose only one automatic photo approval mode")
+	}
+	if event.SafeSearchMaxLikelihood != "" && !utils.ValidPhotoSafeSearchMaxLikelihood(event.SafeSearchMaxLikelihood) {
+		return fmt.Errorf("invalid SafeSearch approval threshold")
+	}
 	if !event.UploadsOpenAt.Before(event.UploadsCloseAt) {
 		return fmt.Errorf("uploads must close after they open")
 	}
@@ -123,19 +129,40 @@ func UpdatePhotoEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	input.ID, input.TokenVersion, input.CreatedAt = before.ID, before.TokenVersion, before.CreatedAt
 	input.DeletionRequestedAt, input.DeletionCompletedAt = before.DeletionRequestedAt, before.DeletionCompletedAt
-	if err := validatePhotoEvent(input); err != nil {
-		photoEventBadRequest(w, err.Error())
-		return
-	}
 	if _, present := raw["nameSv"]; !present {
 		input.NameSv = before.NameSv
 	}
 	if _, present := raw["descriptionSv"]; !present {
 		input.DescriptionSv = before.DescriptionSv
 	}
+	if _, present := raw["auto_approve_safe_photos"]; !present {
+		input.AutoApproveSafePhotos = before.AutoApproveSafePhotos
+	}
+	if _, present := raw["auto_approve_all_photos"]; !present {
+		input.AutoApproveAllPhotos = before.AutoApproveAllPhotos
+	}
+	if input.SafeSearchMaxLikelihood == "" {
+		input.SafeSearchMaxLikelihood = before.SafeSearchMaxLikelihood
+	}
+	if err := validatePhotoEvent(input); err != nil {
+		photoEventBadRequest(w, err.Error())
+		return
+	}
 	NormalizeOptionalStringPointers(&input.NameSv, &input.DescriptionSv)
 	if err := updateWithAudit(r, "photoevents", before.ID, before, &input, func(tx *gorm.DB) error {
-		return tx.Model(&before).Updates(map[string]any{"name_sv": input.NameSv, "description_sv": input.DescriptionSv, "name": input.Name, "description": input.Description, "uploads_open_at": input.UploadsOpenAt, "uploads_close_at": input.UploadsCloseAt, "gallery_close_at": input.GalleryCloseAt, "max_photos_per_guest": input.MaxPhotosPerGuest, "auto_approve_safe_photos": input.AutoApproveSafePhotos}).Error
+		return tx.Model(&before).Updates(map[string]any{
+			"name_sv":                    input.NameSv,
+			"description_sv":             input.DescriptionSv,
+			"name":                       input.Name,
+			"description":                input.Description,
+			"uploads_open_at":            input.UploadsOpenAt,
+			"uploads_close_at":           input.UploadsCloseAt,
+			"gallery_close_at":           input.GalleryCloseAt,
+			"max_photos_per_guest":       input.MaxPhotosPerGuest,
+			"auto_approve_safe_photos":   input.AutoApproveSafePhotos,
+			"auto_approve_all_photos":    input.AutoApproveAllPhotos,
+			"safe_search_max_likelihood": input.SafeSearchMaxLikelihood,
+		}).Error
 	}, func(tx *gorm.DB) error { return tx.First(&input, before.ID).Error }); err != nil {
 		http.Error(w, "Update failed", 500)
 		return

@@ -240,7 +240,13 @@ export function PhotoModerationGrid({
                   )}
                 {photo.moderation_source === "vision_safe_search" && (
                   <Typography variant="caption">
-                    Automatically approved
+                    Automatically approved by SafeSearch
+                  </Typography>
+                )}
+                {photo.moderation_source ===
+                  "automatic_without_safe_search" && (
+                  <Typography variant="caption">
+                    Automatically approved without SafeSearch
                   </Typography>
                 )}
               </Paper>

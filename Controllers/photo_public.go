@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var errPhotoLimitReached = errors.New("photo limit reached")
@@ -60,9 +61,16 @@ func photoGuestQuota(event *models.PhotoEvent, guestID string) (int64, error) {
 
 // reservePhotoUpload atomically consumes one lifetime slot and registers the
 // photo. A rejected or later deleted photo does not return its slot.
-func reservePhotoUpload(event *models.PhotoEvent, photo *models.EventPhoto) (int64, error) {
+func reservePhotoUpload(event *models.PhotoEvent, photo *models.EventPhoto) (int64, *models.PhotoEvent, error) {
 	var count int64
+	var current models.PhotoEvent
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		// Hold the event policy stable until the photo is registered.
+		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).
+			Where("id = ? AND token_version = ? AND deletion_requested_at IS NULL", event.ID, event.TokenVersion).
+			First(&current).Error; err != nil {
+			return err
+		}
 		result := tx.Raw(`
 			insert into public.photo_guest_uploads as quota (event_id, guest_hash, upload_count)
 			select ?, ?, count(*) + 1
@@ -74,7 +82,7 @@ func reservePhotoUpload(event *models.PhotoEvent, photo *models.EventPhoto) (int
 			where quota.upload_count < ?
 			returning upload_count`,
 			event.ID, photo.GuestHash, event.ID, photo.GuestHash,
-			event.MaxPhotosPerGuest, event.MaxPhotosPerGuest,
+			current.MaxPhotosPerGuest, current.MaxPhotosPerGuest,
 		).Scan(&count)
 		if result.Error != nil {
 			return result.Error
@@ -82,9 +90,16 @@ func reservePhotoUpload(event *models.PhotoEvent, photo *models.EventPhoto) (int
 		if result.RowsAffected == 0 {
 			return errPhotoLimitReached
 		}
+		if current.AutoApproveAllPhotos {
+			now := time.Now().UTC()
+			source := "automatic_without_safe_search"
+			photo.Status = "approved"
+			photo.ModeratedAt = &now
+			photo.ModerationSource = &source
+		}
 		return tx.Create(photo).Error
 	})
-	return count, err
+	return count, &current, err
 }
 
 func PhotoEventAccess(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +212,7 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	photo := models.EventPhoto{EventID: event.ID, ObjectKey: &key, ThumbnailObjectKey: thumbnailKey, Status: "pending", AIReviewStatus: "not_scanned", GuestHash: hash, ByteSize: int64(len(jpeg)), Width: width, Height: height, UploadedAt: time.Now()}
-	registeredCount, err := reservePhotoUpload(event, &photo)
+	registeredCount, currentEvent, err := reservePhotoUpload(event, &photo)
 	if err != nil {
 		cleanup()
 		if errors.Is(err, errPhotoLimitReached) {
@@ -207,9 +222,10 @@ func PhotoEventUpload(w http.ResponseWriter, r *http.Request) {
 		writePhotoPublicError(w, "could_not_register_photo", "Could not register photo", http.StatusServiceUnavailable)
 		return
 	}
-	photoStatus := "pending"
+	event = currentEvent
+	photoStatus := photo.Status
 	if event.AutoApproveSafePhotos {
-		photoStatus = assessUploadedPhoto(r.Context(), photo, jpeg)
+		photoStatus = assessUploadedPhoto(r.Context(), photo, jpeg, event.SafeSearchMaxLikelihood)
 	}
 	result = photoStatus
 	var pending int64
